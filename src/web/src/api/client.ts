@@ -88,6 +88,13 @@ export const api = {
       { signal },
     ),
 
+  resolveLink: (tripId: string, url: string, signal?: AbortSignal) =>
+    request<GeocodeResultResponse>(`/trips/${tripId}/places/resolve-link`, {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+      signal,
+    }),
+
   createPlace: (tripId: string, body: CreatePlaceRequest) =>
     request<PlaceResponse>(`/trips/${tripId}/places`, {
       method: 'POST',

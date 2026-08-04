@@ -58,11 +58,20 @@ Current state:
 
 | Suite                | Result |
 | -------------------- | ------ |
-| Domain unit tests    | 152 passing |
-| API integration tests | 129 passing |
-| Frontend (Vitest)    | 46 passing |
-| Domain line coverage | 98.04% (gate 90%) |
-| Api line coverage    | 92.68% (gate 70%) |
+| Domain unit tests    | 199 passing |
+| API integration tests | 148 passing |
+| Frontend (Vitest)    | 50 passing |
+| Domain line coverage | 95.95% (gate 90%) |
+| Api line coverage    | 92.97% (gate 70%) |
+
+### Adding a place
+
+Three ways, in order of how often they work for Vietnam:
+
+1. **Paste a Google Maps link** into the search box — Share → copy link → paste.
+   Short `maps.app.goo.gl` links are expanded server-side. Bare coordinates work too.
+2. **Type a name** — searches OpenStreetMap, ranked by distance from your trip.
+3. **Click the map** — for anywhere that is in no database at all.
 
 ---
 
@@ -105,6 +114,7 @@ Trip-scoped — all require a session cookie whose `tripId` matches the route:
 | `GET` | `/trips/{tripId}/places?includeDeleted=` |
 | `POST` | `/trips/{tripId}/places` |
 | `GET` | `/trips/{tripId}/places/search?q=` → place-name lookup |
+| `POST` | `/trips/{tripId}/places/resolve-link` → coordinates from a pasted map link |
 | `GET` | `/trips/{tripId}/places/{placeId}` |
 | `PATCH` | `/trips/{tripId}/places/{placeId}` |
 | `DELETE` | `/trips/{tripId}/places/{placeId}?force=` |

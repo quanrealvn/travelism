@@ -32,6 +32,7 @@ public static class ErrorCodes
     public const string RateLimited = "RATE_LIMITED";
     public const string WeatherUnavailable = "WEATHER_UNAVAILABLE";
     public const string GeocodingUnavailable = "GEOCODING_UNAVAILABLE";
+    public const string LinkNotRecognised = "LINK_NOT_RECOGNISED";
     public const string InternalError = "INTERNAL_ERROR";
     public const string InviteCodeGenerationFailed = "INVITE_CODE_GENERATION_FAILED";
 }

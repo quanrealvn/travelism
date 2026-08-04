@@ -30,6 +30,9 @@ public sealed record UpdateTripRequest(
     Patch<long?> BudgetAmount,
     Patch<string?> Status);
 
+/// <summary>A pasted map link or coordinate pair to turn into a location.</summary>
+public sealed record ResolveLinkRequest(string? Url);
+
 public sealed record CreatePlaceRequest(
     string? Name,
     double? Lat,

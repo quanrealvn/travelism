@@ -323,6 +323,11 @@ legend {
   color: var(--danger);
 }
 
+.search-hint-quiet {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
 .search-results {
   list-style: none;
   margin: -0.3rem 0 0.7rem;

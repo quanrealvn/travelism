@@ -36,6 +36,9 @@ public class WeGoAppFactory : WebApplicationFactory<Program>
     /// </summary>
     public StubGeocoder Geocoder { get; } = new();
 
+    /// <summary>Stands in for following a shortened map link.</summary>
+    public StubLinkExpander LinkExpander { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -53,6 +56,9 @@ public class WeGoAppFactory : WebApplicationFactory<Program>
             // so nothing in the suite can reach the real OpenStreetMap.
             services.RemoveAll<IGeocoder>();
             services.AddSingleton<IGeocoder>(Geocoder);
+
+            services.RemoveAll<ILinkExpander>();
+            services.AddSingleton<ILinkExpander>(LinkExpander);
         });
     }
 

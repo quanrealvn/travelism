@@ -42,6 +42,19 @@ public static class InfrastructureServiceCollectionExtensions
 
         services.AddMemoryCache();
 
+        services.AddHttpClient<ILinkExpander, GoogleLinkExpander>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(options.UserAgent);
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            // Off deliberately: each hop is re-checked against the allowlist in
+            // GoogleLinkExpander, which cannot happen if the handler chases
+            // redirects on its own.
+            AllowAutoRedirect = false,
+        });
+
         services.AddHttpClient<IGeocoder, NominatimGeocoder>(client =>
         {
             client.BaseAddress = new Uri(options.BaseAddress);

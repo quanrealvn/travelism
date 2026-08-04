@@ -9,8 +9,69 @@ using WeGo.Infrastructure.Persistence;
 
 namespace WeGo.Api.Services;
 
-public sealed class GeocodingService(WeGoDbContext db, IGeocoder geocoder)
+public sealed class GeocodingService(WeGoDbContext db, IGeocoder geocoder, ILinkExpander linkExpander)
 {
+    /// <summary>
+    /// Turns a pasted map link or coordinate pair into a location.
+    /// <para>
+    /// This is the answer to the places OpenStreetMap does not have. Trip
+    /// planning already happens by sharing a Google Maps link in a group chat,
+    /// so accepting that link directly makes anything on Google Maps usable
+    /// here — the searching happened on their side, and nothing of theirs is
+    /// queried or stored.
+    /// </para>
+    /// </summary>
+    public async Task<Result<GeocodeResultResponse>> ResolveLinkAsync(
+        Guid tripId,
+        string? input,
+        CancellationToken cancellationToken)
+    {
+        var text = StringInput.Normalize(input);
+        if (text is null)
+        {
+            var missing = new ValidationResult();
+            missing.Add("url", FieldErrorCodes.Required, "Paste a map link or a pair of coordinates.");
+            return Failure.Validation(missing, "The link could not be read.");
+        }
+
+        var parsed = PlaceLink.Parse(text);
+
+        // A shortened link carries no coordinates until it is followed.
+        if (parsed is null && PlaceLink.TryGetExpandableUrl(text, out var shortUrl))
+        {
+            var expanded = await linkExpander
+                .ExpandAsync(shortUrl!, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (expanded is not null)
+            {
+                parsed = PlaceLink.Parse(expanded);
+            }
+        }
+
+        if (parsed is null)
+        {
+            return Failure.Unprocessable(
+                ErrorCodes.LinkNotRecognised,
+                "That link does not contain a location. Open the place in Google Maps, "
+                    + "use Share, and paste the link it gives you.");
+        }
+
+        var near = await FindBiasPointAsync(tripId, cancellationToken).ConfigureAwait(false);
+
+        // A link carries no address, so the coordinates are the most useful
+        // secondary line — and repeating the name there would tell nobody anything.
+        var coordinates = FormattableString.Invariant($"{parsed.Lat:0.#####}, {parsed.Lng:0.#####}");
+
+        return Result<GeocodeResultResponse>.Ok(new GeocodeResultResponse(
+            parsed.Name ?? string.Empty,
+            coordinates,
+            parsed.Lat,
+            parsed.Lng,
+            "link",
+            near is { } point ? Geo.DistanceKm(point.Lat, point.Lng, parsed.Lat, parsed.Lng) : null));
+    }
+
     public async Task<Result<IReadOnlyList<GeocodeResultResponse>>> SearchAsync(
         Guid tripId,
         string? query,

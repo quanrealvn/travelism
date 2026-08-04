@@ -32,7 +32,7 @@ function mockFetch(handler: (url: string) => { ok: boolean; status: number; body
   return spy
 }
 
-const searchBox = () => screen.getByLabelText(/tìm địa điểm theo tên/i)
+const searchBox = () => screen.getByLabelText(/tìm địa điểm theo tên hoặc dán link/i)
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -94,7 +94,7 @@ describe('PlaceSearch', () => {
     })
   })
 
-  it('tells the user to fall back to manual coordinates when the geocoder is down', async () => {
+  it('offers the working alternatives when the geocoder is down', async () => {
     mockFetch(() => ({
       ok: false,
       status: 502,
@@ -104,7 +104,11 @@ describe('PlaceSearch', () => {
 
     await user.type(searchBox(), 'thac')
 
-    expect(await screen.findByText(/nhập toạ độ thủ công/i)).toBeInTheDocument()
+    // An outage must not be a dead end: pasting a link and clicking the map
+    // both still work.
+    const message = await screen.findByRole('status')
+    expect(message).toHaveTextContent(/dán link/i)
+    expect(message).toHaveTextContent(/bấm lên bản đồ/i)
   })
 
   it('reports an empty result set with advice that actually helps', async () => {
@@ -113,10 +117,12 @@ describe('PlaceSearch', () => {
 
     await user.type(searchBox(), 'Tiểu khu 32 thị trấn Nông Trường')
 
-    // Naming the failed query and pointing at the two things that do work —
-    // a shorter name, or the map — beats a bare "no results".
-    const hint = await screen.findByText(/không tìm thấy/i)
+    // Naming the failed query and pointing at what does work — a shorter name,
+    // a pasted link, or the map — beats a bare "no results".
+    const hint = await screen.findByRole('status')
+    expect(hint).toHaveTextContent(/không tìm thấy/i)
     expect(hint).toHaveTextContent(/tên ngắn hơn/i)
+    expect(hint).toHaveTextContent(/dán link/i)
     expect(hint).toHaveTextContent(/bấm thẳng lên bản đồ/i)
     expect(screen.queryByLabelText('Kết quả tìm kiếm')).not.toBeInTheDocument()
   })
@@ -153,6 +159,79 @@ describe('PlaceSearch', () => {
 
     expect(await screen.findByText(/xa chuyến đi/i)).toBeInTheDocument()
     expect(screen.getByText('1.632 km')).toBeInTheDocument()
+  })
+
+  it('resolves a pasted map link instead of searching for it as a name', async () => {
+    const fetchSpy = mockFetch(() => ({
+      ok: true,
+      status: 200,
+      body: {
+        name: 'Thác Dải Yếm',
+        // A link has no address, so the server sends the coordinates here.
+        displayName: '20.817975, 104.591686',
+        lat: 20.817975,
+        lng: 104.591686,
+        kind: 'link',
+        distanceKm: 2.1,
+      },
+    }))
+    const onPick = vi.fn()
+    const { user } = renderWithQuery(<PlaceSearch tripId="t1" onPick={onPick} />)
+
+    await user.click(searchBox())
+    await user.paste('https://maps.app.goo.gl/AbCdEf123')
+
+    await user.click(await screen.findByText('Thác Dải Yếm'))
+
+    expect(onPick).toHaveBeenCalledWith(
+      expect.objectContaining({ lat: 20.817975, lng: 104.591686 }),
+    )
+    // The paste must go to the resolver, not the name search.
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/trips/t1/places/resolve-link')
+  })
+
+  it('sends a pasted coordinate pair to the resolver too', async () => {
+    const fetchSpy = mockFetch(() => ({
+      ok: true,
+      status: 200,
+      body: {
+        name: '',
+        displayName: '20.8386, 104.6383',
+        lat: 20.8386,
+        lng: 104.6383,
+        kind: 'link',
+        distanceKm: null,
+      },
+    }))
+    const { user } = renderWithQuery(<PlaceSearch tripId="t1" onPick={vi.fn()} />)
+
+    await user.click(searchBox())
+    await user.paste('20.8386, 104.6383')
+
+    // A location with no name still needs something clickable.
+    expect(await screen.findByText(/vị trí từ link/i)).toBeInTheDocument()
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/trips/t1/places/resolve-link')
+  })
+
+  it('explains a link that carries no location', async () => {
+    mockFetch(() => ({
+      ok: false,
+      status: 422,
+      body: { status: 422, code: 'LINK_NOT_RECOGNISED', detail: 'no location' },
+    }))
+    const { user } = renderWithQuery(<PlaceSearch tripId="t1" onPick={vi.fn()} />)
+
+    await user.click(searchBox())
+    await user.paste('https://maps.app.goo.gl/broken')
+
+    expect(await screen.findByText(/không chứa vị trí/i)).toBeInTheDocument()
+  })
+
+  it('tells the user that pasting a link is an option', () => {
+    mockFetch(() => ({ ok: true, status: 200, body: [] }))
+    renderWithQuery(<PlaceSearch tripId="t1" onPick={vi.fn()} />)
+
+    expect(screen.getByText(/dán link vào đây/i)).toBeInTheDocument()
   })
 
   it('does not flag a nearby match', async () => {

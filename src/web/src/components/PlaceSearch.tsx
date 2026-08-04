@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { GeocodeResultResponse } from '../api/api-types'
 import { ApiError } from '../api/client'
-import { usePlaceSearch } from '../api/hooks'
+import { isLocationPaste, usePlaceLink, usePlaceSearch } from '../api/hooks'
 import { useDebouncedSearchTerm } from '../hooks/useDebounced'
 
 interface PlaceSearchProps {
@@ -31,17 +31,34 @@ function formatDistance(distanceKm: number): string {
 }
 
 /**
- * Type a place name, pick from the matches, and the coordinates come with it.
- * Search is a convenience, never a gate: if nothing matches — or the geocoder
- * is down — the form still accepts coordinates entered by hand.
+ * One box for two jobs: type a name to search OpenStreetMap, or paste a map
+ * link to use it directly.
+ *
+ * The paste path matters because OSM does not have every place in Vietnam.
+ * Planning already happens by sharing a Google Maps link in a group chat, so
+ * pasting that link is both the most familiar action and the one with the best
+ * coverage — the searching happened on Google's side.
  */
 export function PlaceSearch({ tripId, onPick }: PlaceSearchProps) {
   const [term, setTerm] = useState('')
-  const debounced = useDebouncedSearchTerm(term.trim(), 400)
-  const search = usePlaceSearch(tripId, debounced)
+  const trimmed = term.trim()
+  const pasted = isLocationPaste(trimmed)
 
-  const showResults = debounced.length >= 2
-  const results = search.data ?? []
+  // A pasted link is resolved as-is; only typed names are debounced, since
+  // there is no "still typing" to wait out when something was pasted whole.
+  const debounced = useDebouncedSearchTerm(pasted ? '' : trimmed, 400)
+
+  const search = usePlaceSearch(tripId, debounced)
+  const link = usePlaceLink(tripId, pasted ? trimmed : '')
+
+  const active = pasted ? link : search
+  const results = pasted
+    ? link.data
+      ? [link.data]
+      : []
+    : (search.data ?? [])
+
+  const showFeedback = pasted || debounced.length >= 2
 
   function pick(result: GeocodeResultResponse) {
     onPick(result)
@@ -56,27 +73,31 @@ export function PlaceSearch({ tripId, onPick }: PlaceSearchProps) {
           type="search"
           value={term}
           onChange={(e) => setTerm(e.target.value)}
-          placeholder="ví dụ: Thác Dải Yếm"
+          placeholder="Tên địa điểm, hoặc dán link Google Maps"
           autoComplete="off"
-          aria-label="Tìm địa điểm theo tên"
+          aria-label="Tìm địa điểm theo tên hoặc dán link bản đồ"
         />
       </label>
 
-      {showResults && search.isFetching && <p className="search-hint">Đang tìm…</p>}
+      <p className="search-hint search-hint-quiet">
+        Mẹo: mở địa điểm trong Google Maps → Chia sẻ → dán link vào đây.
+      </p>
 
-      {showResults && search.isError && (
+      {showFeedback && active.isFetching && (
+        <p className="search-hint">{pasted ? 'Đang mở link…' : 'Đang tìm…'}</p>
+      )}
+
+      {showFeedback && active.isError && (
         <p className="search-hint search-hint-error" role="status">
-          {search.error instanceof ApiError && search.error.code === 'GEOCODING_UNAVAILABLE'
-            ? 'Không tìm được lúc này. Bạn có thể nhập toạ độ thủ công bên dưới.'
-            : 'Tìm kiếm lỗi. Nhập toạ độ thủ công bên dưới nhé.'}
+          {describeError(active.error, pasted)}
         </p>
       )}
 
-      {showResults && !search.isFetching && !search.isError && results.length === 0 && (
+      {showFeedback && !active.isFetching && !active.isError && results.length === 0 && !pasted && (
         <p className="search-hint" role="status">
           Không tìm thấy “{debounced}”. Bản đồ OpenStreetMap không có mọi địa
-          điểm ở Việt Nam. Thử tên ngắn hơn (ví dụ “Nông Trường” thay vì cả địa
-          chỉ), hoặc bấm thẳng lên bản đồ để chọn vị trí.
+          điểm ở Việt Nam. Thử tên ngắn hơn, dán link Google Maps, hoặc bấm
+          thẳng lên bản đồ.
         </p>
       )}
 
@@ -86,7 +107,7 @@ export function PlaceSearch({ tripId, onPick }: PlaceSearchProps) {
             <li key={`${result.lat},${result.lng},${result.displayName}`}>
               <button type="button" onClick={() => pick(result)}>
                 <span className="search-result-name">
-                  {result.name}
+                  {result.name === '' ? 'Vị trí từ link' : result.name}
                   {isFarAway(result.distanceKm) && (
                     <span className="search-result-far" title="Rất xa các địa điểm khác của chuyến đi">
                       xa chuyến đi
@@ -107,4 +128,18 @@ export function PlaceSearch({ tripId, onPick }: PlaceSearchProps) {
       )}
     </div>
   )
+}
+
+function describeError(error: unknown, pasted: boolean): string {
+  if (error instanceof ApiError && error.code === 'LINK_NOT_RECOGNISED') {
+    return 'Link này không chứa vị trí. Trong Google Maps, bấm Chia sẻ rồi sao chép link.'
+  }
+
+  if (error instanceof ApiError && error.code === 'GEOCODING_UNAVAILABLE') {
+    return 'Không tìm được lúc này. Bạn có thể dán link Google Maps hoặc bấm lên bản đồ.'
+  }
+
+  return pasted
+    ? 'Không mở được link. Thử dán lại, hoặc bấm thẳng lên bản đồ.'
+    : 'Tìm kiếm lỗi. Dán link Google Maps hoặc bấm lên bản đồ nhé.'
 }

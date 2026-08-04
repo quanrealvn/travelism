@@ -8,6 +8,32 @@ export const queryKeys = {
   trip: (tripId: string) => ['trip', tripId] as const,
   places: (tripId: string) => ['places', tripId] as const,
   placeSearch: (tripId: string, query: string) => ['place-search', tripId, query] as const,
+  placeLink: (tripId: string, url: string) => ['place-link', tripId, url] as const,
+}
+
+/**
+ * Recognises input that is a location rather than a name to search for: a
+ * pasted map link, or a coordinate pair copied out of one.
+ *
+ * mirror of server rule — PlaceLink.Parse is authoritative and re-checks
+ * everything. This only decides which endpoint to call.
+ */
+const URL_PREFIX = /^https?:\/\//i
+const COORDINATE_PAIR = /^\s*-?\d{1,3}(\.\d+)?\s*[,\s]\s*-?\d{1,3}(\.\d+)?\s*$/
+
+export function isLocationPaste(input: string): boolean {
+  return URL_PREFIX.test(input.trim()) || COORDINATE_PAIR.test(input)
+}
+
+/** Resolves a pasted map link into a single location. */
+export function usePlaceLink(tripId: string, url: string) {
+  return useQuery({
+    queryKey: queryKeys.placeLink(tripId, url),
+    queryFn: ({ signal }) => api.resolveLink(tripId, url, signal),
+    enabled: url.trim().length > 0 && isLocationPaste(url),
+    staleTime: 10 * 60_000,
+    retry: false,
+  })
 }
 
 /**

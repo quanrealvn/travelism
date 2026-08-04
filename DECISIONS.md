@@ -253,6 +253,36 @@ So the empty state names the query that failed and points at the two things that
 do work — a shorter name, or clicking the map — rather than saying "no results"
 and leaving the user stuck. Click-to-place (D28) is the real answer here.
 
+### D32 — A pasted map link is a first-class way to add a place
+**Quan's decision, after OSM coverage proved insufficient (D31).**
+
+`POST /trips/{tripId}/places/resolve-link` accepts a Google Maps link, an
+OpenStreetMap link, or a bare coordinate pair, and returns a location. The
+search box detects a pasted URL or coordinates and routes to this endpoint
+instead of the geocoder, so it is one field rather than two.
+
+This is deliberately not a Google integration. Nothing of Google's is queried,
+cached or stored — the user searched on their side and handed over a URL, and
+all we do is read the coordinates out of it. That sidesteps the API cost, the
+key management, and the Maps Platform term that restricts showing Google place
+content alongside a non-Google map. Coverage becomes "anything on Google Maps"
+for no cost and no change to the §2 stack.
+
+Parsing detail worth keeping: in a `/maps/place/` URL the `!3d…!4d…` pair is the
+pin, while `@lat,lng` is only where the viewport happened to be. They differ by
+tens of metres and sometimes far more, so the pin wins and the viewport is a
+last resort.
+
+### D33 — Only two hosts may ever be fetched
+Expanding a `maps.app.goo.gl` short link means the server makes a request to a
+URL the user supplied — textbook SSRF. Two guards, both tested:
+`PlaceLink.TryGetExpandableUrl` admits only `maps.app.goo.gl` and `goo.gl`
+(exact host match, so `maps.app.goo.gl.evil.com` fails), and automatic redirect
+following is **off** so every hop is re-checked rather than chased blindly.
+`localhost`, `127.0.0.1`, `169.254.169.254` and `file://` are covered by explicit
+tests asserting no outbound call is made — including from an unauthenticated
+caller, who cannot reach the endpoint at all.
+
 ### D26 — `@testing-library/react` is pinned to v16 for a single `@testing-library/dom`
 RTL 14 depends on its own nested `@testing-library/dom@9`, while
 `user-event@14` resolves the hoisted `@testing-library/dom@10`. RTL installs the

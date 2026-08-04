@@ -70,7 +70,8 @@ export function PlaceForm({
       ...current,
       // The typed name is only replaced when the field is still untouched, so
       // picking a location never overwrites a name the user chose themselves.
-      name: current.name.trim() === '' ? result.name : current.name,
+      // A pasted link may carry no name at all, which must not blank the field.
+      name: current.name.trim() === '' && result.name !== '' ? result.name : current.name,
       lat: String(result.lat),
       lng: String(result.lng),
     }))

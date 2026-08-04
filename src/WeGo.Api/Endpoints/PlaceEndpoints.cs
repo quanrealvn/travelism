@@ -51,6 +51,17 @@ public static class PlaceEndpoints
         })
         .WithName("SearchPlaces");
 
+        group.MapPost("/resolve-link", async (
+            Guid tripId,
+            ResolveLinkRequest request,
+            GeocodingService geocoding,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await geocoding.ResolveLinkAsync(tripId, request.Url, cancellationToken);
+            return result.ToOk();
+        })
+        .WithName("ResolvePlaceLink");
+
         group.MapGet("/{placeId:guid}", async (
             Guid tripId,
             Guid placeId,
