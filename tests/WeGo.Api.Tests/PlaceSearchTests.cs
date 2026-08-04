@@ -34,6 +34,62 @@ public sealed class PlaceSearchTests
     }
 
     [Fact]
+    public async Task Results_are_ordered_by_distance_from_the_trip()
+    {
+        using var factory = new WeGoAppFactory();
+        factory.Geocoder.Results.Clear();
+        // Upstream order puts the far match first, which is exactly what
+        // Nominatim does for a Vietnamese name it ranks by "importance".
+        factory.Geocoder.Results.Add(
+            new GeocodeSearchResult("Kaohsiung street", "…, 高雄市, 臺灣", 22.6273, 120.3014, "road"));
+        factory.Geocoder.Results.Add(
+            new GeocodeSearchResult("Hang Táu", "Hang Táu, Mộc Châu", 20.8500, 104.6500, "hamlet"));
+
+        var client = factory.CreateApiClient();
+        var trip = await client.CreateTripAsync(ownerDisplayName: "Ranker");
+        await client.CreatePlaceAsync(trip.Trip.Id, name: "Anchor", lat: 20.8386, lng: 104.6383);
+
+        var results = await client.GetFromJsonAsync<List<GeocodeResultResponse>>(
+            $"/trips/{trip.Trip.Id}/places/search?q=hang+tau", ApiClient.Json);
+
+        results.Should().NotBeNull();
+        var ranked = results!;
+        ranked.Should().HaveCount(2);
+        ranked[0].Name.Should().Be("Hang Táu", "the nearby match belongs on top");
+        ranked[0].DistanceKm.Should().BeLessThan(30);
+        ranked[1].DistanceKm.Should().BeGreaterThan(1_000, "the Taiwan match is visibly far away");
+    }
+
+    [Fact]
+    public async Task Results_carry_no_distance_when_the_trip_has_no_places_yet()
+    {
+        using var factory = new WeGoAppFactory();
+        var client = factory.CreateApiClient();
+        var trip = await client.CreateTripAsync(ownerDisplayName: "NoAnchor");
+
+        var results = await client.GetFromJsonAsync<List<GeocodeResultResponse>>(
+            $"/trips/{trip.Trip.Id}/places/search?q=thac", ApiClient.Json);
+
+        results.Should().NotBeNull();
+        results!.Should().NotBeEmpty();
+        results!.Should().OnlyContain(r => r.DistanceKm == null);
+    }
+
+    [Fact]
+    public async Task Upstream_order_is_preserved_when_there_is_nothing_to_measure_from()
+    {
+        using var factory = new WeGoAppFactory();
+        var client = factory.CreateApiClient();
+        var trip = await client.CreateTripAsync(ownerDisplayName: "Unranked");
+
+        var results = await client.GetFromJsonAsync<List<GeocodeResultResponse>>(
+            $"/trips/{trip.Trip.Id}/places/search?q=thac", ApiClient.Json);
+
+        results!.Select(r => r.Name)
+            .Should().Equal(factory.Geocoder.Results.Select(r => r.Name));
+    }
+
+    [Fact]
     public async Task Search_trims_the_query_before_calling_the_geocoder()
     {
         using var factory = new WeGoAppFactory();

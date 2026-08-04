@@ -221,6 +221,38 @@ What remains is `NominatimGeocoderTests`, which pins that a query reaches the
 wire byte-for-byte as typed and is UTF-8 percent-encoded exactly once — the
 regression that *would* have mattered.
 
+### D30 — Search results are ranked by distance from the trip, and show it
+Nominatim ranks by its own notion of importance, which for a Vietnamese place
+name regularly puts another country first. Measured live: `Tiểu khu 32` returns
+a street in Kaohsiung, `Hang Táu` one in Hong Kong. Both look entirely plausible
+as a list of names — nothing in the result says it is 1,600 km away.
+
+Results are therefore sorted by great-circle distance from the centroid of the
+trip's existing places, and each carries `distanceKm`. The client shows the
+distance and tags anything over 150 km as *xa chuyến đi*. For `Nông Trường` this
+promotes the Mộc Châu one (4.6 km) above the four others elsewhere in Vietnam
+(72–1,165 km).
+
+`bounded=1` was considered and rejected: it does suppress the foreign matches,
+but it also makes a genuinely distant stop — an airport, somewhere en route —
+unfindable. Flagging preserves both. With no places on the trip yet there is
+nothing to measure from, so the upstream order is passed through untouched.
+
+The haversine lives in `Domain/Places/Geo.cs` because spec §5.4 needs the same
+calculation for the travel-time fallback in milestone 4.
+
+### D31 — What search cannot fix
+OpenStreetMap does not contain every place in Vietnam, and no amount of query
+tuning finds what is not in the data. Two real examples from testing:
+`Tiểu khu 32 thị trấn Nông Trường` returns nothing anywhere in the world,
+because "thị trấn Nông Trường" was renamed by the 2025 administrative reform
+(OSM now carries `Phường Thảo Nguyên`) and `Tiểu khu 32` is not mapped as a
+named place; and Mộc Châu's Hang Táu is simply absent.
+
+So the empty state names the query that failed and points at the two things that
+do work — a shorter name, or clicking the map — rather than saying "no results"
+and leaving the user stuck. Click-to-place (D28) is the real answer here.
+
 ### D26 — `@testing-library/react` is pinned to v16 for a single `@testing-library/dom`
 RTL 14 depends on its own nested `@testing-library/dom@9`, while
 `user-event@14` resolves the hoisted `@testing-library/dom@10`. RTL installs the

@@ -11,6 +11,7 @@ const RESULTS: GeocodeResultResponse[] = [
     lat: 20.8333,
     lng: 104.6667,
     kind: 'waterfall',
+    distanceKm: 2.4,
   },
   {
     name: 'Đồi chè trái tim',
@@ -18,6 +19,7 @@ const RESULTS: GeocodeResultResponse[] = [
     lat: 20.85,
     lng: 104.65,
     kind: null,
+    distanceKm: null,
   },
 ]
 
@@ -105,13 +107,61 @@ describe('PlaceSearch', () => {
     expect(await screen.findByText(/nhập toạ độ thủ công/i)).toBeInTheDocument()
   })
 
-  it('reports an empty result set rather than showing nothing', async () => {
+  it('reports an empty result set with advice that actually helps', async () => {
     mockFetch(() => ({ ok: true, status: 200, body: [] }))
     const { user } = renderWithQuery(<PlaceSearch tripId="t1" onPick={vi.fn()} />)
 
-    await user.type(searchBox(), 'zzzz')
+    await user.type(searchBox(), 'Tiểu khu 32 thị trấn Nông Trường')
 
-    expect(await screen.findByText(/không tìm thấy/i)).toBeInTheDocument()
+    // Naming the failed query and pointing at the two things that do work —
+    // a shorter name, or the map — beats a bare "no results".
+    const hint = await screen.findByText(/không tìm thấy/i)
+    expect(hint).toHaveTextContent(/tên ngắn hơn/i)
+    expect(hint).toHaveTextContent(/bấm thẳng lên bản đồ/i)
     expect(screen.queryByLabelText('Kết quả tìm kiếm')).not.toBeInTheDocument()
+  })
+
+  it('shows how far each match is from the trip', async () => {
+    mockFetch(() => ({ ok: true, status: 200, body: RESULTS }))
+    const { user } = renderWithQuery(<PlaceSearch tripId="t1" onPick={vi.fn()} />)
+
+    await user.type(searchBox(), 'thac')
+
+    expect(await screen.findByText('2.4 km')).toBeInTheDocument()
+  })
+
+  it('flags a match too far away to be the place that was meant', async () => {
+    // Searching a Vietnamese name can return a confident match on another
+    // continent; the distance is what makes that visibly wrong.
+    mockFetch(() => ({
+      ok: true,
+      status: 200,
+      body: [
+        {
+          name: 'Tiểu khu 32',
+          displayName: '32, 高雄市, 臺灣',
+          lat: 22.6273,
+          lng: 120.3014,
+          kind: 'road',
+          distanceKm: 1632,
+        },
+      ],
+    }))
+    const { user } = renderWithQuery(<PlaceSearch tripId="t1" onPick={vi.fn()} />)
+
+    await user.type(searchBox(), 'tieu khu 32')
+
+    expect(await screen.findByText(/xa chuyến đi/i)).toBeInTheDocument()
+    expect(screen.getByText('1.632 km')).toBeInTheDocument()
+  })
+
+  it('does not flag a nearby match', async () => {
+    mockFetch(() => ({ ok: true, status: 200, body: RESULTS }))
+    const { user } = renderWithQuery(<PlaceSearch tripId="t1" onPick={vi.fn()} />)
+
+    await user.type(searchBox(), 'thac')
+    await screen.findByText('Thác Dải Yếm')
+
+    expect(screen.queryByText(/xa chuyến đi/i)).not.toBeInTheDocument()
   })
 })

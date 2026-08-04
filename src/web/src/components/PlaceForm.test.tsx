@@ -10,6 +10,7 @@ const RESULT: GeocodeResultResponse = {
   lat: 20.8333,
   lng: 104.6667,
   kind: 'waterfall',
+  distanceKm: 2.4,
 }
 
 function renderForm(

@@ -360,11 +360,34 @@ legend {
   font-weight: 600;
 }
 
+.search-result-meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
 .search-result-kind {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--accent);
+}
+
+.search-result-distance {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.search-result-far {
+  margin-left: 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #8a5a00;
+  background: #fdf0d5;
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
 }
 
 .search-result-address {

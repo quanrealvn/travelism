@@ -54,12 +54,19 @@ public sealed record PlaceResponse(
 /// <param name="Name">Short label, prefilled into the place name field.</param>
 /// <param name="DisplayName">Full address, so near-identical names are distinguishable.</param>
 /// <param name="Kind">Upstream classification such as "restaurant"; may be null.</param>
+/// <param name="DistanceKm">
+/// Straight-line distance from the trip's existing places, or null when the trip
+/// has none to measure from. Surfaced because a free-text search for a
+/// Vietnamese name can return a confident match on another continent — showing
+/// the distance is what makes that visibly wrong instead of plausible.
+/// </param>
 public sealed record GeocodeResultResponse(
     string Name,
     string DisplayName,
     double Lat,
     double Lng,
-    string? Kind);
+    string? Kind,
+    double? DistanceKm);
 
 /// <summary>Who the caller is, for a client that has a cookie but no state.</summary>
 public sealed record SessionResponse(

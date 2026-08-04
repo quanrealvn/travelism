@@ -71,6 +71,12 @@ export interface GeocodeResultResponse {
   lng: number
   /** Upstream classification such as "restaurant"; may be null. */
   kind: string | null
+  /**
+   * Straight-line km from the trip's existing places, or null when the trip has
+   * none. A free-text search can match a plausible-looking name on another
+   * continent, so this is what tells the two apart.
+   */
+  distanceKm: number | null
 }
 
 export interface SessionResponse {

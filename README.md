@@ -58,11 +58,11 @@ Current state:
 
 | Suite                | Result |
 | -------------------- | ------ |
-| Domain unit tests    | 144 passing |
-| API integration tests | 114 passing |
-| Frontend (Vitest)    | 40 passing |
-| Domain line coverage | 97.98% (gate 90%) |
-| Api line coverage    | 92.52% (gate 70%) |
+| Domain unit tests    | 152 passing |
+| API integration tests | 129 passing |
+| Frontend (Vitest)    | 46 passing |
+| Domain line coverage | 98.04% (gate 90%) |
+| Api line coverage    | 92.68% (gate 70%) |
 
 ---
 
