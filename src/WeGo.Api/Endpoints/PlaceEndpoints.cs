@@ -36,6 +36,21 @@ public static class PlaceEndpoints
         })
         .WithName("CreatePlace");
 
+        // Registered before the {placeId:guid} routes: "search" is a literal
+        // segment, which routing prefers over a parameter, and it cannot parse
+        // as a Guid in any case.
+        group.MapGet("/search", async (
+            Guid tripId,
+            string? q,
+            int? limit,
+            GeocodingService geocoding,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await geocoding.SearchAsync(tripId, q, limit, cancellationToken);
+            return result.ToOk();
+        })
+        .WithName("SearchPlaces");
+
         group.MapGet("/{placeId:guid}", async (
             Guid tripId,
             Guid placeId,

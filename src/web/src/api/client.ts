@@ -1,6 +1,7 @@
 import type {
   CreatePlaceRequest,
   CreateTripRequest,
+  GeocodeResultResponse,
   JoinTripRequest,
   PlaceResponse,
   ProblemDetails,
@@ -80,6 +81,12 @@ export const api = {
   getTrip: (tripId: string) => request<TripResponse>(`/trips/${tripId}`),
 
   listPlaces: (tripId: string) => request<PlaceResponse[]>(`/trips/${tripId}/places`),
+
+  searchPlaces: (tripId: string, query: string, signal?: AbortSignal) =>
+    request<GeocodeResultResponse[]>(
+      `/trips/${tripId}/places/search?q=${encodeURIComponent(query)}`,
+      { signal },
+    ),
 
   createPlace: (tripId: string, body: CreatePlaceRequest) =>
     request<PlaceResponse>(`/trips/${tripId}/places`, {

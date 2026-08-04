@@ -1,7 +1,10 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using WeGo.Infrastructure.Geocoding;
 using WeGo.Infrastructure.Persistence;
 
 namespace WeGo.Api.Tests.Infrastructure;
@@ -27,6 +30,12 @@ public class WeGoAppFactory : WebApplicationFactory<Program>
     /// </summary>
     public virtual int JoinPerMinute => 10_000;
 
+    /// <summary>
+    /// The stub standing in for OpenStreetMap. Tests mutate it to choose what
+    /// the geocoder returns, or to make it fail.
+    /// </summary>
+    public StubGeocoder Geocoder { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -37,6 +46,14 @@ public class WeGoAppFactory : WebApplicationFactory<Program>
         builder.UseSetting(
             "RateLimits:JoinPerMinute",
             JoinPerMinute.ToString(CultureInfo.InvariantCulture));
+
+        builder.ConfigureTestServices(services =>
+        {
+            // Removes the typed HttpClient registration as well as the service,
+            // so nothing in the suite can reach the real OpenStreetMap.
+            services.RemoveAll<IGeocoder>();
+            services.AddSingleton<IGeocoder>(Geocoder);
+        });
     }
 
     public HttpClient CreateApiClient() => CreateClient(new WebApplicationFactoryClientOptions

@@ -1,0 +1,117 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, screen, waitFor } from '@testing-library/react'
+import { PlaceSearch } from './PlaceSearch'
+import { renderWithQuery } from '../test/renderWithQuery'
+import type { GeocodeResultResponse } from '../api/api-types'
+
+const RESULTS: GeocodeResultResponse[] = [
+  {
+    name: 'Thác Dải Yếm',
+    displayName: 'Thác Dải Yếm, Mộc Châu, Sơn La, Việt Nam',
+    lat: 20.8333,
+    lng: 104.6667,
+    kind: 'waterfall',
+  },
+  {
+    name: 'Đồi chè trái tim',
+    displayName: 'Đồi chè trái tim, Mộc Châu, Sơn La, Việt Nam',
+    lat: 20.85,
+    lng: 104.65,
+    kind: null,
+  },
+]
+
+function mockFetch(handler: (url: string) => { ok: boolean; status: number; body: unknown }) {
+  const spy = vi.fn().mockImplementation((url: string) => {
+    const { ok, status, body } = handler(url)
+    return Promise.resolve({ ok, status, json: async () => body } as Response)
+  })
+  vi.stubGlobal('fetch', spy)
+  return spy
+}
+
+const searchBox = () => screen.getByLabelText(/tìm địa điểm theo tên/i)
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('PlaceSearch', () => {
+  it('does not search until the query is long enough', async () => {
+    const fetchSpy = mockFetch(() => ({ ok: true, status: 200, body: RESULTS }))
+    const { user } = renderWithQuery(<PlaceSearch tripId="t1" onPick={vi.fn()} />)
+
+    await user.type(searchBox(), 'a')
+
+    // Deliberately wait past the 400ms debounce window: a single character
+    // matches nearly everything, so the request must not leave the browser even
+    // once the user has stopped typing. Wrapped in act() because the debounce
+    // timer itself settles component state.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600))
+    })
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('searches once the user pauses, and lists the matches', async () => {
+    const fetchSpy = mockFetch(() => ({ ok: true, status: 200, body: RESULTS }))
+    const { user } = renderWithQuery(<PlaceSearch tripId="t1" onPick={vi.fn()} />)
+
+    await user.type(searchBox(), 'thac')
+
+    expect(await screen.findByText('Thác Dải Yếm')).toBeInTheDocument()
+    expect(screen.getByText('Đồi chè trái tim')).toBeInTheDocument()
+    expect(screen.getByText('waterfall')).toBeInTheDocument()
+
+    // Debounced: four keystrokes must not become four requests.
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(fetchSpy.mock.calls[0]?.[0]).toContain('/trips/t1/places/search?q=thac')
+  })
+
+  it('hands the chosen result — coordinates included — to the caller', async () => {
+    mockFetch(() => ({ ok: true, status: 200, body: RESULTS }))
+    const onPick = vi.fn()
+    const { user } = renderWithQuery(<PlaceSearch tripId="t1" onPick={onPick} />)
+
+    await user.type(searchBox(), 'thac')
+    await user.click(await screen.findByText('Thác Dải Yếm'))
+
+    expect(onPick).toHaveBeenCalledWith(RESULTS[0])
+  })
+
+  it('clears the results once a pick is made', async () => {
+    mockFetch(() => ({ ok: true, status: 200, body: RESULTS }))
+    const { user } = renderWithQuery(<PlaceSearch tripId="t1" onPick={vi.fn()} />)
+
+    await user.type(searchBox(), 'thac')
+    await user.click(await screen.findByText('Thác Dải Yếm'))
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Kết quả tìm kiếm')).not.toBeInTheDocument()
+    })
+  })
+
+  it('tells the user to fall back to manual coordinates when the geocoder is down', async () => {
+    mockFetch(() => ({
+      ok: false,
+      status: 502,
+      body: { status: 502, code: 'GEOCODING_UNAVAILABLE', detail: 'upstream down' },
+    }))
+    const { user } = renderWithQuery(<PlaceSearch tripId="t1" onPick={vi.fn()} />)
+
+    await user.type(searchBox(), 'thac')
+
+    expect(await screen.findByText(/nhập toạ độ thủ công/i)).toBeInTheDocument()
+  })
+
+  it('reports an empty result set rather than showing nothing', async () => {
+    mockFetch(() => ({ ok: true, status: 200, body: [] }))
+    const { user } = renderWithQuery(<PlaceSearch tripId="t1" onPick={vi.fn()} />)
+
+    await user.type(searchBox(), 'zzzz')
+
+    expect(await screen.findByText(/không tìm thấy/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Kết quả tìm kiếm')).not.toBeInTheDocument()
+  })
+})

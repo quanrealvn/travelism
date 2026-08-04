@@ -158,6 +158,7 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
           />
 
           <PlaceForm
+            tripId={tripId}
             currencyExponent={currentTrip.currencyExponent}
             pending={createPlace.isPending}
             fieldErrors={fieldErrors}

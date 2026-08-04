@@ -61,6 +61,18 @@ export interface PlaceResponse {
   updatedByMemberId: string
 }
 
+/** A candidate location returned by the place-name search. */
+export interface GeocodeResultResponse {
+  /** Short label, prefilled into the place name field. */
+  name: string
+  /** Full address, so two places with the same name are distinguishable. */
+  displayName: string
+  lat: number
+  lng: number
+  /** Upstream classification such as "restaurant"; may be null. */
+  kind: string | null
+}
+
 export interface SessionResponse {
   tripId: string
   memberId: string

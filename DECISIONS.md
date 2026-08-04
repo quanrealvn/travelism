@@ -164,6 +164,37 @@ property was missing from the JSON object.
 Mirrors the server's `long`. The only place it becomes a decimal is
 `formatMoney`, on the way to the screen (§5.3: "formatting only at the edge").
 
+### D25 — Place search is proxied through the backend, not called from the browser
+**Scope note: this is an addition Quan asked for, not a spec requirement.**
+Entering latitude and longitude by hand is unusable, so a place-name lookup was
+added: `GET /trips/{tripId}/places/search?q=`.
+
+It goes through the server rather than straight from the browser because
+OpenStreetMap's Nominatim requires a `User-Agent` identifying the caller (which
+a browser cannot set), limits callers to one request per second, and would
+otherwise be reachable by anyone. Proxying lets the app honour the policy, cache
+repeats, and keep the lookup behind the existing trip-membership filter so it is
+not an open relay. It also matches the typed-`HttpClient` pattern §2 already
+specifies for OSRM and Open-Meteo.
+
+Results are biased towards the centroid of the trip's existing places
+(`bounded=0`, so distant matches still appear but rank lower) — without it,
+searching "quán ăn" matches the whole planet.
+
+Search is a convenience, never a dependency: the form keeps a manual
+coordinate entry path, and an upstream outage answers 502
+`GEOCODING_UNAVAILABLE` while leaving place creation entirely unaffected. Both
+are covered by tests.
+
+### D26 — `@testing-library/react` is pinned to v16 for a single `@testing-library/dom`
+RTL 14 depends on its own nested `@testing-library/dom@9`, while
+`user-event@14` resolves the hoisted `@testing-library/dom@10`. RTL installs the
+act() event wrapper on *its* copy, so every interaction driven by `user-event`
+updated React state outside `act` and logged a warning — 128 of them across a
+fully passing suite, which is exactly the noise that hides a real warning. RTL 16
+takes `@testing-library/dom` as a peer dependency, so there is one copy and one
+wrapper. `@testing-library/dom` is therefore an explicit devDependency.
+
 ### D24 — One client-side rule is mirrored, and marked
 `PlaceForm` checks "at least one time slot" before submitting, marked
 `// mirror of server rule` per §8. It is a convenience only; the server rejects

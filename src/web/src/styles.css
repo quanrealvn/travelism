@@ -301,6 +301,92 @@ legend {
   padding-top: 0.9rem;
 }
 
+/* Place-name search */
+.place-search {
+  position: relative;
+}
+
+.search-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: -0.3rem 0 0.5rem;
+}
+
+.search-hint-error {
+  color: var(--danger);
+}
+
+.search-results {
+  list-style: none;
+  margin: -0.3rem 0 0.7rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  max-height: 15rem;
+  overflow-y: auto;
+  background: var(--surface);
+}
+
+.search-results li + li {
+  border-top: 1px solid var(--line);
+}
+
+.search-results button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  width: 100%;
+  background: none;
+  color: inherit;
+  font-weight: 400;
+  text-align: left;
+  border-radius: 0;
+  padding: 0.5rem 0.6rem;
+}
+
+.search-results button:hover {
+  background: #f0f4f3;
+}
+
+.search-result-name {
+  font-weight: 600;
+}
+
+.search-result-kind {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.search-result-address {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.picked-location {
+  font-size: 0.83rem;
+  background: #eef4f2;
+  border-radius: var(--radius);
+  padding: 0.45rem 0.6rem;
+  margin: 0 0 0.6rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.link-button {
+  background: none;
+  color: var(--accent);
+  padding: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: underline;
+  margin-bottom: 0.6rem;
+}
+
 .field-error,
 .form-error {
   color: var(--danger);

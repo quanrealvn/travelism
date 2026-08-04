@@ -58,11 +58,11 @@ Current state:
 
 | Suite                | Result |
 | -------------------- | ------ |
-| Domain unit tests    | 129 passing |
-| API integration tests | 97 passing |
-| Frontend (Vitest)    | 28 passing |
-| Domain line coverage | 97.95% (gate 90%) |
-| Api line coverage    | 91.93% (gate 70%) |
+| Domain unit tests    | 144 passing |
+| API integration tests | 114 passing |
+| Frontend (Vitest)    | 40 passing |
+| Domain line coverage | 97.98% (gate 90%) |
+| Api line coverage    | 92.52% (gate 70%) |
 
 ---
 
@@ -104,6 +104,7 @@ Trip-scoped — all require a session cookie whose `tripId` matches the route:
 | `GET` | `/trips/{tripId}/members` |
 | `GET` | `/trips/{tripId}/places?includeDeleted=` |
 | `POST` | `/trips/{tripId}/places` |
+| `GET` | `/trips/{tripId}/places/search?q=` → place-name lookup |
 | `GET` | `/trips/{tripId}/places/{placeId}` |
 | `PATCH` | `/trips/{tripId}/places/{placeId}` |
 | `DELETE` | `/trips/{tripId}/places/{placeId}?force=` |
@@ -135,6 +136,9 @@ Every error is RFC 7807 with a stable `code`:
 | `Database:EnableWal` | `true` | WAL, so readers do not block the writer |
 | `Auth:SigningKey` | *(empty)* | Base64 HMAC key — **set this in production** |
 | `RateLimits:JoinPerMinute` | `10` | Join attempts per IP per minute |
+| `Geocoding:UserAgent` | `WeGo-TripPlanner/0.1 …` | Nominatim requires an identifying UA — **put a real contact in it before deploying** |
+| `Geocoding:MinIntervalMs` | `1000` | Minimum gap between upstream lookups |
+| `Geocoding:CacheMinutes` | `30` | How long identical searches are reused |
 
 With `Auth:SigningKey` unset, a key is generated on first run and cached in
 `.wego-signing-key` next to the app. That is fine for local development and not

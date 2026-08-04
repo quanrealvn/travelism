@@ -7,6 +7,24 @@ export const queryKeys = {
   session: ['session'] as const,
   trip: (tripId: string) => ['trip', tripId] as const,
   places: (tripId: string) => ['places', tripId] as const,
+  placeSearch: (tripId: string, query: string) => ['place-search', tripId, query] as const,
+}
+
+/**
+ * Place-name lookup for the add-place form. The caller passes an
+ * already-debounced query; results are cached so retyping or reopening the
+ * form does not re-hit the shared upstream geocoder.
+ */
+export function usePlaceSearch(tripId: string, query: string) {
+  return useQuery({
+    queryKey: queryKeys.placeSearch(tripId, query),
+    queryFn: ({ signal }) => api.searchPlaces(tripId, query, signal),
+    // Mirrors the server's minimum query length so a one-character keystroke
+    // never leaves the browser.
+    enabled: query.trim().length >= 2,
+    staleTime: 10 * 60_000,
+    retry: false,
+  })
 }
 
 export function useSession() {

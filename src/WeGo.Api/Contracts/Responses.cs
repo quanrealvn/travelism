@@ -50,6 +50,17 @@ public sealed record PlaceResponse(
     DateTimeOffset UpdatedAt,
     Guid UpdatedByMemberId);
 
+/// <summary>A candidate location from the place-name search.</summary>
+/// <param name="Name">Short label, prefilled into the place name field.</param>
+/// <param name="DisplayName">Full address, so near-identical names are distinguishable.</param>
+/// <param name="Kind">Upstream classification such as "restaurant"; may be null.</param>
+public sealed record GeocodeResultResponse(
+    string Name,
+    string DisplayName,
+    double Lat,
+    double Lng,
+    string? Kind);
+
 /// <summary>Who the caller is, for a client that has a cookie but no state.</summary>
 public sealed record SessionResponse(
     Guid TripId,

@@ -28,6 +28,7 @@ builder.Services.AddWeGoRateLimiting(rateLimitOptions);
 builder.Services.AddScoped<ActivityLogWriter>();
 builder.Services.AddScoped<TripService>();
 builder.Services.AddScoped<PlaceService>();
+builder.Services.AddScoped<GeocodingService>();
 
 builder.Services.AddProblemDetails();
 

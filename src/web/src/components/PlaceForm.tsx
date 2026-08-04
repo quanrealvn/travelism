@@ -1,10 +1,17 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { ALL_CATEGORIES, ALL_TIME_SLOTS } from '../api/api-types'
-import type { CreatePlaceRequest, PlaceCategory, TimeSlot } from '../api/api-types'
+import type {
+  CreatePlaceRequest,
+  GeocodeResultResponse,
+  PlaceCategory,
+  TimeSlot,
+} from '../api/api-types'
 import { parseMoney } from '../api/money'
+import { PlaceSearch } from './PlaceSearch'
 
 interface PlaceFormProps {
+  tripId: string
   currencyExponent: number
   pending: boolean
   fieldErrors: Record<string, string>
@@ -24,6 +31,7 @@ const EMPTY = {
 }
 
 export function PlaceForm({
+  tripId,
   currencyExponent,
   pending,
   fieldErrors,
@@ -32,6 +40,21 @@ export function PlaceForm({
 }: PlaceFormProps) {
   const [form, setForm] = useState(EMPTY)
   const [localError, setLocalError] = useState<string | null>(null)
+  const [pickedAddress, setPickedAddress] = useState<string | null>(null)
+  const [manualCoords, setManualCoords] = useState(false)
+
+  function applySearchResult(result: GeocodeResultResponse) {
+    setForm((current) => ({
+      ...current,
+      // The typed name is only replaced when the field is still untouched, so
+      // picking a location never overwrites a name the user chose themselves.
+      name: current.name.trim() === '' ? result.name : current.name,
+      lat: String(result.lat),
+      lng: String(result.lng),
+    }))
+    setPickedAddress(result.displayName)
+    setLocalError(null)
+  }
 
   function toggleSlot(slot: TimeSlot) {
     setForm((current) => ({
@@ -42,6 +65,12 @@ export function PlaceForm({
     }))
   }
 
+  function reset() {
+    setForm(EMPTY)
+    setPickedAddress(null)
+    setManualCoords(false)
+  }
+
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setLocalError(null)
@@ -49,6 +78,11 @@ export function PlaceForm({
     const lat = Number(form.lat)
     const lng = Number(form.lng)
     const cost = parseMoney(form.estimatedCost, currencyExponent)
+
+    if (form.lat.trim() === '' || form.lng.trim() === '') {
+      setLocalError('Chọn một địa điểm từ kết quả tìm kiếm, hoặc nhập toạ độ thủ công.')
+      return
+    }
 
     // mirror of server rule: at least one time slot (spec §3). Mirrored only so
     // the user is not made to round-trip for something obvious; the server
@@ -79,12 +113,65 @@ export function PlaceForm({
       openHoursText: form.openHoursText.trim() === '' ? null : form.openHoursText,
     })
 
-    setForm(EMPTY)
+    reset()
   }
+
+  const hasCoordinates = form.lat.trim() !== '' && form.lng.trim() !== ''
 
   return (
     <form className="place-form" onSubmit={handleSubmit} aria-label="Thêm địa điểm">
       <h2>Thêm địa điểm</h2>
+
+      <PlaceSearch tripId={tripId} onPick={applySearchResult} />
+
+      {hasCoordinates && (
+        <p className="picked-location" data-testid="picked-location">
+          📍 {pickedAddress ?? `${form.lat}, ${form.lng}`}
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => {
+              setForm((current) => ({ ...current, lat: '', lng: '' }))
+              setPickedAddress(null)
+            }}
+          >
+            đổi
+          </button>
+        </p>
+      )}
+
+      <button
+        type="button"
+        className="link-button"
+        onClick={() => setManualCoords((current) => !current)}
+      >
+        {manualCoords ? 'Ẩn nhập toạ độ thủ công' : 'Nhập toạ độ thủ công'}
+      </button>
+
+      {manualCoords && (
+        <div className="row">
+          <label>
+            Vĩ độ (lat)
+            <input
+              value={form.lat}
+              onChange={(e) => setForm({ ...form, lat: e.target.value })}
+              inputMode="decimal"
+              placeholder="20.8386"
+            />
+          </label>
+          <label>
+            Kinh độ (lng)
+            <input
+              value={form.lng}
+              onChange={(e) => setForm({ ...form, lng: e.target.value })}
+              inputMode="decimal"
+              placeholder="104.6383"
+            />
+          </label>
+        </div>
+      )}
+      {fieldErrors.lat && <p className="field-error">{fieldErrors.lat}</p>}
+      {fieldErrors.lng && <p className="field-error">{fieldErrors.lng}</p>}
 
       <label>
         Tên
@@ -93,34 +180,10 @@ export function PlaceForm({
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           required
           maxLength={120}
+          placeholder="Tên hiển thị trong wishlist"
         />
       </label>
       {fieldErrors.name && <p className="field-error">{fieldErrors.name}</p>}
-
-      <div className="row">
-        <label>
-          Vĩ độ (lat)
-          <input
-            value={form.lat}
-            onChange={(e) => setForm({ ...form, lat: e.target.value })}
-            inputMode="decimal"
-            placeholder="20.8386"
-            required
-          />
-        </label>
-        <label>
-          Kinh độ (lng)
-          <input
-            value={form.lng}
-            onChange={(e) => setForm({ ...form, lng: e.target.value })}
-            inputMode="decimal"
-            placeholder="104.6383"
-            required
-          />
-        </label>
-      </div>
-      {fieldErrors.lat && <p className="field-error">{fieldErrors.lat}</p>}
-      {fieldErrors.lng && <p className="field-error">{fieldErrors.lng}</p>}
 
       <label>
         Loại
