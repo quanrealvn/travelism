@@ -186,6 +186,41 @@ coordinate entry path, and an upstream outage answers 502
 `GEOCODING_UNAVAILABLE` while leaving place creation entirely unaffected. Both
 are covered by tests.
 
+### D27 — Leaflet marker images must be `import`ed, not built with `new URL(...)`
+`new URL('leaflet/dist/images/marker-icon.png', import.meta.url)` looks like the
+idiomatic Vite asset reference and silently is not: Vite only rewrites that form
+for **relative** paths, so a bare package specifier is left alone, the images are
+never emitted, and the URLs 404 at runtime. Every map pin was invisible, with
+nothing in the build output or the console to say why. Real `import` statements
+make Vite emit (here, inline) the three files. `TripMap` carries a comment so the
+"tidier" form is not reintroduced.
+
+### D28 — Clicking the map picks a location
+OpenStreetMap does not contain every place in Vietnam — a new homestay or a
+roadside quán may simply not be there, and no geocoder can find what is not in
+the data. Clicking the map sets the coordinates directly, so a place is always
+addable regardless of search coverage. The form and the map share one draft
+location, so picking on either shows on the other.
+
+### D29 — The geocoder is sent the query exactly as typed
+An earlier revision folded Vietnamese diacritics to ASCII before querying
+Nominatim, on the evidence that "Thác Dải Yếm" returned nothing while
+"thac dai yem" worked. **That evidence was false.** The queries were being sent
+from Git Bash's curl, which transcoded the arguments to the Windows ANSI
+codepage — `ộ` arrived as a literal `?` and `â` as the single byte `0xE2`. The
+mangled query is what failed, not the accented one.
+
+Re-tested with the bytes verified on the wire, Nominatim resolves
+`Thác Dải Yếm`, `Đồi Chè Trái Tim` and `Rừng thông bản Áng` correctly and
+returns results identical to the folded spellings. The folding was removed
+rather than kept "just in case": it was a workaround for a bug that does not
+exist, and leaving it would have meant shipping behaviour justified by a
+measurement that was wrong.
+
+What remains is `NominatimGeocoderTests`, which pins that a query reaches the
+wire byte-for-byte as typed and is UTF-8 percent-encoded exactly once — the
+regression that *would* have mattered.
+
 ### D26 — `@testing-library/react` is pinned to v16 for a single `@testing-library/dom`
 RTL 14 depends on its own nested `@testing-library/dom@9`, while
 `user-event@14` resolves the hoisted `@testing-library/dom@10`. RTL installs the

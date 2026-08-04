@@ -211,6 +211,13 @@ legend {
   height: 32rem;
   width: 100%;
   border-radius: var(--radius);
+  cursor: crosshair;
+}
+
+.draft-marker {
+  font-size: 1.6rem;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 35%));
 }
 
 /* Place list */

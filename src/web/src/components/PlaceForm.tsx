@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ALL_CATEGORIES, ALL_TIME_SLOTS } from '../api/api-types'
 import type {
@@ -17,6 +17,10 @@ interface PlaceFormProps {
   fieldErrors: Record<string, string>
   submitError: string | null
   onSubmit: (body: CreatePlaceRequest) => void
+  /** A location picked by clicking the map; overrides whatever is in the form. */
+  mapPick?: { lat: number; lng: number } | null
+  /** Reports the current location so the map can show a pin for it. */
+  onLocationChange?: (location: { lat: number; lng: number } | null) => void
 }
 
 const EMPTY = {
@@ -37,11 +41,29 @@ export function PlaceForm({
   fieldErrors,
   submitError,
   onSubmit,
+  mapPick,
+  onLocationChange,
 }: PlaceFormProps) {
   const [form, setForm] = useState(EMPTY)
   const [localError, setLocalError] = useState<string | null>(null)
   const [pickedAddress, setPickedAddress] = useState<string | null>(null)
   const [manualCoords, setManualCoords] = useState(false)
+
+  // A click on the map wins over whatever coordinates the form held: the user
+  // just pointed at the spot they mean.
+  useEffect(() => {
+    if (!mapPick) {
+      return
+    }
+
+    setForm((current) => ({
+      ...current,
+      lat: String(mapPick.lat),
+      lng: String(mapPick.lng),
+    }))
+    setPickedAddress(null)
+    setLocalError(null)
+  }, [mapPick])
 
   function applySearchResult(result: GeocodeResultResponse) {
     setForm((current) => ({
@@ -54,6 +76,7 @@ export function PlaceForm({
     }))
     setPickedAddress(result.displayName)
     setLocalError(null)
+    onLocationChange?.({ lat: result.lat, lng: result.lng })
   }
 
   function toggleSlot(slot: TimeSlot) {
@@ -69,6 +92,27 @@ export function PlaceForm({
     setForm(EMPTY)
     setPickedAddress(null)
     setManualCoords(false)
+    onLocationChange?.(null)
+  }
+
+  function clearLocation() {
+    setForm((current) => ({ ...current, lat: '', lng: '' }))
+    setPickedAddress(null)
+    onLocationChange?.(null)
+  }
+
+  function setManualCoordinate(axis: 'lat' | 'lng', value: string) {
+    const next = { ...form, [axis]: value }
+    setForm(next)
+
+    const lat = Number(next.lat)
+    const lng = Number(next.lng)
+    const usable =
+      next.lat.trim() !== '' && next.lng.trim() !== '' && Number.isFinite(lat) && Number.isFinite(lng)
+
+    // Half-typed coordinates ("20.") are not a location yet, so the map pin
+    // only moves once both axes parse.
+    onLocationChange?.(usable ? { lat, lng } : null)
   }
 
   function handleSubmit(event: FormEvent) {
@@ -124,20 +168,15 @@ export function PlaceForm({
 
       <PlaceSearch tripId={tripId} onPick={applySearchResult} />
 
-      {hasCoordinates && (
+      {hasCoordinates ? (
         <p className="picked-location" data-testid="picked-location">
           📍 {pickedAddress ?? `${form.lat}, ${form.lng}`}
-          <button
-            type="button"
-            className="link-button"
-            onClick={() => {
-              setForm((current) => ({ ...current, lat: '', lng: '' }))
-              setPickedAddress(null)
-            }}
-          >
+          <button type="button" className="link-button" onClick={clearLocation}>
             đổi
           </button>
         </p>
+      ) : (
+        <p className="search-hint">Không tìm thấy? Bấm thẳng lên bản đồ để chọn vị trí.</p>
       )}
 
       <button
@@ -154,7 +193,7 @@ export function PlaceForm({
             Vĩ độ (lat)
             <input
               value={form.lat}
-              onChange={(e) => setForm({ ...form, lat: e.target.value })}
+              onChange={(e) => setManualCoordinate('lat', e.target.value)}
               inputMode="decimal"
               placeholder="20.8386"
             />
@@ -163,7 +202,7 @@ export function PlaceForm({
             Kinh độ (lng)
             <input
               value={form.lng}
-              onChange={(e) => setForm({ ...form, lng: e.target.value })}
+              onChange={(e) => setManualCoordinate('lng', e.target.value)}
               inputMode="decimal"
               placeholder="104.6383"
             />

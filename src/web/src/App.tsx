@@ -12,6 +12,7 @@ import {
 import type { CreatePlaceRequest, TripSessionResponse } from './api/api-types'
 import { StartScreen } from './components/StartScreen'
 import { TripMap } from './components/TripMap'
+import type { LatLng } from './components/TripMap'
 import { PlaceForm } from './components/PlaceForm'
 import { PlaceList } from './components/PlaceList'
 import { formatMoney } from './api/money'
@@ -47,6 +48,9 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
 
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  // The location being composed, shared by the map and the form so a click on
+  // one shows up on the other.
+  const [draftLocation, setDraftLocation] = useState<LatLng | null>(null)
 
   if (trip.isLoading || places.isLoading) {
     return <p className="loading">Đang tải chuyến đi…</p>
@@ -135,6 +139,8 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
             currencyExponent={currentTrip.currencyExponent}
             selectedPlaceId={selectedPlaceId}
             onSelectPlace={setSelectedPlaceId}
+            draftLocation={draftLocation}
+            onPickLocation={setDraftLocation}
           />
         </section>
 
@@ -164,6 +170,8 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
             fieldErrors={fieldErrors}
             submitError={createError}
             onSubmit={handleCreate}
+            mapPick={draftLocation}
+            onLocationChange={setDraftLocation}
           />
         </aside>
       </main>

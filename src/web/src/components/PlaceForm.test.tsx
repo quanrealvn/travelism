@@ -12,7 +12,10 @@ const RESULT: GeocodeResultResponse = {
   kind: 'waterfall',
 }
 
-function renderForm(onSubmit = vi.fn()) {
+function renderForm(
+  onSubmit = vi.fn(),
+  extra: { mapPick?: { lat: number; lng: number } | null; onLocationChange?: () => void } = {},
+) {
   const { user } = renderWithQuery(
     <PlaceForm
       tripId="t1"
@@ -21,6 +24,8 @@ function renderForm(onSubmit = vi.fn()) {
       fieldErrors={{}}
       submitError={null}
       onSubmit={onSubmit}
+      mapPick={extra.mapPick ?? null}
+      onLocationChange={extra.onLocationChange}
     />,
   )
   return { onSubmit, user }
@@ -122,6 +127,41 @@ describe('PlaceForm', () => {
 
     expect(onSubmit).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent(/chi phí/i)
+  })
+
+  it('accepts a location picked by clicking the map', async () => {
+    // The escape hatch for places OpenStreetMap has never heard of.
+    mockSearch([])
+    const { onSubmit, user } = renderForm(vi.fn(), { mapPick: { lat: 20.8386, lng: 104.6383 } })
+
+    expect(screen.getByTestId('picked-location')).toHaveTextContent('20.8386')
+
+    await user.type(nameBox(), 'Homestay của cô Lan')
+    await user.click(submit())
+
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      name: 'Homestay của cô Lan',
+      lat: 20.8386,
+      lng: 104.6383,
+    })
+  })
+
+  it('tells the user about the map when no location is chosen yet', async () => {
+    mockSearch([])
+    renderForm()
+
+    expect(screen.getByText(/bấm thẳng lên bản đồ/i)).toBeInTheDocument()
+  })
+
+  it('reports the location upward so the map can pin it', async () => {
+    mockSearch([RESULT])
+    const onLocationChange = vi.fn()
+    const { user } = renderForm(vi.fn(), { onLocationChange })
+
+    await user.type(searchBox(), 'thac')
+    await user.click(await screen.findByText('Thác Dải Yếm'))
+
+    expect(onLocationChange).toHaveBeenCalledWith({ lat: 20.8333, lng: 104.6667 })
   })
 
   it('refuses to submit with no time slot selected', async () => {

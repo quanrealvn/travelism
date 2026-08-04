@@ -43,6 +43,9 @@ public sealed class NominatimGeocoder(
             return cached;
         }
 
+        // The query is sent exactly as typed. Nominatim matches Vietnamese
+        // names with their diacritics correctly, so there is nothing to
+        // normalise away — see NominatimGeocoderTests for the encoding pins.
         var url = BuildUrl(query, limit, near);
 
         try
