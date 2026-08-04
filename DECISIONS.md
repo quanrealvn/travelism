@@ -1,0 +1,170 @@
+# DECISIONS
+
+Choices made where `SPEC_PROMPT.md` is silent, plus the two places the spec asks
+for something the fixed stack cannot express literally. Each entry says what was
+decided and why, so the reviewer can arbitrate rather than guess.
+
+Numbering is stable; entries are appended, never renumbered.
+
+---
+
+## Structure & tooling
+
+### D1 — Domain / Infrastructure / Api are separate assemblies
+Spec §8 names them as directories. They are separate projects instead, so
+"Domain has no EF and no HTTP" is enforced by the compiler (Domain references
+nothing) rather than by convention, and so the §9 per-project coverage gates
+have something concrete to measure. `Realtime/` will be a folder inside
+`WeGo.Api` when milestone 6 lands.
+
+### D2 — EF Core migrations, not `EnsureCreated`
+The schema grows every milestone; `EnsureCreated` cannot alter an existing
+database, so an upgrade would silently mean "delete the file". Migrations are
+applied at startup.
+
+### D3 — Only milestone-1 entities exist so far
+`Trip`, `Member`, `Place`, `PlaceLike`, `ItineraryItem`, `TravelTimeCache` and
+`ActivityLog` are modelled now. `ItineraryItem` and `TravelTimeCache` are
+included despite having no endpoints yet because the §5.6 / §7.13 delete rules
+are milestone-1 scope and cannot be implemented — or tested — without them.
+`Expense` is deferred to milestone 5, where it is first needed.
+
+### D4 — Routes have no `/api` prefix
+Spec §5 writes them as `/trips/{id}/...`, so that is what is served. The SPA
+fallback is registered after explicit `/trips/**` and `/session/**` fallbacks
+that return the JSON error contract, so a mistyped API path answers 404
+ProblemDetails instead of the HTML shell.
+
+---
+
+## Field rules the spec does not bound
+
+### D5 — `Trip.Destination` max length 120
+Spec §3 gives no bound. 120 matches `Place.Name`.
+
+### D6 — `Place.SkipReason` max length 300
+Spec §3 gives no bound. Long enough for a real sentence, short enough to index.
+
+### D7 — "Span ≤ 60 days" means the inclusive day count
+Read as *a trip may be at most 60 days long*, so 1 March → 29 April (60 days) is
+accepted and 1 March → 30 April (61 days) is rejected. The other reading
+(`EndDate − StartDate ≤ 60`) differs by exactly one day. Flagged here because it
+is a genuine ambiguity in the wording. `TripRulesTests` pins the current reading.
+
+### D8 — A new place starts as `Idea`
+Spec §4 defines the transitions but not the initial state. `Idea` is the only
+one consistent with "any member likes it → Shortlist".
+
+### D9 — `Trip.Currency` is frozen after creation
+Spec §5.3 requires every expense to be in the trip currency. Allowing the trip
+currency to change would retroactively falsify stored expense amounts, so
+`PATCH /trips/{id}` ignores currency. Revisit in milestone 5 if needed.
+
+---
+
+## Error contract
+
+### D10 — 401 for no/invalid session, 403 for the wrong trip
+Spec §5.7 says "else 403" about a token whose `tripId` does not match the route.
+That case is 403 (`FORBIDDEN`), as specified. A request with no cookie at all, or
+an unverifiable one, is unauthenticated rather than forbidden and answers 401
+(`UNAUTHENTICATED`). Both are covered by the parameterised route-table test.
+
+### D11 — Enums are parsed by the domain validators, not by System.Text.Json
+`JsonStringEnumConverter` throws on an unknown value, which surfaces as a
+framework 400 whose body does not carry a `code`. Enum-typed fields therefore
+arrive as `string` and are parsed in `EnumInput`, producing an ordinary
+per-field 422. Numeric strings such as `"9"` are rejected too — `Enum.TryParse`
+would accept them and store an undefined member.
+
+### D12 — A body that cannot be parsed is 400 `MALFORMED_JSON`
+Spec §6 covers missing fields (422) and unknown fields (ignored) but not
+syntactically invalid JSON or a wrongly-typed field. Those cannot produce
+per-field errors because binding never completes. `RouteHandlerOptions
+.ThrowOnBadRequest` is forced on so the failure reaches the exception handler
+and leaves as ProblemDetails rather than as the framework's bare 400.
+
+### D13 — `SUSPICIOUS_COORDINATES` is a top-level code, not a field code
+`ValidationResult.TopLevelCode` returns `SUSPICIOUS_COORDINATES` when any field
+error carries that reason, and `VALIDATION_FAILED` otherwise, so the (0,0) rule
+from §6 gets the distinct code the spec names while still reporting per field.
+
+---
+
+## Persistence
+
+### D14 — `BusyTimeout=5000` is applied as `Default Timeout` + a PRAGMA
+Spec §7.9 asks for `BusyTimeout=5000` in the connection string.
+`Microsoft.Data.Sqlite` has no such keyword — passing it throws. The intent is
+honoured two ways: `Default Timeout=5` on the connection string, and
+`PRAGMA busy_timeout = 5000` on every connection open (`SqlitePragmaInterceptor`),
+which is where the value actually takes effect. Configurable via
+`Database:BusyTimeoutMs`.
+
+### D15 — Timestamps are `DateTimeOffset` stored as ISO-8601 UTC text
+SQLite has no native `DateTimeOffset`, and EF's default mapping **cannot be used
+in `ORDER BY`** — the provider throws `NotSupportedException`. Every instant is
+therefore converted to a fixed-width round-trip UTC string, which sorts
+lexicographically in true chronological order. Normalising on write also makes
+the §3 rule "all timestamps stored as UTC" hold at the one point every timestamp
+passes through. `DateTime` is never used for anything.
+
+### D16 — `PlaceLike` has a composite primary key
+Spec §3 says all entities have a Guid `Id`; `PlaceLike` is a join row and uses
+`(PlaceId, MemberId)` instead. This makes "liking twice is a no-op" (§4) an
+invariant the database holds rather than a race the application has to win.
+
+### D17 — Enums persist by name; `TimeSlots` persists as its bitmask
+Storing by name means reordering an enum member in a later milestone cannot
+silently reinterpret existing rows. `TimeSlots` is `[Flags]`, where a combined
+value has no stable name, so it is stored as `int`.
+
+### D18 — Soft delete is a model-level query filter
+`Place` carries `HasQueryFilter(p => !p.IsDeleted)`, so §6's "list endpoints
+exclude soft-deleted rows" cannot be broken by a future endpoint forgetting a
+`Where`. The single opt-out allowed by the spec (`?includeDeleted=true` on
+places) uses `IgnoreQueryFilters()`. `ItineraryItem` carries a matching filter
+because `Place` is the required end of that relationship.
+
+---
+
+## Auth
+
+### D19 — Session token format
+`base64url(tripId:memberId) . base64url(HMACSHA256(payload))`, compared in fixed
+time. The token proves identity only: membership is re-read from the database on
+every trip-scoped request, so removing a member revokes access immediately
+rather than at cookie expiry.
+
+### D20 — The signing key is generated and cached on first run when unset
+`Auth:SigningKey` (base64) always wins. With none configured, a 32-byte key is
+generated and written to `.wego-signing-key` beside the app, so a restart does
+not sign every member out. The file is gitignored. **Production deployments must
+set `Auth:SigningKey` explicitly** — otherwise the key is per-machine and not
+recoverable.
+
+### D21 — Rate-limit partitioning falls back to a shared bucket
+Joins are partitioned by `RemoteIpAddress`, populated from `X-Forwarded-For` via
+`UseForwardedHeaders`. When there is no remote address (in-memory TestServer),
+all callers share one `"unknown"` partition — this fails safe (shared limit)
+rather than open (no limit). Because the whole test suite would then share that
+bucket, `RateLimits:JoinPerMinute` is configurable and raised in tests other than
+`JoinRateLimitTests`, which pins it to the spec's 10.
+
+---
+
+## Frontend
+
+### D22 — `Patch<T>` distinguishes an absent field from an explicit null
+Without it, PATCH cannot clear a nullable column, and a partial update risks
+wiping fields the client never mentioned. `Patch<T>.IsSet` is false only when the
+property was missing from the JSON object.
+
+### D23 — Money is `number` holding integer minor units on the client
+Mirrors the server's `long`. The only place it becomes a decimal is
+`formatMoney`, on the way to the screen (§5.3: "formatting only at the edge").
+
+### D24 — One client-side rule is mirrored, and marked
+`PlaceForm` checks "at least one time slot" before submitting, marked
+`// mirror of server rule` per §8. It is a convenience only; the server rejects
+the same input independently, and the integration tests assert that.

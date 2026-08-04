@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>WeGo.Domain</RootNamespace>
+    <AssemblyName>WeGo.Domain</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Lets the tests drive InviteCodeGenerator's rejection-sampling loop with a
+         deterministic byte source instead of real randomness. -->
+    <InternalsVisibleTo Include="WeGo.Domain.Tests" />
+  </ItemGroup>
+
+</Project>

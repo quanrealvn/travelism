@@ -1,0 +1,51 @@
+namespace WeGo.Api.Contracts;
+
+/// <summary>
+/// Request bodies. Every field is nullable so that "missing" is a value the
+/// validator can see and report as a per-field 422 (spec §7.14) rather than
+/// something the JSON layer rejects with its own non-conforming 400.
+/// Enums arrive as strings and are parsed by the domain validators for the
+/// same reason.
+/// </summary>
+public sealed record CreateTripRequest(
+    string? Name,
+    string? Destination,
+    DateOnly? StartDate,
+    DateOnly? EndDate,
+    string? TimeZoneId,
+    string? Currency,
+    long? BudgetAmount,
+    string? OwnerDisplayName);
+
+public sealed record JoinTripRequest(
+    string? InviteCode,
+    string? DisplayName);
+
+public sealed record UpdateTripRequest(
+    Patch<string?> Name,
+    Patch<string?> Destination,
+    Patch<DateOnly?> StartDate,
+    Patch<DateOnly?> EndDate,
+    Patch<string?> TimeZoneId,
+    Patch<long?> BudgetAmount,
+    Patch<string?> Status);
+
+public sealed record CreatePlaceRequest(
+    string? Name,
+    double? Lat,
+    double? Lng,
+    string? Category,
+    string?[]? TimeSlots,
+    int? EstimatedDurationMinutes,
+    long? EstimatedCost,
+    string? OpenHoursText);
+
+public sealed record UpdatePlaceRequest(
+    Patch<string?> Name,
+    Patch<double?> Lat,
+    Patch<double?> Lng,
+    Patch<string?> Category,
+    Patch<string?[]?> TimeSlots,
+    Patch<int?> EstimatedDurationMinutes,
+    Patch<long?> EstimatedCost,
+    Patch<string?> OpenHoursText);

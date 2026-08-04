@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>WeGo.Api</RootNamespace>
+    <AssemblyName>WeGo.Api</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WeGo.Domain\WeGo.Domain.csproj" />
+    <ProjectReference Include="..\WeGo.Infrastructure\WeGo.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Design-time only: the EF tools need it on the startup project to build
+         the model. PrivateAssets keeps it out of the published output. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="WeGo.Api.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Domain enums (PlaceStatus, MemberRole, ActivityAction, ...) are referenced
+         throughout the API layer; importing them globally keeps the using blocks
+         focused on what each file actually adds. -->
+    <Using Include="WeGo.Domain" />
+  </ItemGroup>
+
+</Project>

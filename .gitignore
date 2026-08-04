@@ -1,0 +1,42 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+coverage/
+*.coverage
+*.trx
+artifacts/
+
+## SQLite (runtime data)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+## Node
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+## Generated frontend bundle served by the API
+src/WeGo.Api/wwwroot/
+
+## Local secrets / env
+.env
+.env.local
+appsettings.Local.json
+## Dev-only HMAC key generated on first run when Auth:SigningKey is unset
+.wego-signing-key
+
+## OS
+Thumbs.db
+.DS_Store
+desktop.ini
