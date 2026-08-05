@@ -1,4 +1,5 @@
 import type { PlaceCategory, PlaceResponse, PlaceStatus } from '../api/api-types'
+import { placeCategoryLabel } from '../api/labels'
 
 export interface CategoryStyle {
   /** Marker fill. Chosen to stay legible on OpenStreetMap's light tiles. */
@@ -21,11 +22,11 @@ export interface CategoryStyle {
  * meaning in hue is unreadable for them.
  */
 const CATEGORY_STYLES: Record<PlaceCategory, CategoryStyle> = {
-  Food: { color: '#d1495b', glyph: '🍜', label: 'Ăn uống' },
-  Sight: { color: '#1f6f5c', glyph: '⛰', label: 'Tham quan' },
-  Photo: { color: '#7b4fb5', glyph: '📷', label: 'Chụp ảnh' },
-  Rest: { color: '#2b6cb0', glyph: '🛏', label: 'Nghỉ ngơi' },
-  Other: { color: '#6b7280', glyph: '📍', label: 'Khác' },
+  Food: { color: '#d1495b', glyph: '🍜', label: placeCategoryLabel('Food') },
+  Sight: { color: '#1f6f5c', glyph: '⛰', label: placeCategoryLabel('Sight') },
+  Photo: { color: '#7b4fb5', glyph: '📷', label: placeCategoryLabel('Photo') },
+  Rest: { color: '#2b6cb0', glyph: '🛏', label: placeCategoryLabel('Rest') },
+  Other: { color: '#6b7280', glyph: '📍', label: placeCategoryLabel('Other') },
 }
 
 export function categoryStyle(category: PlaceCategory): CategoryStyle {

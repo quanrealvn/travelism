@@ -9,6 +9,10 @@ import type {
   MemberResponse,
 } from '../api/api-types'
 import { formatMoney, parseMoney } from '../api/money'
+import { expenseCategoryLabel, shortDate } from '../api/labels'
+import { formatDayLabel } from '../itinerary/tripDates'
+import { ButtonBusy, Spinner } from './Spinner'
+import { IconClose } from './icons'
 
 interface ExpensePanelProps {
   expenses: ExpenseResponse[]
@@ -17,11 +21,7 @@ interface ExpensePanelProps {
   myMemberId: string
   currency: string
   currencyExponent: number
-  tripDays: string[]
-  pending: boolean
   deletingId: string | null
-  submitError: string | null
-  onAdd: (body: CreateExpenseRequest) => void
   onDelete: (expenseId: string) => void
 }
 
@@ -38,11 +38,7 @@ export function ExpensePanel({
   myMemberId,
   currency,
   currencyExponent,
-  tripDays,
-  pending,
   deletingId,
-  submitError,
-  onAdd,
   onDelete,
 }: ExpensePanelProps) {
   const nameOf = (memberId: string) =>
@@ -54,7 +50,10 @@ export function ExpensePanel({
         <h3>Số dư</h3>
 
         {balance === undefined ? (
-          <p className="search-hint">Đang tính…</p>
+          <p className="search-hint inline-busy" role="status">
+            <Spinner />
+            Đang tính…
+          </p>
         ) : (
           <>
             <p className="balance-total">
@@ -63,8 +62,14 @@ export function ExpensePanel({
 
             <ul className="balance-list">
               {balance.balances.map((entry) => (
-                <li key={entry.memberId} data-testid={`balance-${entry.memberId}`}>
-                  <span>{nameOf(entry.memberId)}</span>
+                <li
+                  key={entry.memberId}
+                  // The first question anybody asks this card is "what about
+                  // me", and four similar names in a column do not answer it.
+                  className={entry.memberId === myMemberId ? 'is-me' : undefined}
+                  data-testid={`balance-${entry.memberId}`}
+                >
+                  <span>{nameOf(entry.memberId)}{entry.memberId === myMemberId && ' (bạn)'}</span>
                   <span
                     className={
                       entry.net > 0 ? 'net positive' : entry.net < 0 ? 'net negative' : 'net'
@@ -109,7 +114,8 @@ export function ExpensePanel({
                 <div className="expense-body">
                   <span className="expense-title">{expense.title}</span>
                   <span className="expense-meta">
-                    {expense.date} · {expense.category} · {nameOf(expense.paidByMemberId)} trả
+                    {shortDate(expense.date)} · {expenseCategoryLabel(expense.category)} ·{' '}
+                    {nameOf(expense.paidByMemberId)} trả
                     {expense.splitType === 'Custom' && ' · chia tuỳ chỉnh'}
                   </span>
                 </div>
@@ -123,7 +129,7 @@ export function ExpensePanel({
                   disabled={deletingId === expense.id}
                   aria-label={`Xoá ${expense.title}`}
                 >
-                  {deletingId === expense.id ? '…' : '✕'}
+                  {deletingId === expense.id ? <Spinner /> : <IconClose />}
                 </button>
               </li>
             ))}
@@ -131,17 +137,25 @@ export function ExpensePanel({
         )}
       </section>
 
-      <ExpenseForm
-        members={members}
-        myMemberId={myMemberId}
-        currencyExponent={currencyExponent}
-        tripDays={tripDays}
-        pending={pending}
-        submitError={submitError}
-        onAdd={onAdd}
-      />
     </div>
   )
+}
+
+/**
+ * Exported so the workspace can lift it into a sheet: a form that is always
+ * expanded pushes the balance and the list of what has been spent — the two
+ * things somebody opens this tab to read — below the fold.
+ */
+export function AddExpenseForm(props: {
+  members: MemberResponse[]
+  myMemberId: string
+  currencyExponent: number
+  tripDays: string[]
+  pending: boolean
+  submitError: string | null
+  onAdd: (body: CreateExpenseRequest) => void
+}) {
+  return <ExpenseForm {...props} />
 }
 
 function ExpenseForm({
@@ -194,9 +208,8 @@ function ExpenseForm({
   }
 
   return (
+    // The sheet supplies the title; see the note in PlaceForm.
     <form className="expense-form" onSubmit={handleSubmit} aria-label="Thêm chi tiêu">
-      <h3>Thêm chi tiêu</h3>
-
       <label>
         Nội dung
         <input value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={120} />
@@ -218,7 +231,7 @@ function ExpenseForm({
           <select value={date} onChange={(e) => setDate(e.target.value)}>
             {tripDays.map((day) => (
               <option key={day} value={day}>
-                {day}
+                {formatDayLabel(day)}
               </option>
             ))}
           </select>
@@ -244,7 +257,7 @@ function ExpenseForm({
           >
             {ALL_EXPENSE_CATEGORIES.map((option) => (
               <option key={option} value={option}>
-                {option}
+                {expenseCategoryLabel(option)}
               </option>
             ))}
           </select>
@@ -258,7 +271,7 @@ function ExpenseForm({
       )}
 
       <button type="submit" disabled={pending}>
-        {pending ? 'Đang lưu…' : 'Thêm khoản chi'}
+        {pending ? <ButtonBusy>Đang lưu…</ButtonBusy> : 'Thêm khoản chi'}
       </button>
     </form>
   )

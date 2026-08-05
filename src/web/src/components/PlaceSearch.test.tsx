@@ -106,7 +106,11 @@ describe('PlaceSearch', () => {
 
     // An outage must not be a dead end: pasting a link and clicking the map
     // both still work.
-    const message = await screen.findByRole('status')
+    //
+    // Found by its text rather than by role: the busy indicator is a status
+    // too, so a role query would race it and sometimes assert against
+    // "Đang tìm…".
+    const message = (await screen.findByText(/không tìm được lúc này/i)).closest('p')
     expect(message).toHaveTextContent(/dán link/i)
     expect(message).toHaveTextContent(/bấm lên bản đồ/i)
   })
@@ -119,7 +123,7 @@ describe('PlaceSearch', () => {
 
     // Naming the failed query and pointing at what does work — a shorter name,
     // a pasted link, or the map — beats a bare "no results".
-    const hint = await screen.findByRole('status')
+    const hint = (await screen.findByText(/không tìm thấy/i)).closest('p')
     expect(hint).toHaveTextContent(/không tìm thấy/i)
     expect(hint).toHaveTextContent(/tên ngắn hơn/i)
     expect(hint).toHaveTextContent(/dán link/i)

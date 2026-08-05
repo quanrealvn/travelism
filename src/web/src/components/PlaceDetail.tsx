@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import type { PlaceReferenceRequest, PlaceResponse } from '../api/api-types'
+import { IconClose, IconLink, IconPencil, IconPlus } from './icons'
+import { ButtonBusy } from './Spinner'
 
 interface PlaceDetailProps {
   place: PlaceResponse
@@ -36,28 +38,36 @@ export function PlaceDetail({ place, saving, onSave }: PlaceDetailProps) {
     <div className="place-detail">
       {place.description && <p className="detail-description">{place.description}</p>}
 
-      {place.references.length > 0 && (
-        <ul className="detail-links">
-          {place.references.map((reference) => (
-            <li key={reference.id}>
-              <a
-                href={reference.url}
-                target="_blank"
-                // noreferrer implies noopener, but both are stated: this opens
-                // a page nobody on the trip controls.
-                rel="noreferrer noopener"
-                title={reference.url}
-              >
-                🔗 {reference.displayName}
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
+      {/*
+        The edit trigger rides in the same chip row as the links rather than
+        sitting on a line of its own. Repeated down a wishlist it was the
+        loudest recurring element on the screen, which is the wrong weight for
+        something you touch once per place.
+      */}
+      <ul className="detail-links">
+        {place.references.map((reference) => (
+          <li key={reference.id}>
+            <a
+              href={reference.url}
+              target="_blank"
+              // noreferrer implies noopener, but both are stated: this opens
+              // a page nobody on the trip controls.
+              rel="noreferrer noopener"
+              title={reference.url}
+            >
+              <IconLink />
+              {reference.displayName}
+            </a>
+          </li>
+        ))}
 
-      <button type="button" className="link-button" onClick={() => setEditing(true)}>
-        {hasDetail ? 'Sửa mô tả & link' : 'Thêm mô tả & link'}
-      </button>
+        <li>
+          <button type="button" className="detail-edit" onClick={() => setEditing(true)}>
+            <IconPencil />
+            {hasDetail ? 'Sửa mô tả' : 'Thêm mô tả'}
+          </button>
+        </li>
+      </ul>
     </div>
   )
 }
@@ -137,7 +147,7 @@ function PlaceDetailEditor({
             onClick={() => setRows((current) => current.filter((_, i) => i !== index))}
             aria-label={`Bỏ link ${index + 1}`}
           >
-            ✕
+            <IconClose />
           </button>
         </div>
       ))}
@@ -145,16 +155,17 @@ function PlaceDetailEditor({
       {rows.length < 10 && (
         <button
           type="button"
-          className="link-button"
+          className="detail-edit"
           onClick={() => setRows((current) => [...current, { url: '', label: '' }])}
         >
-          + Thêm link
+          <IconPlus />
+          Thêm link
         </button>
       )}
 
       <div className="detail-actions">
         <button type="button" onClick={submit} disabled={saving}>
-          {saving ? 'Đang lưu…' : 'Lưu'}
+          {saving ? <ButtonBusy>Đang lưu…</ButtonBusy> : 'Lưu'}
         </button>
         <button type="button" className="link-button" onClick={onCancel}>
           Huỷ

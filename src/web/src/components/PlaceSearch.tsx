@@ -3,6 +3,7 @@ import type { GeocodeResultResponse } from '../api/api-types'
 import { ApiError } from '../api/client'
 import { isLocationPaste, usePlaceLink, usePlaceSearch } from '../api/hooks'
 import { useDebouncedSearchTerm } from '../hooks/useDebounced'
+import { Spinner } from './Spinner'
 
 interface PlaceSearchProps {
   tripId: string
@@ -84,7 +85,10 @@ export function PlaceSearch({ tripId, onPick }: PlaceSearchProps) {
       </p>
 
       {showFeedback && active.isFetching && (
-        <p className="search-hint">{pasted ? 'Đang mở link…' : 'Đang tìm…'}</p>
+        <p className="search-hint inline-busy" role="status">
+          <Spinner />
+          {pasted ? 'Đang mở link…' : 'Đang tìm…'}
+        </p>
       )}
 
       {showFeedback && active.isError && (

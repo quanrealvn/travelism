@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import {
+  AttributionControl,
   MapContainer,
   Marker,
   Polyline,
@@ -101,7 +102,14 @@ export function TripMap({
       scrollWheelZoom
       className="trip-map"
       aria-label="Bản đồ các địa điểm"
+      // Leaflet puts attribution bottom-right by default, which on a phone is
+      // exactly where the floating action button sits. A map does not scroll,
+      // so the notice was permanently unreachable rather than briefly covered
+      // — and OpenStreetMap's licence requires it to be visible.
+      attributionControl={false}
     >
+      <AttributionControl position="bottomleft" prefix={false} />
+
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -182,16 +190,46 @@ function ClickToPick({ onPick }: { onPick: (location: LatLng) => void }) {
 }
 
 /** Keeps every place in view as the wishlist grows. */
+/**
+ * Keeps the map filling its container and framing the trip.
+ *
+ * Leaflet measures its container once, at construction, and never notices it
+ * changing. Below 1024px the map shares the wishlist tab with the list and
+ * only one is shown at a time, so the map is built inside a `display: none`
+ * parent, measures zero, and — when finally revealed — paints a single tile
+ * into the corner of a blank area, framed to a viewport that does not exist.
+ * A window resize and a phone rotating do the same thing.
+ *
+ * Sizing and framing are handled together because they answer to the same
+ * event: re-measuring without re-framing leaves the map correctly sized on the
+ * wrong part of the world.
+ */
 function FitToPlaces({ places }: { places: PlaceResponse[] }) {
   const map = useMap()
 
   useEffect(() => {
-    if (places.length === 0) {
-      return
+    function fit() {
+      if (places.length === 0) {
+        return
+      }
+
+      const bounds = L.latLngBounds(
+        places.map((place) => [place.lat, place.lng] as [number, number]),
+      )
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
     }
 
-    const bounds = L.latLngBounds(places.map((place) => [place.lat, place.lng] as [number, number]))
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
+    fit()
+
+    const container = map.getContainer()
+    const observer = new ResizeObserver(() => {
+      // No animation: this is a correction, not a movement the user made.
+      map.invalidateSize({ animate: false })
+      fit()
+    })
+
+    observer.observe(container)
+    return () => observer.disconnect()
   }, [map, places])
 
   return null

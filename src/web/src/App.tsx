@@ -35,15 +35,45 @@ import { StartScreen } from './components/StartScreen'
 import { TripMap } from './components/TripMap'
 import type { LatLng } from './components/TripMap'
 import { ItineraryBoard } from './components/ItineraryBoard'
-import { ExpensePanel } from './components/ExpensePanel'
-import { WeatherStrip } from './components/WeatherStrip'
+import { AddExpenseForm, ExpensePanel } from './components/ExpensePanel'
+import { DayRail } from './components/DayRail'
 import { ActivityFeed } from './components/ActivityFeed'
 import { SuggestionsPanel } from './components/SuggestionsPanel'
 import { tripDays } from './itinerary/tripDates'
 import { useTripSync } from './api/useTripSync'
 import { PlaceForm } from './components/PlaceForm'
 import { PlaceList } from './components/PlaceList'
-import { formatMoney } from './api/money'
+import { Sheet } from './components/Sheet'
+import { TripSheet } from './components/TripSheet'
+import { Spinner } from './components/Spinner'
+import {
+  IconCalendar,
+  IconInfo,
+  IconPin,
+  IconPlus,
+  IconPulse,
+  IconWallet,
+} from './components/icons'
+
+type View = 'wishlist' | 'itinerary' | 'money' | 'activity'
+
+/**
+ * The four things a trip is: where you might go, when you are going, what it
+ * costs, and what everyone has been doing. In that order, because that is the
+ * order they are decided in.
+ */
+const TABS: { id: View; label: string; Icon: (props: { className?: string }) => JSX.Element }[] = [
+  { id: 'wishlist', label: 'Wishlist', Icon: IconPin },
+  { id: 'itinerary', label: 'Lịch trình', Icon: IconCalendar },
+  { id: 'money', label: 'Chi tiêu', Icon: IconWallet },
+  { id: 'activity', label: 'Hoạt động', Icon: IconPulse },
+]
+
+const SYNC_TITLE = {
+  live: 'Đang đồng bộ trực tiếp',
+  connecting: 'Đang kết nối lại',
+  offline: 'Ngoại tuyến',
+} as const
 
 /** Turns the server's stable codes into something a traveller can act on. */
 function describeItineraryError(error: unknown): string {
@@ -74,7 +104,7 @@ export function App() {
   }
 
   if (session.isLoading) {
-    return <p className="loading">Đang tải…</p>
+    return <Spinner block label="Đang tải…" />
   }
 
   if (!session.data) {
@@ -102,8 +132,12 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   // The location being composed, shared by the map and the form so a click on
   // one shows up on the other.
   const [draftLocation, setDraftLocation] = useState<LatLng | null>(null)
-  const [view, setView] = useState<'wishlist' | 'itinerary' | 'money' | 'activity'>('wishlist')
+  const [view, setView] = useState<View>('wishlist')
   const [selectedDate, setSelectedDate] = useState<IsoDate | null>(null)
+  // Below 1024px the map and the list share the screen one at a time; above it
+  // they sit side by side and this is ignored.
+  const [pane, setPane] = useState<'list' | 'map'>('list')
+  const [sheet, setSheet] = useState<'trip' | 'add-place' | 'add-expense' | null>(null)
 
   // Computed before the early returns below, because the suggestions query is a
   // hook and hooks cannot be called conditionally.
@@ -120,7 +154,7 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   const activity = useActivity(tripId, view === 'activity')
 
   if (trip.isLoading || places.isLoading || itinerary.isLoading) {
-    return <p className="loading">Đang tải chuyến đi…</p>
+    return <Spinner block label="Đang tải chuyến đi…" />
   }
 
   if (trip.isError || !trip.data) {
@@ -134,7 +168,6 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   const currentTrip = trip.data
   const currentPlaces = places.data ?? []
   const itineraryItems = itinerary.data ?? []
-  const me = currentTrip.members.find((member) => member.id === memberId)
 
   const confirmedPlaces = currentPlaces.filter((place) => place.status === 'Confirmed')
 
@@ -175,7 +208,14 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   }
 
   function handleCreate(body: CreatePlaceRequest) {
-    createPlace.mutate(body)
+    // The sheet stays up on failure so the error lands next to the field that
+    // caused it, rather than behind a dismissed form.
+    createPlace.mutate(body, {
+      onSuccess: () => {
+        setSheet(null)
+        setDraftLocation(null)
+      },
+    })
   }
 
   function handleChangeStatus(placeId: string, status: PlaceStatus) {
@@ -249,197 +289,221 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   const fieldErrors =
     createPlace.error instanceof ApiError ? createPlace.error.fieldErrors() : {}
 
+  const tabCounts: Record<View, number | null> = {
+    wishlist: currentPlaces.length,
+    itinerary: itineraryItems.length,
+    money: expenses.data?.length ?? 0,
+    activity: null,
+  }
+
   return (
-    <div className="workspace">
-      <header className="trip-header">
-        <div>
-          <h1>{currentTrip.name}</h1>
-          <p className="trip-meta">
-            {currentTrip.destination} · {currentTrip.startDate} → {currentTrip.endDate} ·{' '}
-            {currentTrip.timeZoneId}
+    <div className="app">
+      <header className="topbar">
+        <div className="topbar-main">
+          <h1 className="topbar-title">{currentTrip.name}</h1>
+          <p className="topbar-sub">
+            <span className={`sync sync-${syncStatus}`} title={SYNC_TITLE[syncStatus]}>
+              <span className="visually-hidden">{SYNC_TITLE[syncStatus]}</span>
+            </span>
+            {currentTrip.destination} · {days.length} ngày
           </p>
-          {currentTrip.budgetAmount !== null && (
-            <p className="trip-budget">
-              Ngân sách:{' '}
-              {formatMoney(
-                currentTrip.budgetAmount,
-                currentTrip.currency,
-                currentTrip.currencyExponent,
-              )}
-            </p>
-          )}
         </div>
 
-        <div className="trip-invite">
-          <span className={`sync sync-${syncStatus}`} title="Trạng thái đồng bộ">
-            {syncStatus === 'live' ? '● trực tiếp' : syncStatus === 'connecting' ? '○ đang nối' : '○ ngoại tuyến'}
-          </span>
-          <span className="label">Mã mời</span>
-          <code>{currentTrip.inviteCode}</code>
-          <p className="members">
-            {currentTrip.members.map((member) => member.displayName).join(', ')}
-            {me && ` · bạn là ${me.displayName}`}
-          </p>
+        <div className="topbar-actions">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => setSheet('trip')}
+            aria-label="Thông tin chuyến đi và mã mời"
+          >
+            <IconInfo />
+          </button>
         </div>
+
       </header>
 
-      <nav className="view-tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'wishlist'}
-          onClick={() => setView('wishlist')}
-        >
-          Wishlist ({currentPlaces.length})
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'itinerary'}
-          onClick={() => setView('itinerary')}
-        >
-          Lịch trình ({itineraryItems.length})
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'money'}
-          onClick={() => setView('money')}
-        >
-          Chi tiêu ({expenses.data?.length ?? 0})
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'activity'}
-          onClick={() => setView('activity')}
-        >
-          Hoạt động
-        </button>
+      {/*
+        A sibling of the header, never a child of it: the tab bar is fixed to
+        the bottom of the viewport on a phone, and an ancestor carrying
+        backdrop-filter would become its containing block and pin it to the
+        header instead.
+      */}
+      <nav className="tabbar" role="tablist" aria-label="Khu vực">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            className="tabbar-item"
+            aria-selected={view === tab.id}
+            onClick={() => setView(tab.id)}
+          >
+            <span className="tabbar-icon">
+              <tab.Icon />
+            </span>
+            <span className="tabbar-label">{tab.label}</span>
+            {/* A sibling of the icon, not a child of it: on desktop the badge
+                sits inline after the label, and nested inside a 1.125rem icon
+                box it spilled out below as a stray number. */}
+            {tabCounts[tab.id] !== null && tabCounts[tab.id]! > 0 && (
+              <span className="tabbar-count">{tabCounts[tab.id]}</span>
+            )}
+          </button>
+        ))}
       </nav>
 
-      {actionError && (
-        <p className="form-error" role="alert">
-          {actionError}
-        </p>
-      )}
+      <main className="content">
+        {actionError && (
+          <p className="form-error" role="alert">
+            {actionError}
+          </p>
+        )}
 
-      {view === 'activity' && (
-        <main className="money-body">
+        {view === 'wishlist' && (
+          <>
+            <div className="pane-switch" role="group" aria-label="Cách xem wishlist">
+              <button type="button" aria-pressed={pane === 'list'} onClick={() => setPane('list')}>
+                Danh sách
+              </button>
+              <button type="button" aria-pressed={pane === 'map'} onClick={() => setPane('map')}>
+                Bản đồ
+              </button>
+            </div>
+
+            <div className="wishlist-view" data-pane={pane}>
+              <section className="map-panel">
+                <TripMap
+                  places={currentPlaces}
+                  currency={currentTrip.currency}
+                  currencyExponent={currentTrip.currencyExponent}
+                  selectedPlaceId={selectedPlaceId}
+                  onSelectPlace={setSelectedPlaceId}
+                  draftLocation={draftLocation}
+                  onPickLocation={setDraftLocation}
+                  routePoints={routePoints}
+                />
+              </section>
+
+              <section className="list-panel">
+                <PlaceList
+                  places={currentPlaces}
+                  members={currentTrip.members}
+                  myMemberId={memberId}
+                  currency={currentTrip.currency}
+                  currencyExponent={currentTrip.currencyExponent}
+                  selectedPlaceId={selectedPlaceId}
+                  deletingPlaceId={deletePlace.isPending ? deletePlace.variables.placeId : null}
+                  busyPlaceId={
+                    toggleLike.isPending
+                      ? toggleLike.variables.placeId
+                      : changeStatus.isPending
+                        ? changeStatus.variables.placeId
+                        : updatePlace.isPending
+                          ? updatePlace.variables.placeId
+                          : null
+                  }
+                  tripUnderway={currentTrip.status !== 'Planning'}
+                  onSelect={setSelectedPlaceId}
+                  onDelete={handleDelete}
+                  onToggleLike={(placeId, liked) => toggleLike.mutate({ placeId, liked })}
+                  onChangeStatus={handleChangeStatus}
+                  onSaveDetail={handleSaveDetail}
+                />
+              </section>
+            </div>
+          </>
+        )}
+
+        {view === 'itinerary' && (
+          <div className="itinerary-body">
+            <DayRail
+              weather={weather.data}
+              days={days}
+              selectedDate={activeDate}
+              onSelectDate={setSelectedDate}
+            />
+
+            <ItineraryBoard
+              days={days}
+              items={itineraryItems}
+              confirmedPlaces={confirmedPlaces}
+              currency={currentTrip.currency}
+              currencyExponent={currentTrip.currencyExponent}
+              movingItemId={moveItem.isPending ? moveItem.variables.itemId : null}
+              findings={feasibility.data?.items ?? []}
+              selectedDate={activeDate}
+              onSelectDate={setSelectedDate}
+              onMoveItem={handleMoveItem}
+              onSchedulePlace={handleSchedulePlace}
+              onRemoveItem={(itemId) => removeItem.mutate(itemId)}
+              onSetTime={handleSetTime}
+            />
+
+            <aside className="side-panel">
+              <SuggestionsPanel
+                date={activeDate}
+                groups={suggestions.data ?? []}
+                loading={suggestions.isFetching}
+                currency={currentTrip.currency}
+                currencyExponent={currentTrip.currencyExponent}
+                onAdd={handleSchedulePlace}
+              />
+            </aside>
+          </div>
+        )}
+
+        {view === 'money' && (
+          <div className="money-body">
+            <ExpensePanel
+              expenses={expenses.data ?? []}
+              balance={balance.data}
+              members={currentTrip.members}
+              myMemberId={memberId}
+              currency={currentTrip.currency}
+              currencyExponent={currentTrip.currencyExponent}
+              deletingId={deleteExpense.isPending ? deleteExpense.variables : null}
+              onDelete={(expenseId) => deleteExpense.mutate(expenseId)}
+            />
+          </div>
+        )}
+
+        {view === 'activity' && (
           <section className="side-panel">
-            <h2>Hoạt động</h2>
+            <h2 className="section-title">Hoạt động</h2>
             <ActivityFeed
               entries={activity.data ?? []}
               members={currentTrip.members}
               loading={activity.isLoading}
             />
           </section>
-        </main>
+        )}
+      </main>
+
+      {view === 'wishlist' && (
+        <button type="button" className="fab" onClick={() => setSheet('add-place')}>
+          <IconPlus />
+          Thêm địa điểm
+        </button>
       )}
 
       {view === 'money' && (
-        <main className="money-body">
-          <ExpensePanel
-            expenses={expenses.data ?? []}
-            balance={balance.data}
-            members={currentTrip.members}
-            myMemberId={memberId}
-            currency={currentTrip.currency}
-            currencyExponent={currentTrip.currencyExponent}
-            tripDays={days}
-            pending={createExpense.isPending}
-            deletingId={deleteExpense.isPending ? deleteExpense.variables : null}
-            submitError={
-              createExpense.error instanceof ApiError
-                ? (createExpense.error.problem.detail ?? createExpense.error.message)
-                : null
-            }
-            onAdd={(body) => createExpense.mutate(body)}
-            onDelete={(expenseId) => deleteExpense.mutate(expenseId)}
-          />
-        </main>
+        <button type="button" className="fab" onClick={() => setSheet('add-expense')}>
+          <IconPlus />
+          Thêm khoản chi
+        </button>
       )}
 
-      {view === 'itinerary' && (
-        <main className="itinerary-body">
-          <WeatherStrip
-            weather={weather.data}
-            days={days}
-            selectedDate={activeDate}
-            onSelectDate={setSelectedDate}
-          />
-
-          <ItineraryBoard
-            days={days}
-            items={itineraryItems}
-            confirmedPlaces={confirmedPlaces}
-            currency={currentTrip.currency}
-            currencyExponent={currentTrip.currencyExponent}
-            movingItemId={moveItem.isPending ? moveItem.variables.itemId : null}
-            findings={feasibility.data?.items ?? []}
-            selectedDate={activeDate}
-            onSelectDate={setSelectedDate}
-            onMoveItem={handleMoveItem}
-            onSchedulePlace={handleSchedulePlace}
-            onRemoveItem={(itemId) => removeItem.mutate(itemId)}
-            onSetTime={handleSetTime}
-          />
-
-          <aside className="side-panel">
-            <SuggestionsPanel
-              date={activeDate}
-              groups={suggestions.data ?? []}
-              loading={suggestions.isFetching}
-              currency={currentTrip.currency}
-              currencyExponent={currentTrip.currencyExponent}
-              onAdd={handleSchedulePlace}
-            />
-          </aside>
-        </main>
+      {sheet === 'trip' && (
+        <TripSheet
+          trip={currentTrip}
+          myMemberId={memberId}
+          syncStatus={syncStatus}
+          onClose={() => setSheet(null)}
+        />
       )}
 
-      <main className="trip-body" hidden={view !== 'wishlist'}>
-        <section className="map-panel">
-          <TripMap
-            places={currentPlaces}
-            currency={currentTrip.currency}
-            currencyExponent={currentTrip.currencyExponent}
-            selectedPlaceId={selectedPlaceId}
-            onSelectPlace={setSelectedPlaceId}
-            draftLocation={draftLocation}
-            onPickLocation={setDraftLocation}
-            routePoints={routePoints}
-          />
-        </section>
-
-        <aside className="side-panel">
-          <h2>Wishlist ({currentPlaces.length})</h2>
-
-          <PlaceList
-            places={currentPlaces}
-            members={currentTrip.members}
-            myMemberId={memberId}
-            currency={currentTrip.currency}
-            currencyExponent={currentTrip.currencyExponent}
-            selectedPlaceId={selectedPlaceId}
-            deletingPlaceId={deletePlace.isPending ? deletePlace.variables.placeId : null}
-            busyPlaceId={
-              toggleLike.isPending
-                ? toggleLike.variables.placeId
-                : changeStatus.isPending
-                  ? changeStatus.variables.placeId
-                  : updatePlace.isPending
-                    ? updatePlace.variables.placeId
-                    : null
-            }
-            tripUnderway={currentTrip.status !== 'Planning'}
-            onSelect={setSelectedPlaceId}
-            onDelete={handleDelete}
-            onToggleLike={(placeId, liked) => toggleLike.mutate({ placeId, liked })}
-            onChangeStatus={handleChangeStatus}
-            onSaveDetail={handleSaveDetail}
-          />
-
+      {sheet === 'add-place' && (
+        <Sheet title="Thêm địa điểm" onClose={() => setSheet(null)}>
           <PlaceForm
             tripId={tripId}
             currencyExponent={currentTrip.currencyExponent}
@@ -450,8 +514,28 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
             mapPick={draftLocation}
             onLocationChange={setDraftLocation}
           />
-        </aside>
-      </main>
+        </Sheet>
+      )}
+
+      {sheet === 'add-expense' && (
+        <Sheet title="Thêm khoản chi" onClose={() => setSheet(null)}>
+          <AddExpenseForm
+            members={currentTrip.members}
+            myMemberId={memberId}
+            currencyExponent={currentTrip.currencyExponent}
+            tripDays={days}
+            pending={createExpense.isPending}
+            submitError={
+              createExpense.error instanceof ApiError
+                ? (createExpense.error.problem.detail ?? createExpense.error.message)
+                : null
+            }
+            onAdd={(body) =>
+              createExpense.mutate(body, { onSuccess: () => setSheet(null) })
+            }
+          />
+        </Sheet>
+      )}
     </div>
   )
 }

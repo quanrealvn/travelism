@@ -47,6 +47,12 @@ export function formatDayLabel(date: IsoDate): string {
   return `${weekday} · ${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}`
 }
 
+/** "10/08/2026" — the unambiguous form, for reading rather than scanning. */
+export function formatDateLabel(date: IsoDate): string {
+  const [year, month, day] = splitIso(date)
+  return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`
+}
+
 /** `HH:mm:ss` → `HH:mm`; null stays null. */
 export function formatTime(startTime: string | null): string | null {
   return startTime === null ? null : startTime.slice(0, 5)

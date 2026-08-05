@@ -1,4 +1,5 @@
 import type { ActivityResponse, MemberResponse } from '../api/api-types'
+import { Spinner } from './Spinner'
 
 interface ActivityFeedProps {
   entries: ActivityResponse[]
@@ -15,7 +16,12 @@ export function ActivityFeed({ entries, members, loading }: ActivityFeedProps) {
     members.find((member) => member.id === memberId)?.displayName ?? 'Ai đó'
 
   if (loading) {
-    return <p className="search-hint">Đang tải…</p>
+    return (
+      <p className="search-hint inline-busy" role="status">
+        <Spinner />
+        Đang tải…
+      </p>
+    )
   }
 
   if (entries.length === 0) {

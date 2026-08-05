@@ -5,7 +5,10 @@ import type {
   PlaceStatus,
 } from '../api/api-types'
 import { formatDuration, formatMoney } from '../api/money'
+import { placeCategoryLabel, timeSlotsLabel } from '../api/labels'
 import { PlaceDetail } from './PlaceDetail'
+import { IconClose, IconExternal } from './icons'
+import { Spinner } from './Spinner'
 
 interface PlaceListProps {
   places: PlaceResponse[]
@@ -103,6 +106,7 @@ function PlaceRow({
   const likedByMe = place.likedByMemberIds.includes(myMemberId)
   const likeCount = place.likedByMemberIds.length
   const busy = busyPlaceId === place.id
+  const statusActions = availableStatusActions(place, tripUnderway)
 
   const likedNames = place.likedByMemberIds
     .map((id) => members.find((member) => member.id === id)?.displayName)
@@ -131,30 +135,29 @@ function PlaceRow({
       <button type="button" className="place-main" onClick={() => onSelect(place.id)}>
         <span className="place-name">{place.name}</span>
         <span className="place-meta">
-          {place.category} · {formatDuration(place.estimatedDurationMinutes)} ·{' '}
+          {placeCategoryLabel(place.category)} · {formatDuration(place.estimatedDurationMinutes)} ·{' '}
           {formatMoney(place.estimatedCost, currency, currencyExponent)}
         </span>
-        <span className="place-slots">{place.timeSlots.join(' · ')}</span>
+        <span className="place-slots">{timeSlotsLabel(place.timeSlots)}</span>
         {place.openHoursText && <span className="place-hours">{place.openHoursText}</span>}
         {place.skipReason && <span className="place-skip-reason">Lý do: {place.skipReason}</span>}
       </button>
 
-      <div className="place-actions">
-        <PlaceStatusActions
-          place={place}
-          busy={busy}
-          tripUnderway={tripUnderway}
-          onChangeStatus={onChangeStatus}
-        />
-
+      {/*
+        Open-elsewhere and delete live at the card's top-right, not in the
+        action row: most places offer no status action at all, and a row
+        containing nothing but two right-aligned icons reads as a layout bug.
+      */}
+      <div className="place-tools">
         <a
           className="place-external"
           href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
           target="_blank"
           rel="noreferrer noopener"
+          aria-label={`Mở ${place.name} trong Google Maps`}
           title="Mở trong Google Maps để xem ảnh và đánh giá"
         >
-          ↗
+          <IconExternal />
         </a>
 
         <button
@@ -164,17 +167,45 @@ function PlaceRow({
           disabled={deletingPlaceId === place.id}
           aria-label={`Xoá ${place.name}`}
         >
-          {deletingPlaceId === place.id ? '…' : '✕'}
+          {deletingPlaceId === place.id ? <Spinner /> : <IconClose />}
         </button>
       </div>
 
+      {/*
+        Detail before actions. With the order reversed the row of buttons sat
+        between the place's own meta line and its description, splitting one
+        piece of content in half with controls.
+      */}
       <PlaceDetail
         place={place}
         saving={busy}
         onSave={(description, references) => onSaveDetail(place.id, description, references)}
       />
+
+      {statusActions.length > 0 && (
+        <div className="place-actions">
+          {statusActions.map((action) => (
+            <button
+              key={action.status}
+              type="button"
+              className="place-status-action"
+              onClick={() => onChangeStatus(place.id, action.status)}
+              disabled={busy}
+              title={action.title}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      )}
     </li>
   )
+}
+
+interface StatusAction {
+  status: PlaceStatus
+  label: string
+  title: string
 }
 
 /**
@@ -182,19 +213,12 @@ function PlaceRow({
  * mirror of server rule — the server re-checks every edge and answers 409
  * INVALID_STATUS_TRANSITION; hiding the impossible ones just avoids offering a
  * button that could only fail.
+ *
+ * Returns the list rather than rendering it, so the card can leave the whole
+ * action row out when there is nothing to put in it.
  */
-function PlaceStatusActions({
-  place,
-  busy,
-  tripUnderway,
-  onChangeStatus,
-}: {
-  place: PlaceResponse
-  busy: boolean
-  tripUnderway: boolean
-  onChangeStatus: (placeId: string, status: PlaceStatus) => void
-}) {
-  const actions: { status: PlaceStatus; label: string; title: string }[] = []
+function availableStatusActions(place: PlaceResponse, tripUnderway: boolean): StatusAction[] {
+  const actions: StatusAction[] = []
 
   if (place.status === 'Shortlist') {
     actions.push({
@@ -221,20 +245,5 @@ function PlaceStatusActions({
     actions.push({ status: 'Visited', label: 'Sửa: đã đi', title: 'Sửa lại thành đã đi' })
   }
 
-  return (
-    <>
-      {actions.map((action) => (
-        <button
-          key={action.status}
-          type="button"
-          className="place-status-action"
-          onClick={() => onChangeStatus(place.id, action.status)}
-          disabled={busy}
-          title={action.title}
-        >
-          {action.label}
-        </button>
-      ))}
-    </>
-  )
+  return actions
 }

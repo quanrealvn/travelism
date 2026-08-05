@@ -171,8 +171,9 @@ describe('PlaceForm', () => {
 
     await user.type(searchBox(), 'thac')
     await user.click(await screen.findByText('Thác Dải Yếm'))
-    // Morning is on by default; turning it off leaves none selected.
-    await user.click(screen.getByLabelText('Morning'))
+    // Morning is on by default; turning it off leaves none selected. The
+    // checkbox is labelled in Vietnamese — "Morning" is a wire value.
+    await user.click(screen.getByLabelText('Sáng'))
 
     await user.click(submit())
 

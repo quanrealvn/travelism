@@ -19,6 +19,7 @@ import { formatDuration, formatMoney } from '../api/money'
 import { formatDayLabel, formatTime } from '../itinerary/tripDates'
 import { FeasibilityBadges } from './FeasibilityBadges'
 import { worstLevel } from '../itinerary/feasibilityText'
+import { IconClose, IconPlus } from './icons'
 
 interface ItineraryBoardProps {
   days: IsoDate[]
@@ -110,11 +111,11 @@ export function ItineraryBoard({
     >
       <div className="itinerary">
         <aside className="itinerary-pool">
-          <h3>Đã chốt · kéo sang ngày</h3>
+          <h3>Đã chốt</h3>
           {confirmedPlaces.length === 0 ? (
             <p className="empty-state small">
               Chưa có địa điểm nào được chốt. Thích một địa điểm để cả nhóm cùng
-              đồng ý, rồi kéo sang ngày.
+              đồng ý, rồi thêm vào ngày.
             </p>
           ) : (
             <ul className="pool-list">
@@ -124,6 +125,15 @@ export function ItineraryBoard({
                   place={place}
                   currency={currency}
                   currencyExponent={currencyExponent}
+                  targetDate={selectedDate}
+                  // mirror of server rule (spec §6): one place per date. The
+                  // card stays — it can still be dragged to another day — but
+                  // the button that would add it where it already is does not.
+                  alreadyOnTargetDate={
+                    selectedDate !== null &&
+                    (scheduledPlaceIdsByDate.get(selectedDate)?.has(place.id) ?? false)
+                  }
+                  onAdd={onSchedulePlace}
                 />
               ))}
             </ul>
@@ -164,10 +174,16 @@ function DraggablePlace({
   place,
   currency,
   currencyExponent,
+  targetDate,
+  alreadyOnTargetDate,
+  onAdd,
 }: {
   place: PlaceResponse
   currency: string
   currencyExponent: number
+  targetDate: IsoDate | null
+  alreadyOnTargetDate: boolean
+  onAdd: (placeId: string, date: IsoDate) => void
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `place:${place.id}`,
@@ -187,6 +203,29 @@ function DraggablePlace({
         {formatDuration(place.estimatedDurationMinutes)} ·{' '}
         {formatMoney(place.estimatedCost, currency, currencyExponent)}
       </span>
+
+      {/*
+        Dragging a card across a column is a mouse gesture; on a phone there is
+        nowhere to drag to, because only the selected day is on screen. This
+        button adds the place to that day in one tap. The pointer sensor needs
+        6px of movement before it claims the gesture, so a tap still reaches
+        the click handler.
+      */}
+      {targetDate !== null &&
+        (alreadyOnTargetDate ? (
+          <span className="pool-done" title={`Đã có trong ${formatDayLabel(targetDate)}`}>
+            ✓
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="pool-add"
+            onClick={() => onAdd(place.id, targetDate)}
+            aria-label={`Thêm ${place.name} vào ${formatDayLabel(targetDate)}`}
+          >
+            <IconPlus />
+          </button>
+        ))}
     </li>
   )
 }
@@ -337,7 +376,7 @@ function ItemCard({
       />
 
       <button type="button" className="item-remove" onClick={onRemove} aria-label={`Bỏ ${item.placeName}`}>
-        ✕
+        <IconClose />
       </button>
     </li>
   )

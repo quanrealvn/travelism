@@ -397,3 +397,93 @@ wrapper. `@testing-library/dom` is therefore an explicit devDependency.
 `PlaceForm` checks "at least one time slot" before submitting, marked
 `// mirror of server rule` per §8. It is a convenience only; the server rejects
 the same input independently, and the integration tests assert that.
+
+### D41 — The phone is the design target, and the tab bar is at the bottom
+Every layout rule starts from a 390px screen and the two breakpoints only add
+what a larger one can afford. Navigation sits at the bottom of the viewport
+because that is where a thumb reaches; above 1024px it moves into a bar under
+the title, where a pointer is what is actually being used.
+
+The tab bar is a sibling of the header, never a child. `backdrop-filter` on the
+header makes it the containing block for `position: fixed` descendants, so the
+tab bar was being pinned to the bottom of a 60px header — landing invisibly on
+top of the trip-info button and swallowing every click on it.
+
+`env(safe-area-inset-*)` only resolves to a non-zero value with
+`viewport-fit=cover` on the viewport meta, which the shell now sets.
+
+### D42 — Nothing below 12px, nothing below 4.5:1, nothing smaller than 40px
+The type scale has no step under 12px and the palette has no ink lighter than
+`--c-ink-3`. This is a travel app: it is read outdoors, at arm's length, by
+people who are walking.
+
+The contrast figures in `tokens.css` are measured rather than estimated. An
+earlier `--c-ink-3` was chosen by eye, annotated "4.6:1", and actually measured
+3.71:1 — a fail for body text that had been written down as a pass.
+
+44px is the target size for anything primary; 40px is the floor for dense
+secondary controls, and the audit fails anything below it.
+
+### D43 — Enum names are wire values, and `labels.ts` is the only place they become words
+The API speaks the spec's enum names, which are English. The map legend was
+already translating them while the card beside it was not, so a place read
+"Tham quan" in one place and "Sight" in another. Every user-facing rendering of
+a category, a time slot, or an expense type now goes through `api/labels.ts`;
+an unknown value falls back to the wire name rather than to "Khác", because
+showing what the server said is more honest than filing it under Other.
+
+### D44 — Long forms live in a sheet behind a button, not on the page
+The add-place and add-expense forms were permanently expanded, pushing the
+wishlist and the balance — the things somebody opens those tabs to read — below
+the fold. Both now open in a sheet from a floating action button, dismissed by
+Escape, by the backdrop, or by saving. Focus moves in on open and returns to
+whatever opened it.
+
+The forms carry no heading of their own: the sheet is already titled, and
+printing the title twice reads as a rendering fault.
+
+### D45 — The design was verified by a harness, and the harness found the defects
+`__ux.mjs` (temporary, deleted after the pass) drove a real browser across three
+viewports and six surfaces — including inside the sheets, since that is where
+the forms now live — checking horizontal overflow, tap-target size, text size,
+contrast, clipping, accessible names, whether each control is actually the
+element at its own centre, and whether the map has loaded enough tiles to cover
+its box.
+
+Five real defects came from it that review had not caught:
+
+- Every `<input>` with no `type` attribute was unstyled and 28px tall. The base
+  rule listed `input[type='text']` and friends, and an input with no type
+  attribute is a text input that matches none of them. Now matched by exclusion.
+- `.place-pin-dot` lost its `background` in the stylesheet rewrite, so every map
+  pin rendered white while the legend beside it named five colours.
+- Leaflet measures its container once. Below 1024px the map is built inside a
+  `display: none` pane, measures zero, and paints one tile into the corner of a
+  blank box. A `ResizeObserver` now re-measures and re-frames together.
+- OpenStreetMap's attribution sits bottom-right, which is where the floating
+  action button is. A map does not scroll, so the notice was permanently
+  unreachable rather than briefly covered — it moved to bottom-left, and the
+  app's chrome now clears Leaflet's z-index range, which runs to 1000.
+- The itinerary's time field shared a row with the place name and dropped to a
+  second row under a viewport media query. Desktop day columns are ~230px wide
+  however large the window is, so the field overflowed and printed across the
+  name. It is two rows at every width now.
+
+Three of the harness's own findings were false and were fixed in the harness,
+not the app: `color-mix()` resolves to `color(srgb …)` with 0–1 channels, which
+read as near-black and reported every translucent surface as a contrast failure;
+a gradient background cannot be sampled from `backgroundColor` at all, so the
+balance card is skipped rather than guessed at; and a floating action button
+covering a list item is the cost of the pattern, not a defect, so occlusion is
+reported only when nothing can scroll it clear.
+
+### D46 — `WeatherStrip` became `DayRail`
+Below 1024px only the selected day's column is on screen, which makes that strip
+the only way to reach another day. It returned `null` when there was no
+forecast, so a weather outage — which spec §5.5 treats as ordinary, answering
+204 for a trip with nowhere to forecast — would have stranded a phone on day
+one. It renders whenever the trip has days; the forecast decorates it.
+
+The name changed with the responsibility. A component called `WeatherStrip`
+that must render without weather is a lie, and the test asserting it rendered
+nothing was encoding the old contract, not protecting the new one.

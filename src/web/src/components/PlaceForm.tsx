@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ALL_CATEGORIES, ALL_TIME_SLOTS } from '../api/api-types'
+import { placeCategoryLabel, timeSlotLabel } from '../api/labels'
+import { ButtonBusy } from './Spinner'
 import type {
   CreatePlaceRequest,
   GeocodeResultResponse,
@@ -164,9 +166,10 @@ export function PlaceForm({
   const hasCoordinates = form.lat.trim() !== '' && form.lng.trim() !== ''
 
   return (
+    // No heading of its own: the sheet this opens in is already titled "Thêm
+    // địa điểm", and printing it twice in a row reads as a rendering fault.
+    // The aria-label keeps the form named for anyone not seeing that title.
     <form className="place-form" onSubmit={handleSubmit} aria-label="Thêm địa điểm">
-      <h2>Thêm địa điểm</h2>
-
       <PlaceSearch tripId={tripId} onPick={applySearchResult} />
 
       {hasCoordinates ? (
@@ -233,13 +236,13 @@ export function PlaceForm({
         >
           {ALL_CATEGORIES.map((category) => (
             <option key={category} value={category}>
-              {category}
+              {placeCategoryLabel(category)}
             </option>
           ))}
         </select>
       </label>
 
-      <fieldset>
+      <fieldset className="choice-set">
         <legend>Buổi phù hợp</legend>
         {ALL_TIME_SLOTS.map((slot) => (
           <label key={slot} className="checkbox">
@@ -248,7 +251,7 @@ export function PlaceForm({
               checked={form.timeSlots.includes(slot)}
               onChange={() => toggleSlot(slot)}
             />
-            {slot}
+            {timeSlotLabel(slot)}
           </label>
         ))}
       </fieldset>
@@ -295,7 +298,7 @@ export function PlaceForm({
       )}
 
       <button type="submit" disabled={pending}>
-        {pending ? 'Đang lưu…' : 'Thêm vào wishlist'}
+        {pending ? <ButtonBusy>Đang lưu…</ButtonBusy> : 'Thêm vào wishlist'}
       </button>
     </form>
   )

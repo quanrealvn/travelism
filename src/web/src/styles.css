@@ -1,841 +1,1619 @@
-:root {
-  --bg: #f7f6f2;
-  --surface: #ffffff;
-  --ink: #1c2321;
-  --muted: #667471;
-  --accent: #1f6f5c;
-  --danger: #b3261e;
-  --line: #e2e1dc;
-  --radius: 10px;
-  color-scheme: light;
+/*
+ * WeGo — stylesheet.
+ *
+ * Mobile-first throughout: the base rules describe a phone, and the two
+ * breakpoints below only add what a bigger screen can afford. A trip is
+ * planned on the sofa and executed on a pavement, so the phone is the real
+ * product and the desktop is the comfortable extra.
+ *
+ * Layout is an app shell: a compact bar on top, a scrolling middle, and a tab
+ * bar pinned to the bottom where a thumb actually reaches. On desktop the tab
+ * bar folds up into the header and the shell becomes an ordinary page.
+ */
+
+@import '@fontsource/be-vietnam-pro/400.css';
+@import '@fontsource/be-vietnam-pro/500.css';
+@import '@fontsource/be-vietnam-pro/600.css';
+@import '@fontsource/be-vietnam-pro/700.css';
+@import './styles/tokens.css';
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-* {
-  box-sizing: border-box;
+html {
+  /* Stops iOS inflating text in landscape and breaking the type scale. */
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: var(--bg);
-  color: var(--ink);
-  line-height: 1.5;
+  font-family: var(--font-sans);
+  font-size: var(--t-md);
+  line-height: var(--lh-normal);
+  color: var(--c-ink);
+  background: var(--c-bg);
+  -webkit-font-smoothing: antialiased;
+  /* Any horizontal scroll on a phone is a bug, never a feature. */
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
+  font-weight: var(--fw-semibold);
 }
 
 h1 {
-  font-size: 1.5rem;
-  margin: 0 0 0.25rem;
+  font-size: var(--t-2xl);
+}
+h2 {
+  font-size: var(--t-xl);
+}
+h3 {
+  font-size: var(--t-lg);
+}
+h4 {
+  font-size: var(--t-md);
 }
 
-h2 {
-  font-size: 1.05rem;
-  margin: 0 0 0.75rem;
+p {
+  margin: 0;
 }
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: var(--c-brand);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+/* Present to a screen reader, absent to the eye. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* One visible focus style for the whole app, on every interactive thing. */
+:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* ==========================================================================
+   Form primitives
+   ========================================================================== */
 
 input,
 select,
+textarea,
 button {
   font: inherit;
+  color: inherit;
+}
+
+/*
+ * Every text-like input, matched by exclusion rather than by listing types.
+ * An <input> with no type attribute is a text input, and a list of
+ * input[type='…'] selectors silently missed all of them — the name and amount
+ * fields were rendering as unstyled 28px boxes.
+ */
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+select,
+textarea {
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s-2) var(--s-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-md);
+  /* 16px minimum, or iOS Safari zooms the page on focus and the layout jumps. */
+  font-size: 1rem;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--c-brand);
+  box-shadow: 0 0 0 3px var(--c-brand-soft);
+}
+
+textarea {
+  min-height: 5rem;
+  resize: vertical;
+  line-height: var(--lh-snug);
+}
+
+select {
+  appearance: none;
+  padding-right: var(--s-8);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2356615e' d='M1.4 0 6 4.6 10.6 0 12 1.4 6 7.4 0 1.4z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--s-3) center;
 }
 
 label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-  margin-bottom: 0.6rem;
-}
-
-label input,
-label select {
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--ink);
-}
-
-label input:focus-visible,
-label select:focus-visible,
-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.6rem;
-}
-
-button {
-  cursor: pointer;
-  border: none;
-  border-radius: var(--radius);
-  padding: 0.55rem 0.9rem;
-  background: var(--accent);
-  color: #fff;
-  font-weight: 600;
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: progress;
+  gap: var(--s-1);
+  font-size: var(--t-sm);
+  font-weight: var(--fw-medium);
+  color: var(--c-ink-2);
 }
 
 fieldset {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  margin: 0 0 0.6rem;
-  padding: 0.5rem 0.75rem;
+  margin: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
 }
 
 legend {
-  font-size: 0.8rem;
-  color: var(--muted);
+  padding: 0 var(--s-2);
+  font-size: var(--t-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--c-ink-2);
 }
 
 .checkbox {
   flex-direction: row;
   align-items: center;
-  gap: 0.4rem;
-  margin: 0.15rem 0;
-  color: var(--ink);
+  gap: var(--s-2);
+  min-height: var(--tap);
+  font-weight: var(--fw-regular);
+  color: var(--c-ink);
 }
 
 .checkbox input {
-  width: auto;
+  width: 1.25rem;
+  height: 1.25rem;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--c-brand);
 }
 
-/* Start screen */
-.start-screen {
-  max-width: 26rem;
-  margin: 4rem auto;
-  padding: 1.75rem;
-  background: var(--surface);
-  border-radius: 14px;
-  box-shadow: 0 6px 24px rgb(0 0 0 / 6%);
-}
-
-.tagline {
-  color: var(--muted);
-  margin-top: 0;
-}
-
-.tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem;
-}
-
-.tabs button {
-  flex: 1;
-  background: transparent;
-  color: var(--muted);
-  border: 1px solid var(--line);
-}
-
-.tabs button[aria-selected='true'] {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-}
-
-/* Workspace */
-.workspace {
-  max-width: 78rem;
-  margin: 0 auto;
-  padding: 1.25rem;
-}
-
-.trip-header {
+/*
+ * A short set of related checkboxes flows as a row of chips rather than a
+ * column. Four time slots stacked cost 11rem of a phone screen to say what
+ * fits comfortably on two lines.
+ */
+fieldset.choice-set {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: space-between;
-  align-items: flex-start;
-  background: var(--surface);
-  border-radius: 14px;
-  padding: 1.1rem 1.25rem;
-  margin-bottom: 1rem;
+  gap: var(--s-2);
+  padding-top: var(--s-2);
 }
 
-.trip-meta,
-.trip-budget,
-.members {
-  margin: 0.15rem 0;
-  color: var(--muted);
-  font-size: 0.88rem;
+/* A legend inside a flex fieldset would otherwise become a flex item and sit
+   inline with the first chip. */
+fieldset.choice-set legend {
+  float: left;
+  width: 100%;
+  margin-bottom: var(--s-2);
+  padding: 0;
 }
 
-.trip-invite {
-  text-align: right;
+/* Content-sized, never stretched: one chip alone on the last row growing to
+   the full width reads as a different kind of control from its siblings. */
+.choice-set .checkbox {
+  flex: 0 0 auto;
+  justify-content: center;
+  gap: var(--s-1);
+  padding: 0 var(--s-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-full);
+  cursor: pointer;
 }
 
-.sync {
-  display: block;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  margin-bottom: 0.2rem;
+/* The chip is the control, so the box itself is redundant — and dropping it is
+   what lets all four slots sit on one line of a 390px screen. */
+.choice-set .checkbox input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.sync-live {
-  color: #17563f;
+.choice-set .checkbox:hover {
+  background: var(--c-surface-sunken);
 }
 
-.sync-connecting {
-  color: var(--muted);
+/* :has is what lets the whole chip react to its own checkbox. */
+.choice-set .checkbox:has(input:checked) {
+  color: var(--c-brand);
+  background: var(--c-brand-soft);
+  border-color: var(--c-brand);
+  font-weight: var(--fw-medium);
 }
 
-.sync-offline {
-  color: #8a5a00;
+/* A tick as well as the fill: selection must not be carried by colour alone. */
+.choice-set .checkbox:has(input:checked)::before {
+  content: '✓';
+  font-weight: var(--fw-bold);
 }
 
-.trip-invite .label {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.choice-set .checkbox:has(input:focus-visible) {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
 }
 
-.trip-invite code {
-  font-size: 1.35rem;
-  letter-spacing: 0.18em;
-  font-weight: 700;
-}
-
-.trip-body {
+.row {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(20rem, 1fr);
-  gap: 1rem;
-  align-items: start;
+  grid-template-columns: 1fr;
+  gap: var(--s-3);
 }
 
-@media (max-width: 60rem) {
-  .trip-body {
-    grid-template-columns: 1fr;
+@media (min-width: 30rem) {
+  .row {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
-.map-panel,
-.side-panel {
-  background: var(--surface);
-  border-radius: 14px;
-  padding: 0.75rem;
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  font-size: var(--t-md);
+  font-weight: var(--fw-medium);
+  color: var(--c-ink);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  /* Kills the grey flash Android draws over a tapped control. */
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+button:hover:not(:disabled) {
+  background: var(--c-surface-sunken);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button[type='submit'],
+.button-primary {
+  color: var(--c-brand-ink);
+  background: var(--c-brand);
+  border-color: var(--c-brand);
+}
+
+button[type='submit']:hover:not(:disabled),
+.button-primary:hover:not(:disabled) {
+  background: var(--c-brand-hover);
+  border-color: var(--c-brand-hover);
+}
+
+/* A button that reads as text but still occupies a full touch target. */
+.link-button {
+  min-height: var(--tap);
+  padding: 0 var(--s-2);
+  font-size: var(--t-sm);
+  font-weight: var(--fw-medium);
+  color: var(--c-brand);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.link-button:hover:not(:disabled) {
+  background: var(--c-brand-soft);
+  border-radius: var(--r-sm);
+}
+
+/* Square icon-only control. Always a full target even when the glyph is tiny. */
+.icon-button {
+  width: var(--tap);
+  min-width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border-radius: var(--r-md);
+  color: var(--c-ink-2);
+}
+
+.icon-button svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* ==========================================================================
+   App shell
+   ========================================================================== */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  /* dvh, not vh: mobile browser chrome slides away and vh lies about it. */
+  min-height: 100dvh;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-chrome);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--header-h);
+  padding: var(--s-2) var(--s-4);
+  padding-top: max(var(--s-2), env(safe-area-inset-top));
+  background: color-mix(in srgb, var(--c-bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.topbar-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar-title {
+  font-size: var(--t-lg);
+  font-weight: var(--fw-semibold);
+  /* The trip name is the anchor; truncating beats wrapping the bar to two rows. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-xs);
+  color: var(--c-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--s-4);
+  /* Room for the tab bar and the home indicator underneath it. */
+  padding-bottom: calc(var(--nav-h) + var(--s-8) + env(safe-area-inset-bottom));
+}
+
+/* ==========================================================================
+   Tab bar — the primary navigation, in the thumb zone
+   ========================================================================== */
+
+.tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-chrome);
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: color-mix(in srgb, var(--c-surface) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--c-line);
+  box-shadow: var(--e-lift);
+}
+
+.tabbar-item {
+  position: relative;
+  flex-direction: column;
+  gap: 2px;
+  min-height: var(--nav-h);
+  padding: var(--s-2) var(--s-1);
+  /* Not --c-ink-3: an unselected tab is still a destination somebody has to be
+     able to read, so it stays at supporting-text contrast. */
+  color: var(--c-ink-2);
+  background: none;
+  border: none;
+  border-radius: 0;
+  font-size: var(--t-2xs);
+  font-weight: var(--fw-medium);
+}
+
+.tabbar-item:hover:not(:disabled) {
+  background: none;
+  color: var(--c-ink);
+}
+
+.tabbar-item[aria-selected='true'] {
+  color: var(--c-brand);
+  font-weight: var(--fw-semibold);
+}
+
+.tabbar-icon {
+  position: relative;
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.tabbar-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.tabbar-label {
+  line-height: 1.1;
+}
+
+/* A count belongs on the icon, not in the label — it must never widen the tab
+   enough to wrap the word underneath. */
+.tabbar-count {
+  position: absolute;
+  top: 0.25rem;
+  left: 55%;
+  min-width: 1.125rem;
+  text-align: center;
+  padding: 0 0.25rem;
+  font-size: var(--t-2xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1.125rem;
+  color: var(--c-brand-ink);
+  background: var(--c-brand);
+  border: 2px solid var(--c-bg);
+  border-radius: var(--r-full);
+}
+
+.tabbar-item[aria-selected='false'] .tabbar-count {
+  background: var(--c-ink-3);
+}
+
+/* ==========================================================================
+   Floating action button
+   ========================================================================== */
+
+.fab {
+  position: fixed;
+  right: var(--s-4);
+  bottom: calc(var(--nav-h) + var(--s-4) + env(safe-area-inset-bottom));
+  z-index: var(--z-fab);
+  min-height: 3.5rem;
+  padding: 0 var(--s-5);
+  color: var(--c-brand-ink);
+  background: var(--c-brand);
+  border: none;
+  border-radius: var(--r-full);
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--e-3);
+}
+
+.fab:hover:not(:disabled) {
+  background: var(--c-brand-hover);
+}
+
+.fab svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* ==========================================================================
+   Sheet — the phone's answer to a dialog
+   ========================================================================== */
+
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  padding: 0;
+  background: rgb(27 36 34 / 45%);
+  border: none;
+  border-radius: 0;
+  animation: fade-in var(--dur) var(--ease);
+}
+
+.sheet-backdrop:hover:not(:disabled) {
+  background: rgb(27 36 34 / 45%);
+}
+
+.sheet-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: 88dvh;
+  background: var(--c-bg);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  box-shadow: var(--e-3);
+  animation: sheet-up var(--dur) var(--ease);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+/* The grab handle: the affordance that says "this drags away". */
+.sheet-panel::before {
+  content: '';
+  position: absolute;
+  top: var(--s-2);
+  left: 50%;
+  width: 2.25rem;
+  height: 0.25rem;
+  transform: translateX(-50%);
+  background: var(--c-line-strong);
+  border-radius: var(--r-full);
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-5) var(--s-4) var(--s-3);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.sheet-header h2 {
+  flex: 1;
+  font-size: var(--t-lg);
+}
+
+.sheet-body {
+  padding: var(--s-4);
+  padding-bottom: calc(var(--s-6) + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ==========================================================================
+   Trip facts (inside the trip sheet)
+   ========================================================================== */
+
+.trip-facts {
+  display: grid;
+  gap: var(--s-3);
+  margin-bottom: var(--s-5);
+}
+
+.fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.fact-label {
+  font-size: var(--t-sm);
+  color: var(--c-ink-2);
+}
+
+.fact-value {
+  font-weight: var(--fw-medium);
+  text-align: right;
+}
+
+.invite-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-5);
+}
+
+.invite-code {
+  flex: 1;
+  padding: var(--s-3);
+  font-family: ui-monospace, 'Cascadia Mono', 'SF Mono', monospace;
+  font-size: var(--t-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.12em;
+  text-align: center;
+  background: var(--c-brand-soft);
+  border: 1px dashed var(--c-brand-border);
+  border-radius: var(--r-md);
+}
+
+.member-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-3) var(--s-1) var(--s-1);
+  font-size: var(--t-sm);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+}
+
+.member-chip.is-me {
+  background: var(--c-brand-soft);
+  border-color: var(--c-brand-border);
+  font-weight: var(--fw-medium);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: var(--t-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--c-brand-ink);
+  background: var(--c-brand);
+  border-radius: var(--r-full);
+}
+
+/* ==========================================================================
+   Sync indicator
+   ========================================================================== */
+
+.sync {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: var(--t-2xs);
+  font-weight: var(--fw-medium);
+  color: var(--c-ink-2);
+}
+
+.sync::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  background: currentcolor;
+  border-radius: var(--r-full);
+}
+
+.sync-live {
+  color: var(--c-brand);
+}
+
+.sync-connecting {
+  color: var(--c-amber);
+}
+
+.sync-offline {
+  color: var(--c-ink-3);
+}
+
+/* ==========================================================================
+   Segmented control (list ↔ map)
+   ========================================================================== */
+
+.pane-switch {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--s-1);
+  margin-bottom: var(--s-4);
+  padding: var(--s-1);
+  background: var(--c-surface-sunken);
+  border-radius: var(--r-md);
+}
+
+.pane-switch button {
+  min-height: 2.5rem;
+  font-size: var(--t-sm);
+  color: var(--c-ink-2);
+  background: none;
+  border: none;
+}
+
+.pane-switch button:hover:not(:disabled) {
+  background: none;
+}
+
+.pane-switch button[aria-pressed='true'] {
+  color: var(--c-ink);
+  background: var(--c-surface);
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--e-1);
+}
+
+/* ==========================================================================
+   Sections & shared states
+   ========================================================================== */
+
+.section-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  font-size: var(--t-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--c-ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.empty-state {
+  padding: var(--s-8) var(--s-5);
+  color: var(--c-ink-2);
+  text-align: center;
+  text-wrap: balance;
+  background: var(--c-surface);
+  border: 1px dashed var(--c-line-strong);
+  border-radius: var(--r-lg);
+}
+
+.empty-state.small {
+  padding: var(--s-4);
+  font-size: var(--t-sm);
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  /* Centred in the screen it occupies. Pinned near the top it read as content
+     that had failed to arrive rather than as a page still on its way. */
+  min-height: 70dvh;
+  padding: var(--s-8) var(--s-4);
+  color: var(--c-ink-2);
+  text-align: center;
+}
+
+/* ==========================================================================
+   Spinner
+   ========================================================================== */
+
+.spinner {
+  display: inline-flex;
+  flex: 0 0 auto;
+  /* Sized from the text it sits beside, so it matches whatever it is inside —
+     a button label, a heading, a whole empty panel. */
+  width: 1.25em;
+  height: 1.25em;
+}
+
+.spinner svg {
+  width: 100%;
+  height: 100%;
+  animation: spin 900ms linear infinite;
+}
+
+.spinner circle {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.spinner-track {
+  stroke: currentcolor;
+  opacity: 0.2;
+}
+
+/* A quarter-turn arc: the gap is what makes the rotation visible at all. */
+.spinner-head {
+  stroke: currentcolor;
+  stroke-dasharray: 14 42;
+}
+
+.loading .spinner {
+  width: 2rem;
+  height: 2rem;
+  color: var(--c-brand);
+}
+
+/* A line of text that is waiting on something. */
+.inline-busy {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/* Inside a button the spinner replaces the icon, so the label does not shift. */
+button .spinner {
+  width: 1.125em;
+  height: 1.125em;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Motion is the entire point of a spinner, so it cannot simply be switched
+   off — it slows to a step instead, which conveys "still working" without the
+   continuous rotation that triggers vestibular symptoms. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner svg {
+    animation-duration: 3s !important;
+    animation-timing-function: steps(8, end) !important;
+  }
+}
+
+.form-error {
+  margin: 0 0 var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  font-size: var(--t-sm);
+  color: var(--c-danger);
+  background: var(--c-danger-soft);
+  border: 1px solid color-mix(in srgb, var(--c-danger) 25%, transparent);
+  border-radius: var(--r-md);
+}
+
+/* ==========================================================================
+   Start screen
+   ========================================================================== */
+
+.start-screen {
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: var(--s-10) var(--s-4) var(--s-12);
+}
+
+.start-brand {
+  margin-bottom: var(--s-8);
+  text-align: center;
+}
+
+.start-brand h1 {
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  margin-top: var(--s-2);
+  color: var(--c-ink-2);
+  text-wrap: balance;
+}
+
+.tabs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--s-1);
+  margin-bottom: var(--s-5);
+  padding: var(--s-1);
+  background: var(--c-surface-sunken);
+  border-radius: var(--r-md);
+}
+
+.tabs button {
+  color: var(--c-ink-2);
+  background: none;
+  border: none;
+}
+
+.tabs button:hover:not(:disabled) {
+  background: none;
+}
+
+.tabs button[aria-selected='true'] {
+  color: var(--c-ink);
+  background: var(--c-surface);
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--e-1);
+}
+
+.start-screen form {
+  display: grid;
+  gap: var(--s-4);
+}
+
+/* ==========================================================================
+   Map
+   ========================================================================== */
+
+.map-panel {
+  position: relative;
 }
 
 .trip-map {
-  height: 32rem;
-  width: 100%;
-  border-radius: var(--radius);
-  cursor: crosshair;
+  height: var(--map-h, calc(100dvh - 15rem));
+  background: var(--c-surface-sunken);
+}
+
+.leaflet-container {
+  font-family: var(--font-sans);
+}
+
+/* Leaflet ships 30px controls; a thumb needs more. */
+.leaflet-touch .leaflet-bar a,
+.leaflet-bar a {
+  width: var(--tap);
+  height: var(--tap);
+  font-size: var(--t-xl);
+  line-height: var(--tap);
+  color: var(--c-ink);
+}
+
+.leaflet-bar {
+  border: none;
+  border-radius: var(--r-md);
+  box-shadow: var(--e-2);
+  overflow: hidden;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: var(--r-md);
+  box-shadow: var(--e-3);
+}
+
+.leaflet-popup-content {
+  margin: var(--s-3);
+  font-size: var(--t-sm);
+  line-height: var(--lh-snug);
+}
+
+.leaflet-popup-content strong {
+  display: block;
+  font-size: var(--t-md);
+}
+
+.leaflet-control-attribution {
+  font-size: var(--t-2xs);
 }
 
 .draft-marker {
-  font-size: 1.6rem;
-  line-height: 1;
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 35%));
+  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 30%));
 }
 
-/* Place pins: colour by category, name always visible */
+/* --- Place pins --- */
+
 .place-pin-wrapper {
-  /* Leaflet gives DivIcon a white background by default. */
   background: none;
-  border: 0;
+  border: none;
 }
 
 .place-pin {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  /* The label overflows the icon box on purpose; the dot stays on the point. */
+  gap: var(--s-1);
   width: max-content;
-  transition: transform 120ms ease;
+  /* Anchored on the dot's centre so the label grows to the right of the point. */
+  transform: translate(-0.6875rem, -0.6875rem);
 }
 
 .place-pin-dot {
   display: grid;
-  place-items: center;
-  width: 1.75rem;
-  height: 1.75rem;
   flex: 0 0 auto;
-  /* A circle rather than a rotated teardrop: the glyph sits directly inside
-     this element, so rotating it for the classic pin shape would rotate the
-     glyph with it. */
-  border-radius: 50%;
-  background: var(--pin-color);
-  border: 2px solid #fff;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
-  font-size: 0.8rem;
+  place-items: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  font-size: 0.75rem;
   line-height: 1;
+  color: #fff;
+  /* markerHtml sets --pin-color per category. Without this the pins all came
+     out white and the legend beside them described colours that were not
+     there. */
+  background: var(--pin-color, var(--c-ink-2));
+  border: 2px solid #fff;
+  border-radius: var(--r-full);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
 }
 
 .place-pin-label {
   max-width: 8.5rem;
+  padding: 0.125rem var(--s-2);
+  font-size: var(--t-2xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1.4;
+  color: var(--c-ink);
+  background: rgb(255 255 255 / 92%);
+  border-radius: var(--r-sm);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--ink);
-  background: rgb(255 255 255 / 88%);
-  border-radius: 4px;
-  padding: 0.05rem 0.3rem;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 18%);
 }
 
 .place-pin.selected {
-  transform: scale(1.15);
+  z-index: 1000;
 }
 
 .place-pin.selected .place-pin-dot {
-  border-color: var(--ink);
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: var(--t-sm);
+  transform: translate(-0.1875rem, -0.1875rem);
 }
 
 .place-pin.selected .place-pin-label {
-  background: var(--ink);
   color: #fff;
-  max-width: 12rem;
+  background: var(--c-ink);
 }
 
 .popup-status {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
+  color: var(--c-ink-2);
 }
 
-/* Legend */
+/*
+ * Top-right: the zoom controls own the top-left, and the bottom-left is now
+ * the attribution's. Cornering all three keeps the middle of the map — the
+ * part with the places on it — clear.
+ */
 .map-legend {
   position: absolute;
-  bottom: 0.6rem;
-  left: 0.6rem;
+  right: var(--s-3);
+  top: var(--s-3);
   z-index: 500;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.15rem 0.6rem;
-  max-width: 18rem;
-  background: rgb(255 255 255 / 92%);
-  border-radius: var(--radius);
-  padding: 0.35rem 0.5rem;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 20%);
-  font-size: 0.68rem;
-  color: var(--ink);
-  pointer-events: none;
+  justify-content: flex-end;
+  gap: var(--s-1) var(--s-3);
+  max-width: calc(100% - 4rem);
+  padding: var(--s-2) var(--s-3);
+  background: rgb(255 255 255 / 94%);
+  border-radius: var(--r-md);
+  box-shadow: var(--e-2);
 }
 
 .legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  white-space: nowrap;
+  gap: var(--s-1);
+  font-size: var(--t-2xs);
+  color: var(--c-ink-2);
 }
 
 .legend-swatch {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-  border: 1px solid rgb(255 255 255 / 90%);
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 15%);
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: var(--r-full);
 }
 
-/* Place list */
-.place-list {
-  list-style: none;
-  margin: 0 0 1.25rem;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
+/* ==========================================================================
+   Wishlist
+   ========================================================================== */
 
-.place {
+.wishlist {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 0.5rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 0.5rem 0.6rem;
+  gap: var(--s-6);
 }
 
-/* Wishlist grouping */
 .wishlist-group {
-  margin-bottom: 1.1rem;
+  display: grid;
+  gap: var(--s-3);
 }
 
 .group-title {
   display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  margin: 0 0 0.4rem;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-md);
+  font-weight: var(--fw-semibold);
+}
+
+/* The status colour rides on a bar so the heading itself stays legible instead
+   of being tinted down into the background. */
+.group-title::before {
+  content: '';
+  width: 0.25rem;
+  height: 1.125rem;
+  background: var(--group-colour, var(--c-ink-3));
+  border-radius: var(--r-full);
 }
 
 .group-confirmed {
-  color: #17563f;
+  --group-colour: var(--c-brand);
+}
+.group-shortlist {
+  --group-colour: var(--c-amber);
+}
+.group-idea {
+  --group-colour: var(--c-ink-3);
+}
+.group-visited {
+  --group-colour: var(--c-info);
+}
+.group-skipped {
+  --group-colour: var(--c-danger);
 }
 
 .group-count {
-  background: #eef1f0;
-  border-radius: 999px;
-  padding: 0.05rem 0.4rem;
-  font-size: 0.72rem;
-}
-
-.group-confirmed .group-count {
-  background: #dff0e8;
+  padding: 0 var(--s-2);
+  font-size: var(--t-2xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1.25rem;
+  color: var(--c-ink-2);
+  background: var(--c-surface-sunken);
+  border-radius: var(--r-full);
 }
 
 .group-hint {
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 0.72rem;
-  opacity: 0.75;
+  font-size: var(--t-xs);
+  font-weight: var(--fw-regular);
+  color: var(--c-ink-3);
 }
 
-/* Voting */
-.place-like {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.05rem;
-  background: none;
-  color: var(--muted);
-  padding: 0.25rem 0.35rem;
-  font-size: 1.1rem;
-  line-height: 1;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  min-width: 2.6rem;
-}
-
-.place-like.liked {
-  color: #c2185b;
-  border-color: #f3c6d8;
-  background: #fdeef4;
-}
-
-.place-like-count {
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.place-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.place-status-action {
-  background: transparent;
-  color: var(--accent);
-  border: 1px solid var(--line);
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 0.2rem 0.45rem;
-  white-space: nowrap;
-}
-
-.place-status-action:hover:not(:disabled) {
-  background: #eef4f2;
-}
-
-.place-external {
-  color: var(--muted);
-  text-decoration: none;
-  font-size: 0.95rem;
-  padding: 0.2rem 0.3rem;
-  border-radius: var(--radius);
-}
-
-.place-external:hover {
-  color: var(--accent);
-  background: #eef4f2;
-}
-
-/* Place detail: description and reference links */
-.place.has-detail {
-  grid-template-areas:
-    'like main actions'
-    'detail detail detail';
-}
-
-.place.has-detail > .place-like {
-  grid-area: like;
-}
-
-.place.has-detail > .place-main {
-  grid-area: main;
-}
-
-.place.has-detail > .place-actions {
-  grid-area: actions;
-}
-
-.place-detail {
-  grid-area: detail;
-  border-top: 1px dashed var(--line);
-  margin-top: 0.35rem;
-  padding-top: 0.35rem;
-}
-
-.detail-description {
-  font-size: 0.8rem;
-  margin: 0 0 0.3rem;
-  white-space: pre-wrap;
-}
-
-.detail-links {
-  list-style: none;
-  margin: 0 0 0.3rem;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-}
-
-.detail-links a {
-  display: inline-block;
-  font-size: 0.72rem;
-  color: var(--accent);
-  background: #eef4f2;
-  border-radius: 999px;
-  padding: 0.1rem 0.45rem;
-  text-decoration: none;
-  max-width: 12rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.detail-links a:hover {
-  text-decoration: underline;
-}
-
-.place-detail.editing textarea {
-  width: 100%;
-  font: inherit;
-  font-size: 0.82rem;
-  padding: 0.4rem 0.5rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  resize: vertical;
-}
-
-.detail-links-label {
-  display: block;
-  font-size: 0.72rem;
-  color: var(--muted);
-  margin-bottom: 0.2rem;
-}
-
-.detail-link-row {
+.place-list {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto;
-  gap: 0.25rem;
-  margin-bottom: 0.25rem;
+  gap: var(--s-3);
 }
 
-.detail-link-row input {
-  font-size: 0.76rem;
-  padding: 0.25rem 0.35rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  min-width: 0;
-}
-
-.detail-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  margin-top: 0.35rem;
-}
-
-.detail-actions button[type='button']:first-child {
-  font-size: 0.78rem;
-  padding: 0.3rem 0.7rem;
-}
-
-.place-skip-reason {
-  font-size: 0.75rem;
-  color: var(--danger);
+/*
+ * A place card. The name is the hero; everything else supports it. The like
+ * control sits top-left because agreeing is the most common action on this
+ * screen, and the secondary actions sit along the bottom edge where they
+ * cannot compete with the name.
+ */
+/*
+ * Explicit placement:
+ *
+ *   [like] [name, category, duration, cost, slots ····] [open][delete]
+ *   [····································· description, links, edit]
+ *   [status actions ·············································]
+ *
+ * The tools sit against the title, which is where a card's controls are
+ * expected. Beside the description instead they ended up floating against its
+ * second line, reading as something that had come loose.
+ */
+.place {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--s-2) var(--s-3);
+  padding: var(--s-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-1);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 
 .place.selected {
-  border-color: var(--accent);
-  box-shadow: inset 3px 0 0 var(--accent);
+  border-color: var(--c-brand);
+  box-shadow: 0 0 0 3px var(--c-brand-soft);
+}
+
+.place-like {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: var(--tap);
+  min-width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  font-size: var(--t-lg);
+  line-height: 1;
+  /* --c-ink-2, not --c-ink-3: the count under the heart is 12px, and against
+     the sunken fill the lighter ink only reached 4.2:1. */
+  color: var(--c-ink-2);
+  background: var(--c-surface-sunken);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+}
+
+.place-like.liked {
+  /* A darker terracotta than --c-warm, which measured 3.6:1 on its own tint. */
+  color: #a4472a;
+  background: var(--c-warm-soft);
+  border-color: color-mix(in srgb, var(--c-warm) 35%, transparent);
+}
+
+.place-like-count {
+  font-size: var(--t-2xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1.2;
 }
 
 .place-main {
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.1rem;
-  background: none;
-  color: inherit;
+  gap: var(--s-1);
+  min-width: 0;
+  min-height: 0;
   padding: 0;
   text-align: left;
-  font-weight: 400;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+.place-main:hover:not(:disabled) {
+  background: none;
 }
 
 .place-name {
-  font-weight: 600;
+  font-size: var(--t-lg);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+  color: var(--c-ink);
+  text-wrap: pretty;
 }
 
 .place-meta,
 .place-slots,
 .place-hours {
-  font-size: 0.78rem;
-  color: var(--muted);
+  font-size: var(--t-xs);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-snug);
+  color: var(--c-ink-2);
+  text-align: left;
 }
 
-.status {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 0.15rem 0.45rem;
-  border-radius: 999px;
-  background: #eef1f0;
-  color: var(--muted);
+.place-slots {
+  color: var(--c-ink-3);
 }
 
-.status-confirmed {
-  background: #dff0e8;
-  color: #17563f;
+.place-skip-reason {
+  font-size: var(--t-xs);
+  font-weight: var(--fw-regular);
+  color: var(--c-danger);
+  text-align: left;
 }
 
-.status-shortlist {
-  background: #fdf0d5;
-  color: #7a5a12;
+.place-tools {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
+  display: flex;
+  gap: var(--s-1);
 }
 
+.place-actions {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--c-line);
+}
+
+.place-status-action {
+  min-height: 2.5rem;
+  padding: 0 var(--s-3);
+  font-size: var(--t-sm);
+  color: var(--c-brand);
+  background: var(--c-brand-soft);
+  border-color: transparent;
+}
+
+.place-status-action:hover:not(:disabled) {
+  background: var(--c-brand-border);
+}
+
+.place-external,
 .place-delete {
-  background: transparent;
-  color: var(--danger);
-  padding: 0.2rem 0.45rem;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  font-size: var(--t-md);
+  color: var(--c-ink-2);
+  background: var(--c-surface-sunken);
+  border: none;
+  border-radius: var(--r-md);
+  text-decoration: none;
 }
 
-.empty-state {
-  color: var(--muted);
-  font-size: 0.9rem;
-  border: 1px dashed var(--line);
-  border-radius: var(--radius);
-  padding: 1rem;
-  text-align: center;
+.place-external:hover {
+  color: var(--c-ink);
+  background: var(--c-line);
 }
+
+.place-delete:hover:not(:disabled) {
+  color: var(--c-danger);
+  background: var(--c-danger-soft);
+}
+
+.place-external svg,
+.place-delete svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* --- Place detail --- */
+
+.place-detail {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: grid;
+  align-content: start;
+  gap: var(--s-2);
+}
+
+.detail-description {
+  font-size: var(--t-sm);
+  line-height: var(--lh-normal);
+  color: var(--c-ink-2);
+  text-wrap: pretty;
+}
+
+.detail-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.detail-links a,
+.detail-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 2.5rem;
+  padding: 0 var(--s-3);
+  font-size: var(--t-xs);
+  font-weight: var(--fw-medium);
+  border-radius: var(--r-full);
+  text-decoration: none;
+}
+
+.detail-links a {
+  color: var(--c-brand);
+  background: var(--c-brand-soft);
+}
+
+.detail-links a:hover {
+  background: var(--c-brand-border);
+}
+
+.detail-links a svg,
+.detail-edit svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: 0 0 auto;
+}
+
+/* Quieter than a link: this is a way in to editing, not a destination. */
+.detail-edit {
+  color: var(--c-ink-2);
+  background: none;
+  border: 1px dashed var(--c-line-strong);
+}
+
+.detail-edit:hover:not(:disabled) {
+  color: var(--c-ink);
+  background: var(--c-surface-sunken);
+}
+
+.place-detail.editing {
+  gap: var(--s-3);
+  padding: var(--s-3);
+  background: var(--c-surface-sunken);
+  border-radius: var(--r-md);
+}
+
+.detail-links-label {
+  font-size: var(--t-sm);
+  font-weight: var(--fw-medium);
+  color: var(--c-ink-2);
+}
+
+.detail-link-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s-2);
+  align-items: start;
+}
+
+.detail-link-row input + input {
+  grid-column: 1;
+}
+
+.detail-actions {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.detail-actions button {
+  flex: 1;
+}
+
+/* ==========================================================================
+   Place form & search
+   ========================================================================== */
 
 .place-form {
-  border-top: 1px solid var(--line);
-  padding-top: 0.9rem;
+  display: grid;
+  gap: var(--s-4);
 }
 
-/* Place-name search */
 .place-search {
-  position: relative;
+  display: grid;
+  gap: var(--s-2);
 }
 
 .search-hint {
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin: -0.3rem 0 0.5rem;
+  font-size: var(--t-xs);
+  color: var(--c-ink-2);
 }
 
 .search-hint-error {
-  color: var(--danger);
+  color: var(--c-danger);
 }
 
 .search-hint-quiet {
-  font-size: 0.75rem;
-  opacity: 0.85;
+  color: var(--c-ink-3);
 }
 
 .search-results {
-  list-style: none;
-  margin: -0.3rem 0 0.7rem;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  max-height: 15rem;
+  display: grid;
+  gap: var(--s-1);
+  max-height: 17rem;
+  padding: var(--s-1);
   overflow-y: auto;
-  background: var(--surface);
-}
-
-.search-results li + li {
-  border-top: 1px solid var(--line);
+  background: var(--c-surface-sunken);
+  border-radius: var(--r-md);
 }
 
 .search-results button {
-  display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.1rem;
+  gap: 2px;
   width: 100%;
-  background: none;
-  color: inherit;
-  font-weight: 400;
+  padding: var(--s-2) var(--s-3);
   text-align: left;
-  border-radius: 0;
-  padding: 0.5rem 0.6rem;
+  background: var(--c-surface);
+  border-color: transparent;
 }
 
-.search-results button:hover {
-  background: #f0f4f3;
+.search-results button:hover:not(:disabled) {
+  background: var(--c-brand-soft);
 }
 
 .search-result-name {
-  font-weight: 600;
+  font-weight: var(--fw-medium);
 }
 
 .search-result-meta {
   display: flex;
-  gap: 0.5rem;
-  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  font-size: var(--t-xs);
+  font-weight: var(--fw-regular);
+  color: var(--c-ink-2);
 }
 
 .search-result-kind {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--accent);
-}
-
-.search-result-distance {
-  font-size: 0.72rem;
-  color: var(--muted);
+  padding: 0 var(--s-2);
+  color: var(--c-ink-2);
+  background: var(--c-surface-sunken);
+  border-radius: var(--r-full);
 }
 
 .search-result-far {
-  margin-left: 0.4rem;
-  font-size: 0.65rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #8a5a00;
-  background: #fdf0d5;
-  border-radius: 999px;
-  padding: 0.05rem 0.4rem;
+  color: var(--c-amber);
 }
 
 .search-result-address {
-  font-size: 0.76rem;
-  color: var(--muted);
+  font-size: var(--t-xs);
+  font-weight: var(--fw-regular);
+  color: var(--c-ink-3);
 }
 
 .picked-location {
-  font-size: 0.83rem;
-  background: #eef4f2;
-  border-radius: var(--radius);
-  padding: 0.45rem 0.6rem;
-  margin: 0 0 0.6rem;
   display: flex;
-  gap: 0.5rem;
-  align-items: baseline;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  font-size: var(--t-sm);
+  color: var(--c-ink-2);
+  background: var(--c-brand-soft);
+  border-radius: var(--r-md);
 }
 
-.link-button {
-  background: none;
-  color: var(--accent);
-  padding: 0;
-  font-size: 0.82rem;
-  font-weight: 600;
-  text-decoration: underline;
-  margin-bottom: 0.6rem;
-}
-
-.field-error,
-.form-error {
-  color: var(--danger);
-  font-size: 0.82rem;
-  margin: 0.15rem 0 0.5rem;
-}
-
-.loading {
-  text-align: center;
-  color: var(--muted);
-  margin-top: 4rem;
-}
-
-/* View tabs */
-.view-tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.view-tabs button {
-  background: var(--surface);
-  color: var(--muted);
-  border: 1px solid var(--line);
-}
-
-.view-tabs button[aria-selected='true'] {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-}
-
-/* Itinerary board */
-.itinerary-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
-  gap: 1rem;
-  align-items: start;
-}
-
-@media (max-width: 64rem) {
-  .itinerary-body {
-    grid-template-columns: 1fr;
-  }
-}
+/* ==========================================================================
+   Itinerary
+   ========================================================================== */
 
 .itinerary {
   display: grid;
-  grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr);
-  gap: 0.75rem;
-  background: var(--surface);
-  border-radius: 14px;
-  padding: 0.75rem;
+  gap: var(--s-4);
 }
 
-.itinerary-pool h3,
-.suggestions h3 {
-  font-size: 0.78rem;
+.itinerary-body {
+  display: grid;
+  gap: var(--s-5);
+}
+
+.itinerary-pool {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  background: var(--c-surface-sunken);
+  border-radius: var(--r-lg);
+}
+
+.itinerary-pool h3 {
+  font-size: var(--t-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--c-ink-2);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--muted);
-  margin: 0 0 0.5rem;
 }
 
 .pool-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  max-height: 30rem;
-  overflow-y: auto;
+  display: grid;
+  gap: var(--s-2);
 }
 
 .pool-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 0.4rem 0.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 var(--s-2);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
   cursor: grab;
-  background: var(--surface);
-  touch-action: none;
+  touch-action: manipulation;
 }
 
 .pool-item.dragging {
@@ -843,92 +1621,158 @@ legend {
 }
 
 .pool-name {
-  font-weight: 600;
-  font-size: 0.85rem;
+  font-size: var(--t-sm);
+  font-weight: var(--fw-medium);
 }
 
-.pool-meta,
-.day-summary,
-.item-meta,
-.suggestion-meta {
-  font-size: 0.74rem;
-  color: var(--muted);
+.pool-meta {
+  grid-column: 1;
+  font-size: var(--t-xs);
+  color: var(--c-ink-2);
+}
+
+/* Dragging is a mouse idiom. On a phone this button is the way in. */
+.pool-add {
+  grid-row: 1 / -1;
+  grid-column: 2;
+  width: var(--tap);
+  min-width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  color: var(--c-brand);
+  background: var(--c-brand-soft);
+  border-color: transparent;
+}
+
+.pool-add svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* Already on this day: the slot keeps its width so the list does not reflow
+   as places are added and removed. */
+.pool-done {
+  grid-row: 1 / -1;
+  grid-column: 2;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  color: var(--c-brand);
+  opacity: 0.55;
 }
 
 .itinerary-days {
-  display: flex;
-  gap: 0.6rem;
-  overflow-x: auto;
-  padding-bottom: 0.4rem;
+  display: grid;
+  gap: var(--s-4);
 }
 
 .day-column {
-  flex: 0 0 14rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 0.5rem;
-  background: #fbfbf9;
-  min-height: 12rem;
+  display: grid;
+  gap: var(--s-3);
+  align-content: start;
+  padding: var(--s-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-1);
 }
 
 .day-column.selected {
-  border-color: var(--accent);
+  border-color: var(--c-brand-border);
 }
 
 .day-column.over {
-  background: #eef4f2;
-  border-color: var(--accent);
+  background: var(--c-brand-soft);
+  border-color: var(--c-brand);
 }
 
 .day-column.would-duplicate {
-  background: #fdf0d5;
-  border-color: #e0b95a;
+  background: var(--c-danger-soft);
+  border-color: var(--c-danger);
 }
 
 .day-column header {
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
 }
 
 .day-heading {
-  background: none;
-  color: var(--ink);
+  min-height: 2.5rem;
   padding: 0;
-  text-align: left;
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: var(--t-md);
+  font-weight: var(--fw-semibold);
+  background: none;
+  border: none;
+}
+
+.day-heading:hover:not(:disabled) {
+  color: var(--c-brand);
+  background: none;
+}
+
+.day-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-xs);
+  color: var(--c-ink-2);
 }
 
 .day-empty {
-  font-size: 0.76rem;
-  color: var(--muted);
-  border: 1px dashed var(--line);
-  border-radius: var(--radius);
-  padding: 0.75rem 0.5rem;
+  padding: var(--s-6) var(--s-3);
+  font-size: var(--t-sm);
+  color: var(--c-ink-3);
   text-align: center;
-  margin: 0;
+  border: 1px dashed var(--c-line-strong);
+  border-radius: var(--r-md);
 }
 
 .day-items {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  display: grid;
+  gap: var(--s-2);
 }
 
+/*
+ * Two rows at every width: grip, place, remove — then the time underneath.
+ *
+ * The time field used to share the first row and drop to a second only under a
+ * viewport media query, which is the wrong measurement. On desktop the day
+ * columns are ~230px wide however large the window is, so the field overflowed
+ * and printed itself across the place name.
+ */
 .item-card {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
-  gap: 0.3rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  padding: 0.35rem 0.4rem;
+  gap: var(--s-1) var(--s-2);
+  padding: var(--s-2);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+}
+
+.item-grip {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.item-body {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.item-remove {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.item-time {
+  grid-column: 2 / -1;
+  grid-row: 2;
 }
 
 .item-card.dragging {
@@ -940,392 +1784,678 @@ legend {
 }
 
 .item-grip {
+  align-self: start;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  font-size: var(--t-lg);
+  color: var(--c-ink-3);
   cursor: grab;
-  color: var(--muted);
-  font-size: 0.9rem;
-  touch-action: none;
-  user-select: none;
+  touch-action: manipulation;
 }
 
 .item-body {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  gap: 2px;
   min-width: 0;
 }
 
 .item-name {
-  font-size: 0.82rem;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-snug);
+}
+
+.item-meta {
+  font-size: var(--t-xs);
+  color: var(--c-ink-2);
 }
 
 .item-note {
-  font-size: 0.72rem;
-  color: var(--muted);
+  font-size: var(--t-xs);
   font-style: italic;
+  color: var(--c-ink-2);
 }
 
 .item-time {
-  width: 5.4rem;
-  font-size: 0.74rem;
-  padding: 0.15rem 0.2rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  width: 100%;
+  max-width: 9rem;
+  min-width: 0;
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 .item-remove {
-  background: none;
-  color: var(--danger);
-  padding: 0.1rem 0.3rem;
-}
-
-/* Feasibility */
-.feasibility-badges {
-  list-style: none;
-  margin: 0.2rem 0 0;
+  /* Top-aligned, not centred: against a card two or three lines tall a centred
+     button floats in the middle of nothing. */
+  align-self: start;
+  width: var(--tap);
+  min-width: var(--tap);
+  height: var(--tap);
   padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.2rem;
+  color: var(--c-ink-2);
+  background: none;
+  border: none;
 }
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.68rem;
-  border-radius: 999px;
-  padding: 0.05rem 0.4rem;
-  line-height: 1.4;
+.item-remove:hover:not(:disabled) {
+  color: var(--c-danger);
+  background: var(--c-danger-soft);
 }
 
-.badge-error {
-  background: #fde8e6;
-  color: #8c1d18;
-}
-
-.badge-warning {
-  background: #fdf0d5;
-  color: #7a5a12;
-}
-
-.badge-info {
-  background: #eaf1f6;
-  color: #2c5670;
-}
-
-.day-verdict {
-  margin-left: 0.35rem;
-  font-size: 0.66rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  border-radius: 999px;
-  padding: 0.02rem 0.35rem;
-}
-
-.day-verdict-error {
-  background: #fde8e6;
-  color: #8c1d18;
-}
-
-.day-verdict-warning {
-  background: #fdf0d5;
-  color: #7a5a12;
-}
-
-.day-verdict-info {
-  background: #eaf1f6;
-  color: #2c5670;
+.item-remove svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 .drag-ghost {
-  background: var(--accent);
-  color: #fff;
-  padding: 0.3rem 0.6rem;
-  border-radius: var(--radius);
-  font-size: 0.78rem;
-  font-weight: 600;
+  padding: var(--s-2) var(--s-4);
+  font-size: var(--t-sm);
+  font-weight: var(--fw-medium);
+  color: var(--c-brand-ink);
+  background: var(--c-brand);
+  border-radius: var(--r-md);
+  box-shadow: var(--e-3);
 }
 
-/* Suggestions */
+/* --- Feasibility --- */
+
+.feasibility-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+  margin-top: var(--s-1);
+}
+
+.badge,
+.day-verdict {
+  padding: 0 var(--s-2);
+  font-size: var(--t-2xs);
+  font-weight: var(--fw-medium);
+  line-height: 1.375rem;
+  border-radius: var(--r-full);
+}
+
+.day-verdict {
+  font-weight: var(--fw-semibold);
+}
+
+.badge-error,
+.day-verdict-error {
+  color: var(--c-danger);
+  background: var(--c-danger-soft);
+}
+
+.badge-warning,
+.day-verdict-warning {
+  color: var(--c-amber);
+  background: var(--c-amber-soft);
+}
+
+.badge-info,
+.day-verdict-info {
+  color: var(--c-info);
+  background: var(--c-info-soft);
+}
+
+/* ==========================================================================
+   Suggestions
+   ========================================================================== */
+
+.suggestions h3 {
+  margin-bottom: var(--s-3);
+  font-size: var(--t-md);
+}
+
+.suggestion-group {
+  display: grid;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+
 .suggestion-group h4 {
-  font-size: 0.75rem;
-  margin: 0.6rem 0 0.3rem;
-  color: var(--accent);
+  font-size: var(--t-sm);
+  color: var(--c-ink-2);
 }
 
 .suggestion-group ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
+  display: grid;
+  gap: var(--s-2);
 }
 
 .suggestion-group button {
-  display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.1rem;
+  gap: 2px;
   width: 100%;
+  padding: var(--s-2) var(--s-3);
   text-align: left;
-  background: none;
-  color: inherit;
-  font-weight: 400;
-  border: 1px solid var(--line);
-  padding: 0.35rem 0.5rem;
 }
 
-.suggestion-group button:hover {
-  background: #eef4f2;
-  border-color: var(--accent);
+.suggestion-group button:hover:not(:disabled) {
+  background: var(--c-brand-soft);
+  border-color: var(--c-brand-border);
 }
 
 .suggestion-name {
-  font-weight: 600;
-  font-size: 0.83rem;
+  font-weight: var(--fw-medium);
 }
 
-/* Weather */
-.weather-strip {
-  grid-column: 1 / -1;
-  background: var(--surface);
-  border-radius: 14px;
-  padding: 0.6rem 0.75rem;
-  margin-bottom: 0.25rem;
+.suggestion-meta {
+  font-size: var(--t-xs);
+  font-weight: var(--fw-regular);
+  color: var(--c-ink-2);
 }
 
-.weather-stale {
-  font-size: 0.75rem;
-  color: #8a5a00;
-  background: #fdf0d5;
-  border-radius: var(--radius);
-  padding: 0.25rem 0.5rem;
-  margin: 0 0 0.5rem;
+/* ==========================================================================
+   Day rail — the day switcher, with the forecast on it
+   ========================================================================== */
+
+.day-rail {
+  display: grid;
+  gap: var(--s-2);
+  /* On a phone this is the only way to reach another day, so it stays put while
+     the day's plan scrolls underneath it. */
+  position: sticky;
+  top: calc(var(--sticky-top) - 1px);
+  z-index: var(--z-rail);
+  margin-inline: calc(-1 * var(--s-4));
+  padding: var(--s-2) var(--s-4);
+  background: color-mix(in srgb, var(--c-bg) 92%, transparent);
+  backdrop-filter: blur(12px);
 }
 
-.weather-strip ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.day-rail > ul {
   display: flex;
-  gap: 0.4rem;
+  gap: var(--s-2);
+  /* Days scroll sideways inside their own rail — the page never does. */
+  padding-bottom: var(--s-1);
   overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
 }
 
-.weather-day {
-  display: flex;
+.day-chip {
+  flex: 0 0 auto;
   flex-direction: column;
-  align-items: center;
-  gap: 0.1rem;
-  min-width: 5.5rem;
-  background: #fbfbf9;
-  color: var(--ink);
-  border: 1px solid var(--line);
-  padding: 0.4rem 0.5rem;
-  font-weight: 400;
+  gap: 2px;
+  min-width: 4.75rem;
+  min-height: 3.25rem;
+  padding: var(--s-2);
+  scroll-snap-align: start;
+  border-radius: var(--r-md);
 }
 
-.weather-day.selected {
-  border-color: var(--accent);
-  background: #eef4f2;
+.day-chip.selected {
+  color: var(--c-brand);
+  background: var(--c-brand-soft);
+  border-color: var(--c-brand);
+  font-weight: var(--fw-semibold);
 }
 
 .weather-date {
-  font-size: 0.7rem;
-  color: var(--muted);
-  white-space: nowrap;
+  font-size: var(--t-2xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .weather-icon {
-  font-size: 1.3rem;
-  line-height: 1.1;
+  font-size: var(--t-xl);
+  line-height: 1.2;
 }
 
 .weather-label {
-  font-size: 0.68rem;
-  color: var(--muted);
+  font-size: var(--t-2xs);
+  color: var(--c-ink-2);
 }
 
 .weather-temp {
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: var(--t-xs);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
 }
 
 .weather-rain {
-  font-size: 0.66rem;
-  color: #2c5670;
+  font-size: var(--t-2xs);
+  color: var(--c-info);
 }
 
-/* Activity */
-.activity-feed {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
+.weather-stale {
+  font-size: var(--t-xs);
+  color: var(--c-ink-3);
 }
 
-.activity-feed li {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 0.5rem;
-  align-items: baseline;
-  border-bottom: 1px solid var(--line);
-  padding: 0.35rem 0;
-  font-size: 0.83rem;
-}
-
-.activity-who {
-  font-weight: 600;
-}
-
-.activity-when {
-  font-size: 0.72rem;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-/* Expenses */
-.money-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1rem;
-}
+/* ==========================================================================
+   Money
+   ========================================================================== */
 
 .expenses {
   display: grid;
-  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr) minmax(15rem, 20rem);
-  gap: 1rem;
-  align-items: start;
-  background: var(--surface);
-  border-radius: 14px;
-  padding: 1rem;
-}
-
-@media (max-width: 68rem) {
-  .expenses {
-    grid-template-columns: 1fr;
-  }
+  gap: var(--s-5);
 }
 
 .expenses h3 {
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  margin: 0 0 0.5rem;
+  margin-bottom: var(--s-3);
+  font-size: var(--t-md);
 }
 
+/*
+ * The balance card is the one screen somebody opens at a table with everyone
+ * watching, so it gets the strongest surface in the app.
+ */
 .balance-card {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 0.75rem;
-  background: #fbfbf9;
+  padding: var(--s-4);
+  color: var(--c-brand-ink);
+  background: linear-gradient(135deg, var(--c-brand), #0a4f40);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-2);
+}
+
+.balance-card h3 {
+  font-size: var(--t-sm);
+  color: rgb(255 255 255 / 75%);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .balance-total {
-  margin: 0 0 0.6rem;
-  font-size: 0.9rem;
+  margin-bottom: var(--s-4);
+  font-size: var(--t-sm);
+  color: rgb(255 255 255 / 75%);
 }
 
-.balance-list,
-.settle-list,
-.expense-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.balance-total strong {
+  display: block;
+  font-size: var(--t-2xl);
+  font-weight: var(--fw-bold);
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.balance-card .search-hint {
+  color: rgb(255 255 255 / 75%);
+}
+
+.balance-list {
+  display: grid;
+  gap: var(--s-2);
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid rgb(255 255 255 / 20%);
 }
 
 .balance-list li {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 0.5rem;
-  font-size: 0.85rem;
-  padding: 0.25rem 0;
-  border-bottom: 1px solid var(--line);
+  gap: var(--s-3);
+  font-size: var(--t-sm);
+}
+
+.balance-list li.is-me {
+  font-weight: var(--fw-semibold);
+}
+
+.net {
+  font-weight: var(--fw-medium);
+  color: rgb(255 255 255 / 70%);
+  text-align: right;
 }
 
 .net.positive {
-  color: #17563f;
-  font-weight: 600;
+  color: #9fe6c9;
 }
 
 .net.negative {
-  color: var(--danger);
-  font-weight: 600;
+  color: #ffc4a8;
 }
 
 .settle-list {
-  margin-top: 0.7rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
 }
 
 .settle-list li {
-  font-size: 0.85rem;
-  background: #eef4f2;
-  border-radius: var(--radius);
-  padding: 0.35rem 0.5rem;
+  padding: var(--s-2) var(--s-3);
+  font-size: var(--t-sm);
+  background: rgb(255 255 255 / 12%);
+  border-radius: var(--r-md);
 }
 
 .settle-none {
-  margin-top: 0.7rem;
-  font-size: 0.85rem;
-  color: var(--muted);
+  margin-top: var(--s-3);
+  font-size: var(--t-sm);
+  color: rgb(255 255 255 / 75%);
 }
 
 .expense-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  display: grid;
+  gap: var(--s-2);
 }
 
 .expense-list li {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 0.5rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 0.4rem 0.5rem;
+  gap: var(--s-2) var(--s-3);
+  padding: var(--s-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
 }
 
 .expense-body {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  gap: 2px;
   min-width: 0;
 }
 
 .expense-title {
-  font-weight: 600;
-  font-size: 0.86rem;
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-snug);
 }
 
 .expense-meta {
-  font-size: 0.73rem;
-  color: var(--muted);
+  font-size: var(--t-xs);
+  color: var(--c-ink-2);
 }
 
 .expense-amount {
-  font-weight: 700;
-  font-size: 0.88rem;
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .expense-form {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 0.75rem;
+  display: grid;
+  gap: var(--s-4);
 }
 
-.empty-state.small {
-  font-size: 0.78rem;
-  padding: 0.6rem;
+/* ==========================================================================
+   Activity
+   ========================================================================== */
+
+.activity-feed {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.activity-feed li {
+  display: grid;
+  gap: 2px;
+  padding: var(--s-3);
+  font-size: var(--t-sm);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+}
+
+.activity-who {
+  font-weight: var(--fw-semibold);
+}
+
+.activity-when {
+  font-size: var(--t-2xs);
+  color: var(--c-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   Mobile-only view switching (below 1024px)
+   ========================================================================== */
+
+@media (max-width: 63.999rem) {
+  .wishlist-view[data-pane='list'] .map-panel,
+  .wishlist-view[data-pane='map'] .list-panel {
+    display: none;
+  }
+
+  /* Full-bleed map: the shell's padding is cancelled for this pane only. */
+  .wishlist-view[data-pane='map'] .map-panel {
+    margin-inline: calc(-1 * var(--s-4));
+  }
+
+  /* One day at a time. The day rail above is the day switcher. */
+  .itinerary-days .day-column:not(.selected) {
+    display: none;
+  }
+
+  /* The day's plan is what somebody opened this tab to see; the pool of
+     confirmed places is the tool for changing it, so it follows. */
+  .itinerary {
+    grid-template-rows: auto auto;
+  }
+
+  .itinerary-days {
+    order: 1;
+  }
+
+  .itinerary-pool {
+    order: 2;
+  }
+
+  /* The FAB would otherwise sit on the last card in the list. */
+  .content {
+    padding-bottom: calc(var(--nav-h) + 5.5rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* ==========================================================================
+   Tablet — 768px and up
+   ========================================================================== */
+
+@media (min-width: 48rem) {
+  .content {
+    padding: var(--s-6);
+    padding-bottom: calc(var(--nav-h) + var(--s-8) + env(safe-area-inset-bottom));
+  }
+
+  .wishlist-view[data-pane='map'] .map-panel {
+    margin-inline: calc(-1 * var(--s-6));
+  }
+
+  .day-rail {
+    margin-inline: calc(-1 * var(--s-6));
+    padding-inline: var(--s-6);
+  }
+
+  .sheet {
+    justify-content: center;
+  }
+
+  .sheet-panel {
+    align-self: center;
+    width: min(38rem, 100%);
+    max-height: 82dvh;
+    margin: 0 auto;
+    border-radius: var(--r-xl);
+  }
+
+  .sheet-panel::before {
+    display: none;
+  }
+
+  .sheet-header {
+    padding-top: var(--s-4);
+  }
+
+  .place-list {
+    grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  }
+
+  /* 14rem rather than 16: it is what lets a three-day trip — the common case —
+     sit on one row at 1440px instead of wrapping its last day onto its own. */
+  .itinerary-days {
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  }
+}
+
+/* ==========================================================================
+   Desktop — 1024px and up
+   ========================================================================== */
+
+@media (min-width: 64rem) {
+  :root {
+    /* Top bar plus the nav bar that sits under it on this breakpoint. */
+    --sticky-top: calc(var(--header-h) + 3.75rem);
+    --map-h: calc(100dvh - 13rem);
+  }
+
+  .content {
+    padding: var(--s-6) var(--s-8) var(--s-10);
+  }
+
+  .topbar {
+    gap: var(--s-6);
+    padding-inline: var(--s-8);
+  }
+
+  .topbar-main {
+    flex: 0 1 auto;
+  }
+
+  /* The thumb no longer rules: navigation becomes a bar under the title. */
+  .tabbar {
+    position: sticky;
+    top: var(--header-h);
+    bottom: auto;
+    display: flex;
+    gap: var(--s-1);
+    padding: var(--s-2) var(--s-8);
+    border-top: none;
+    border-bottom: 1px solid var(--c-line);
+    box-shadow: none;
+  }
+
+  .tabbar-item {
+    flex-direction: row;
+    gap: var(--s-2);
+    min-height: var(--tap);
+    padding: 0 var(--s-3);
+    font-size: var(--t-sm);
+    border-radius: var(--r-md);
+  }
+
+  .tabbar-item:hover:not(:disabled) {
+    background: var(--c-surface-sunken);
+  }
+
+  .tabbar-item[aria-selected='true'] {
+    background: var(--c-brand-soft);
+  }
+
+  .tabbar-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  .tabbar-count {
+    position: static;
+    color: inherit;
+    background: color-mix(in srgb, currentcolor 14%, transparent);
+    border: none;
+  }
+
+  .tabbar-item[aria-selected='false'] .tabbar-count {
+    color: var(--c-ink-2);
+    background: var(--c-surface-sunken);
+  }
+
+  .fab {
+    display: none;
+  }
+
+  .pane-switch {
+    display: none;
+  }
+
+  /* Wishlist: map and list side by side, both panes always present. */
+  .wishlist-view {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(23rem, 0.85fr);
+    gap: var(--s-6);
+    align-items: start;
+  }
+
+  .wishlist-view .map-panel {
+    position: sticky;
+    top: calc(var(--sticky-top) + var(--s-4));
+    display: block;
+    margin-inline: 0;
+  }
+
+  .wishlist-view .list-panel {
+    display: block;
+  }
+
+  .trip-map {
+    overflow: hidden;
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-lg);
+  }
+
+  .place-list {
+    grid-template-columns: 1fr;
+  }
+
+  .itinerary-body {
+    grid-template-columns: minmax(0, 1fr) 17rem;
+    align-items: start;
+  }
+
+  .itinerary-body > .day-rail {
+    grid-column: 1 / -1;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+
+  .itinerary {
+    grid-template-columns: 12rem minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .itinerary-pool {
+    position: sticky;
+    top: calc(var(--sticky-top) + var(--s-4));
+  }
+
+  .money-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 21rem;
+    gap: var(--s-6);
+    align-items: start;
+  }
+
+  .side-panel {
+    position: sticky;
+    top: calc(var(--sticky-top) + var(--s-4));
+  }
+}
+
+/* ==========================================================================
+   Print — the plan on paper, for somewhere with no signal
+   ========================================================================== */
+
+@media print {
+  .topbar,
+  .tabbar,
+  .fab,
+  .pane-switch,
+  .place-actions,
+  .map-panel {
+    display: none !important;
+  }
+
+  .content {
+    padding: 0;
+  }
+
+  .place,
+  .day-column,
+  .item-card {
+    box-shadow: none;
+    break-inside: avoid;
+  }
 }

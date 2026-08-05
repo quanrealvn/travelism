@@ -212,3 +212,34 @@ describe('PlaceList', () => {
     expect(handlers.onSelect).toHaveBeenCalledWith('b')
   })
 })
+
+describe('PlaceList vocabulary', () => {
+  // The API's enum names are wire values, not words for a person. The map
+  // legend already read "Tham quan" while the card beside it read "Sight".
+  it('names the category in Vietnamese', () => {
+    renderList([place({ category: 'Sight' })])
+
+    const card = screen.getByTestId('place-p1')
+    expect(card).toHaveTextContent('Tham quan')
+    expect(card).not.toHaveTextContent('Sight')
+  })
+
+  it('names the time slots in Vietnamese', () => {
+    renderList([place({ timeSlots: ['Morning', 'Evening'] })])
+
+    const card = screen.getByTestId('place-p1')
+    expect(card).toHaveTextContent('Sáng · Tối')
+    expect(card).not.toHaveTextContent('Morning')
+  })
+
+  it.each([
+    ['Food', 'Ăn uống'],
+    ['Photo', 'Chụp ảnh'],
+    ['Rest', 'Nghỉ ngơi'],
+    ['Other', 'Khác'],
+  ] as const)('translates %s to %s', (category, label) => {
+    renderList([place({ category })])
+
+    expect(screen.getByTestId('place-p1')).toHaveTextContent(label)
+  })
+})

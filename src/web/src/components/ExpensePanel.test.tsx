@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { ExpensePanel } from './ExpensePanel'
+import { AddExpenseForm, ExpensePanel } from './ExpensePanel'
 import type {
   BalanceResponse,
   ExpenseResponse,
@@ -41,7 +41,7 @@ function expense(overrides: Partial<ExpenseResponse> = {}): ExpenseResponse {
 function renderPanel(
   overrides: Partial<Parameters<typeof ExpensePanel>[0]> = {},
 ) {
-  const handlers = { onAdd: vi.fn(), onDelete: vi.fn() }
+  const handlers = { onDelete: vi.fn() }
 
   const balance: BalanceResponse = {
     balances: [
@@ -62,9 +62,30 @@ function renderPanel(
       myMemberId={QUAN}
       currency="VND"
       currencyExponent={0}
+      deletingId={null}
+      {...handlers}
+      {...overrides}
+    />,
+  )
+
+  return handlers
+}
+
+/**
+ * The form moved out of the panel and into a sheet, so it is rendered on its
+ * own here — an always-expanded form pushed the balance and the spend list off
+ * the first screen of the money tab.
+ */
+function renderForm(overrides: Partial<Parameters<typeof AddExpenseForm>[0]> = {}) {
+  const handlers = { onAdd: vi.fn() }
+
+  render(
+    <AddExpenseForm
+      members={MEMBERS}
+      myMemberId={QUAN}
+      currencyExponent={0}
       tripDays={['2026-03-01', '2026-03-02']}
       pending={false}
-      deletingId={null}
       submitError={null}
       {...handlers}
       {...overrides}
@@ -132,7 +153,7 @@ describe('ExpensePanel settlement display', () => {
   })
 })
 
-describe('ExpensePanel list and form', () => {
+describe('ExpensePanel list', () => {
   it('lists an expense with who paid it', () => {
     renderPanel()
 
@@ -141,8 +162,33 @@ describe('ExpensePanel list and form', () => {
     expect(row).toHaveTextContent(/Quan trả/)
   })
 
-  it('submits an amount converted to integer minor units', async () => {
+  it('names the category in Vietnamese rather than in the wire value', () => {
+    // The map legend already said "Ăn uống" while this row said "Food".
+    renderPanel({ expenses: [expense({ category: 'Transport' })] })
+
+    expect(screen.getByTestId('expense-e1')).toHaveTextContent('Đi lại')
+    expect(screen.getByTestId('expense-e1')).not.toHaveTextContent('Transport')
+  })
+
+  it('shows the date as a day and month, not as an ISO string', () => {
+    renderPanel({ expenses: [expense({ date: '2026-03-01' })] })
+
+    expect(screen.getByTestId('expense-e1')).toHaveTextContent('01/03')
+    expect(screen.getByTestId('expense-e1')).not.toHaveTextContent('2026-03-01')
+  })
+
+  it('asks to delete the expense whose button was pressed', async () => {
     const handlers = renderPanel()
+
+    await userEvent.click(screen.getByLabelText(/xoá xăng xe/i))
+
+    expect(handlers.onDelete).toHaveBeenCalledWith('e1')
+  })
+})
+
+describe('AddExpenseForm', () => {
+  it('submits an amount converted to integer minor units', async () => {
+    const handlers = renderForm()
 
     await userEvent.type(screen.getByLabelText(/nội dung/i), 'Bữa tối')
     await userEvent.type(screen.getByLabelText(/số tiền/i), '250000')
@@ -154,7 +200,7 @@ describe('ExpensePanel list and form', () => {
   })
 
   it('refuses a zero amount before reaching the server', async () => {
-    const handlers = renderPanel()
+    const handlers = renderForm()
 
     await userEvent.type(screen.getByLabelText(/nội dung/i), 'Miễn phí')
     await userEvent.type(screen.getByLabelText(/số tiền/i), '0')
@@ -165,7 +211,7 @@ describe('ExpensePanel list and form', () => {
   })
 
   it('refuses an unparseable amount', async () => {
-    const handlers = renderPanel()
+    const handlers = renderForm()
 
     await userEvent.type(screen.getByLabelText(/nội dung/i), 'Không rõ')
     await userEvent.type(screen.getByLabelText(/số tiền/i), 'nhiều lắm')
@@ -174,11 +220,31 @@ describe('ExpensePanel list and form', () => {
     expect(handlers.onAdd).not.toHaveBeenCalled()
   })
 
-  it('asks to delete the expense whose button was pressed', async () => {
-    const handlers = renderPanel()
+  it('offers the trip days by weekday and date, not as ISO strings', async () => {
+    renderForm()
 
-    await userEvent.click(screen.getByLabelText(/xoá xăng xe/i))
+    const dayField = screen.getByLabelText(/ngày/i)
+    expect(dayField).toHaveTextContent('01/03')
+    expect(dayField).not.toHaveTextContent('2026-03-01')
+  })
 
-    expect(handlers.onDelete).toHaveBeenCalledWith('e1')
+  it('names expense categories in Vietnamese', () => {
+    renderForm()
+
+    expect(screen.getByLabelText(/loại/i)).toHaveTextContent('Chỗ ở')
+  })
+
+  it('still sends the wire value for a translated category', async () => {
+    // The label is Vietnamese; what crosses the wire must stay the enum name.
+    const handlers = renderForm()
+
+    await userEvent.type(screen.getByLabelText(/nội dung/i), 'Khách sạn')
+    await userEvent.type(screen.getByLabelText(/số tiền/i), '900000')
+    await userEvent.selectOptions(screen.getByLabelText(/loại/i), 'Lodging')
+    await userEvent.click(screen.getByRole('button', { name: /thêm khoản chi/i }))
+
+    expect(handlers.onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'Lodging' }),
+    )
   })
 })

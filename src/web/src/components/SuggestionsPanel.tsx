@@ -1,6 +1,8 @@
 import type { IsoDate, SuggestionGroupResponse } from '../api/api-types'
 import { formatMoney } from '../api/money'
+import { placeCategoryLabel } from '../api/labels'
 import { formatDayLabel } from '../itinerary/tripDates'
+import { Spinner } from './Spinner'
 
 interface SuggestionsPanelProps {
   date: IsoDate | null
@@ -45,7 +47,12 @@ export function SuggestionsPanel({
     <div className="suggestions">
       <h3>Gợi ý cho {formatDayLabel(date)}</h3>
 
-      {loading && <p className="search-hint">Đang tải…</p>}
+      {loading && (
+        <p className="search-hint inline-busy" role="status">
+          <Spinner />
+          Đang tải…
+        </p>
+      )}
 
       {!loading && total === 0 && (
         <p className="empty-state small">
@@ -63,7 +70,7 @@ export function SuggestionsPanel({
                   <button type="button" onClick={() => onAdd(place.placeId, date)}>
                     <span className="suggestion-name">{place.name}</span>
                     <span className="suggestion-meta">
-                      {place.category} ·{' '}
+                      {placeCategoryLabel(place.category)} ·{' '}
                       {formatMoney(place.estimatedCost, currency, currencyExponent)}
                     </span>
                   </button>

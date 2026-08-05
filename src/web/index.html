@@ -2,8 +2,11 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1f6f5c" />
+    <!-- viewport-fit=cover is what makes env(safe-area-inset-*) resolve to
+         anything but zero; the bottom tab bar and the sheets rely on it to
+         clear the home indicator on a notched phone. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0e6b55" />
     <meta name="description" content="Lên kế hoạch chuyến đi cùng nhau: wishlist, lịch trình, chi tiêu." />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />

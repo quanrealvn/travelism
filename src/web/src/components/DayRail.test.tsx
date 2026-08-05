@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { WeatherStrip } from './WeatherStrip'
+import { DayRail } from './DayRail'
 import { formatTemp, weatherText } from '../itinerary/weatherText'
 import type { WeatherResponse } from '../api/api-types'
 
@@ -21,38 +21,49 @@ function weather(overrides: Partial<WeatherResponse> = {}): WeatherResponse {
   }
 }
 
-describe('WeatherStrip', () => {
-  it('renders nothing when there is no forecast', () => {
-    // Spec §5.5 answers 204 for a trip with nowhere to forecast.
+describe('DayRail', () => {
+  it('still offers every day when there is no forecast', () => {
+    // This rail is the day switcher: on a phone only the selected day's column
+    // is on screen, so if it vanished during a weather outage (spec §5.5
+    // answers 204 for a trip with nowhere to forecast) you could never reach
+    // day two.
+    render(<DayRail weather={null} days={DAYS} selectedDate={null} onSelectDate={vi.fn()} />)
+
+    expect(screen.getByTestId('weather-2026-03-01')).toBeInTheDocument()
+    expect(screen.getByTestId('weather-2026-03-03')).toBeInTheDocument()
+  })
+
+  it('says nothing about the weather when there is no forecast', () => {
+    // A question mark on every card reads as an error rather than as silence.
+    render(<DayRail weather={null} days={DAYS} selectedDate={null} onSelectDate={vi.fn()} />)
+
+    expect(screen.getByTestId('weather-2026-03-01')).not.toHaveTextContent(/chưa rõ/i)
+  })
+
+  it('renders nothing when the trip has no days', () => {
     const { container } = render(
-      <WeatherStrip weather={null} days={DAYS} selectedDate={null} onSelectDate={vi.fn()} />,
+      <DayRail weather={null} days={[]} selectedDate={null} onSelectDate={vi.fn()} />,
     )
 
     expect(container).toBeEmptyDOMElement()
   })
 
   it('shows a card for every trip day, including ones with no forecast', () => {
-    // Keeps the strip aligned with the itinerary columns below it.
-    render(
-      <WeatherStrip weather={weather()} days={DAYS} selectedDate={null} onSelectDate={vi.fn()} />,
-    )
+    // Keeps the rail aligned with the itinerary columns below it.
+    render(<DayRail weather={weather()} days={DAYS} selectedDate={null} onSelectDate={vi.fn()} />)
 
     expect(screen.getByTestId('weather-2026-03-01')).toBeInTheDocument()
     expect(screen.getByTestId('weather-2026-03-03')).toBeInTheDocument()
   })
 
   it('shows the high and low for a forecast day', () => {
-    render(
-      <WeatherStrip weather={weather()} days={DAYS} selectedDate={null} onSelectDate={vi.fn()} />,
-    )
+    render(<DayRail weather={weather()} days={DAYS} selectedDate={null} onSelectDate={vi.fn()} />)
 
     expect(screen.getByTestId('weather-2026-03-01')).toHaveTextContent('28° / 18°')
   })
 
   it('shows rainfall only when there is some', () => {
-    render(
-      <WeatherStrip weather={weather()} days={DAYS} selectedDate={null} onSelectDate={vi.fn()} />,
-    )
+    render(<DayRail weather={weather()} days={DAYS} selectedDate={null} onSelectDate={vi.fn()} />)
 
     expect(screen.getByTestId('weather-2026-03-02')).toHaveTextContent('12.5 mm')
     expect(screen.getByTestId('weather-2026-03-01')).not.toHaveTextContent('mm')
@@ -61,7 +72,7 @@ describe('WeatherStrip', () => {
   it('says when the forecast came from cache during an outage', () => {
     // Spec §5.5: stale must be flagged, never presented as current.
     render(
-      <WeatherStrip
+      <DayRail
         weather={weather({ stale: true })}
         days={DAYS}
         selectedDate={null}
@@ -73,9 +84,7 @@ describe('WeatherStrip', () => {
   })
 
   it('does not cry stale for a fresh forecast', () => {
-    render(
-      <WeatherStrip weather={weather()} days={DAYS} selectedDate={null} onSelectDate={vi.fn()} />,
-    )
+    render(<DayRail weather={weather()} days={DAYS} selectedDate={null} onSelectDate={vi.fn()} />)
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
@@ -83,7 +92,7 @@ describe('WeatherStrip', () => {
   it('marks the selected day and reports a change', async () => {
     const onSelectDate = vi.fn()
     render(
-      <WeatherStrip
+      <DayRail
         weather={weather()}
         days={DAYS}
         selectedDate="2026-03-01"
@@ -91,7 +100,9 @@ describe('WeatherStrip', () => {
       />,
     )
 
-    expect(screen.getByTestId('weather-2026-03-01')).toHaveClass('selected')
+    const selected = screen.getByTestId('weather-2026-03-01')
+    expect(selected).toHaveClass('selected')
+    expect(selected).toHaveAttribute('aria-pressed', 'true')
 
     await userEvent.click(screen.getByTestId('weather-2026-03-02'))
     expect(onSelectDate).toHaveBeenCalledWith('2026-03-02')
