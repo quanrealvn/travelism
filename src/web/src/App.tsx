@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ApiError } from './api/client'
 import {
@@ -32,11 +32,10 @@ import type {
   PlaceReferenceRequest,
   PlaceStatus,
   TripSessionResponse,
+  TripSummaryResponse,
 } from './api/api-types'
 import { StartScreen } from './components/StartScreen'
-import { TripMap } from './components/TripMap'
 import type { LatLng } from './components/TripMap'
-import { ItineraryBoard } from './components/ItineraryBoard'
 import { AddExpenseForm, ExpensePanel } from './components/ExpensePanel'
 import { DayRail } from './components/DayRail'
 import { SuggestionsPanel } from './components/SuggestionsPanel'
@@ -45,6 +44,10 @@ import { useTripSync } from './api/useTripSync'
 import { PlaceForm } from './components/PlaceForm'
 import { PlaceList } from './components/PlaceList'
 import { Sheet } from './components/Sheet'
+import { ConfirmDialog } from './components/ConfirmDialog'
+import { PlaceFilter } from './components/PlaceFilter'
+import { applyPlaceFilter, EMPTY_FILTER } from './places/placeFilter'
+import type { PlaceFilterState } from './places/placeFilter'
 import { TripSheet } from './components/TripSheet'
 import { TripList } from './components/TripList'
 import { Spinner } from './components/Spinner'
@@ -60,6 +63,18 @@ import {
   IconWallet,
 } from './components/icons'
 
+/*
+ * Split out of the entry bundle. Leaflet and dnd-kit together are most of the
+ * JavaScript this app ships, and on a slow connection every byte of them was
+ * blocking the first paint for people who had not opened a map or a day yet.
+ */
+const TripMap = lazy(() =>
+  import('./components/TripMap').then((m) => ({ default: m.TripMap })),
+)
+const ItineraryBoard = lazy(() =>
+  import('./components/ItineraryBoard').then((m) => ({ default: m.ItineraryBoard })),
+)
+
 type View = 'wishlist' | 'itinerary' | 'money'
 
 /**
@@ -71,14 +86,14 @@ type View = 'wishlist' | 'itinerary' | 'money'
  * sheet, where it sits beside the other facts about the trip.
  */
 const TABS: { id: View; label: string; Icon: (props: { className?: string }) => JSX.Element }[] = [
-  { id: 'wishlist', label: 'Wishlist', Icon: IconPin },
+  { id: 'wishlist', label: 'Địa điểm', Icon: IconPin },
   { id: 'itinerary', label: 'Lịch trình', Icon: IconCalendar },
   { id: 'money', label: 'Chi tiêu', Icon: IconWallet },
 ]
 
 const SYNC_TITLE = {
   live: 'Đang đồng bộ trực tiếp',
-  connecting: 'Đang kết nối lại',
+  connecting: 'Đang kết nối lại…',
   offline: 'Ngoại tuyến',
 } as const
 
@@ -94,7 +109,7 @@ function describeItineraryError(error: unknown): string {
     case 'DATE_OUT_OF_RANGE':
       return 'Ngày đó nằm ngoài chuyến đi.'
     default:
-      return error.message
+      return error.text
   }
 }
 
@@ -215,6 +230,32 @@ export function App() {
 
 
 /**
+ * The invite code for a trip that is about to be forgotten.
+ *
+ * Fetched on demand rather than carried in the trip summary: a browser holds up
+ * to twenty of those, and the code that lets somebody into a trip has no
+ * business being sent for nineteen trips nobody is looking at.
+ */
+function InviteCodeForTrip({ tripId }: { tripId: string }) {
+  const trip = useTrip(tripId)
+
+  if (trip.isLoading) {
+    return (
+      <p className="search-hint inline-busy" role="status">
+        <Spinner />
+        Đang lấy mã mời…
+      </p>
+    )
+  }
+
+  if (!trip.data) {
+    return <p className="search-hint">Không lấy được mã mời.</p>
+  }
+
+  return <code className="invite-code">{trip.data.inviteCode}</code>
+}
+
+/**
  * The trips this browser holds, and the way to start another.
  *
  * Its own screen rather than a dropdown: on a phone a list of trips with dates
@@ -235,11 +276,15 @@ function TripsScreen({
   const trips = useMyTrips()
   const forget = useForgetTrip()
   const [adding, setAdding] = useState(false)
+  const [pendingForget, setPendingForget] = useState<TripSummaryResponse | null>(null)
 
   return (
     <div className="app">
       <header className="topbar">
-        <div className="topbar-main">
+        {/* flex:1 so the close control goes to the far edge, as it does on the
+            workspace header — on desktop it was stranded mid-bar beside the
+            title, breaking its own convention. */}
+        <div className="topbar-main" style={{ flex: 1 }}>
           <h1 className="topbar-title">Chuyến đi của bạn</h1>
           <p className="topbar-sub">{trips.data?.length ?? 0} chuyến trên thiết bị này</p>
         </div>
@@ -260,11 +305,41 @@ function TripsScreen({
             activeTripId={activeTripId}
             forgettingId={forget.isPending ? forget.variables : null}
             onOpen={onOpen}
-            onForget={(tripId) => forget.mutate(tripId)}
+            onForget={(tripId) =>
+              setPendingForget(trips.data?.find((trip) => trip.id === tripId) ?? null)
+            }
             onNew={() => setAdding(true)}
           />
         )}
       </main>
+
+      {pendingForget && (
+        <ConfirmDialog
+          title="Bỏ khỏi thiết bị này"
+          confirmLabel="Bỏ khỏi thiết bị"
+          destructive
+          pending={forget.isPending}
+          onCancel={() => setPendingForget(null)}
+          onConfirm={() => {
+            forget.mutate(pendingForget.id)
+            setPendingForget(null)
+          }}
+        >
+          <p>
+            <strong>{pendingForget.name}</strong> sẽ không còn hiện trên thiết bị này.
+          </p>
+          <p className="confirm-detail">
+            Chuyến đi không bị xoá — những người khác vẫn thấy bình thường, và bạn quay
+            lại được bằng mã mời. Ghi lại mã này nếu bạn muốn quay lại:
+          </p>
+          {/*
+            The invite code is only ever shown inside a trip. Forgetting one you
+            own without seeing it first made the trip unreachable forever, even
+            though it was still sitting on the server.
+          */}
+          <InviteCodeForTrip tripId={pendingForget.id} />
+        </ConfirmDialog>
+      )}
 
       {adding && (
         <Sheet title="Chuyến đi mới" onClose={() => setAdding(false)}>
@@ -313,8 +388,14 @@ function TripWorkspace({
   // Below 1024px the map and the list share the screen one at a time; above it
   // they sit side by side and this is ignored.
   const [pane, setPane] = useState<'list' | 'map'>('list')
+  const [filter, setFilter] = useState<PlaceFilterState>(EMPTY_FILTER)
   const narrow = useNarrowScreen()
   const [sheet, setSheet] = useState<'trip' | 'add-place' | 'add-expense' | null>(null)
+  const [pendingForceDelete, setPendingForceDelete] = useState<{
+    placeId: string
+    name: string
+    dayCount: number
+  } | null>(null)
 
   // Computed before the early returns below, because the suggestions query is a
   // hook and hooks cannot be called conditionally.
@@ -349,6 +430,10 @@ function TripWorkspace({
   const itineraryItems = itinerary.data ?? []
 
   const confirmedPlaces = currentPlaces.filter((place) => place.status === 'Confirmed')
+
+  // The list narrows; the map does not. A filter is a way of reading the list,
+  // and hiding pins would quietly change what "the trip" looks like.
+  const visiblePlaces = applyPlaceFilter(currentPlaces, filter, memberId)
 
   // The selected day's stops in visiting order, for the route line on the map.
   // Untimed items go last, matching how the day itself reads.
@@ -426,7 +511,7 @@ function TripWorkspace({
         onError: (error) => {
           setActionError(
             error instanceof ApiError && error.code === 'INVALID_STATUS_TRANSITION'
-              ? error.message
+              ? error.text
               : 'Không đổi được trạng thái.',
           )
         },
@@ -446,7 +531,7 @@ function TripWorkspace({
         onError: (error) => {
           setActionError(
             error instanceof ApiError
-              ? (Object.values(error.fieldErrors())[0] ?? error.message)
+              ? (Object.values(error.fieldErrors())[0] ?? error.text)
               : 'Không lưu được mô tả.',
           )
         },
@@ -454,19 +539,29 @@ function TripWorkspace({
     )
   }
 
-  function handleDelete(placeId: string) {
+  function handleDelete(placeId: string, force = false) {
     setActionError(null)
     deletePlace.mutate(
-      { placeId },
+      { placeId, force },
       {
         onError: (error) => {
-          // PLACE_IN_USE means the place is on the itinerary; milestone 3 adds
-          // the confirm-and-force flow, so for now the reason is surfaced.
-          setActionError(
-            error instanceof ApiError && error.code === 'PLACE_IN_USE'
-              ? `${error.message}`
-              : 'Không xoá được địa điểm.',
-          )
+          // A place on the itinerary is refused until the caller says to take
+          // it off the plan too. The server answers with the English
+          // instruction "Re-send with ?force=true", which was being shown
+          // verbatim to a Vietnamese user who had no way to act on it — the
+          // capability existed and nothing in the UI offered it.
+          if (error instanceof ApiError && error.code === 'PLACE_IN_USE') {
+            const place = currentPlaces.find((candidate) => candidate.id === placeId)
+            const dates = (error.problem as { dates?: string[] }).dates ?? []
+            setPendingForceDelete({
+              placeId,
+              name: place?.name ?? 'Địa điểm này',
+              dayCount: dates.length,
+            })
+            return
+          }
+
+          setActionError('Không xoá được địa điểm.')
         },
       },
     )
@@ -474,7 +569,7 @@ function TripWorkspace({
 
   const createError =
     createPlace.error instanceof ApiError
-      ? (createPlace.error.problem.detail ?? createPlace.error.message)
+      ? createPlace.error.text
       : createPlace.error
         ? 'Không thêm được địa điểm.'
         : null
@@ -506,11 +601,26 @@ function TripWorkspace({
               {currentTrip.name}
               {tripCount > 1 && <IconChevron className="topbar-switch" />}
             </span>
+            {/*
+              The day count comes first: it is the most useful number here and
+              a long destination used to push it off the end entirely.
+            */}
             <span className="topbar-sub">
-              <span className={`sync sync-${syncStatus}`} title={SYNC_TITLE[syncStatus]}>
-                <span className="visually-hidden">{SYNC_TITLE[syncStatus]}</span>
+              {/*
+                Live is the normal state and says nothing — a dot is enough.
+                Anything else is worth a word: this was the one signal in the
+                app carried by colour alone, on an 8px dot, with the label
+                hidden and the explanation in a hover title nobody on a phone
+                can reach.
+              */}
+              <span className={`sync sync-${syncStatus}`}>
+                <span className={syncStatus === 'live' ? 'visually-hidden' : undefined}>
+                  {SYNC_TITLE[syncStatus]}
+                </span>
               </span>
-              {currentTrip.destination} · {days.length} ngày
+              <span className="topbar-sub-text">
+                {days.length} ngày · {currentTrip.destination}
+              </span>
             </span>
           </span>
         </button>
@@ -534,14 +644,36 @@ function TripWorkspace({
         backdrop-filter would become its containing block and pin it to the
         header instead.
       */}
-      <nav className="tabbar" role="tablist" aria-label="Khu vực">
+      <nav
+        className="tabbar"
+        role="tablist"
+        aria-label="Khu vực"
+        // A tablist is one stop with arrow keys inside it, not three stops.
+        // Screen readers announce "tab, 1 of 3" and their users press arrows.
+        onKeyDown={(event) => {
+          const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+          if (step === 0) {
+            return
+          }
+
+          event.preventDefault()
+          const index = TABS.findIndex((tab) => tab.id === view)
+          const next = TABS[(index + step + TABS.length) % TABS.length]!
+          setView(next.id)
+          event.currentTarget
+            .querySelector<HTMLElement>(`[data-tab="${next.id}"]`)
+            ?.focus()
+        }}
+      >
         {TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
             role="tab"
             className="tabbar-item"
+            data-tab={tab.id}
             aria-selected={view === tab.id}
+            tabIndex={view === tab.id ? 0 : -1}
             onClick={() => setView(tab.id)}
           >
             <span className="tabbar-icon">
@@ -578,16 +710,18 @@ function TripWorkspace({
 
             <div className="wishlist-view" data-pane={pane}>
               <section className="map-panel">
-                <TripMap
-                  places={currentPlaces}
-                  currency={currentTrip.currency}
-                  currencyExponent={currentTrip.currencyExponent}
-                  selectedPlaceId={selectedPlaceId}
-                  onSelectPlace={setSelectedPlaceId}
-                  draftLocation={draftLocation}
-                  onPickLocation={setDraftLocation}
-                  routePoints={routePoints}
-                />
+                <Suspense fallback={<Spinner block label="Đang tải bản đồ…" />}>
+                  <TripMap
+                    places={currentPlaces}
+                    currency={currentTrip.currency}
+                    currencyExponent={currentTrip.currencyExponent}
+                    selectedPlaceId={selectedPlaceId}
+                    onSelectPlace={setSelectedPlaceId}
+                    draftLocation={draftLocation}
+                    onPickLocation={setDraftLocation}
+                    routePoints={routePoints}
+                  />
+                </Suspense>
               </section>
 
               <section className="list-panel">
@@ -597,7 +731,7 @@ function TripWorkspace({
                   own way in, or there is no way to add a place at all.
                 */}
                 <div className="panel-head">
-                  <h2 className="section-title">Wishlist ({currentPlaces.length})</h2>
+                  <h2 className="section-title">Địa điểm ({currentPlaces.length})</h2>
                   <button
                     type="button"
                     className="button-primary panel-head-action"
@@ -608,8 +742,19 @@ function TripWorkspace({
                   </button>
                 </div>
 
+                {/* Only worth the space once the list is long enough to lose
+                    something in. */}
+                {currentPlaces.length >= 8 && (
+                  <PlaceFilter
+                    value={filter}
+                    matchCount={visiblePlaces.length}
+                    totalCount={currentPlaces.length}
+                    onChange={setFilter}
+                  />
+                )}
+
                 <PlaceList
-                  places={currentPlaces}
+                  places={visiblePlaces}
                   members={currentTrip.members}
                   myMemberId={memberId}
                   currency={currentTrip.currency}
@@ -647,21 +792,23 @@ function TripWorkspace({
               onSelectDate={setSelectedDate}
             />
 
-            <ItineraryBoard
-              days={days}
-              items={itineraryItems}
-              confirmedPlaces={confirmedPlaces}
-              currency={currentTrip.currency}
-              currencyExponent={currentTrip.currencyExponent}
-              movingItemId={moveItem.isPending ? moveItem.variables.itemId : null}
-              findings={feasibility.data?.items ?? []}
-              selectedDate={activeDate}
-              onSelectDate={setSelectedDate}
-              onMoveItem={handleMoveItem}
-              onSchedulePlace={handleSchedulePlace}
-              onRemoveItem={(itemId) => removeItem.mutate(itemId)}
-              onSetTime={handleSetTime}
-            />
+            <Suspense fallback={<Spinner block label="Đang tải lịch trình…" />}>
+              <ItineraryBoard
+                days={days}
+                items={itineraryItems}
+                confirmedPlaces={confirmedPlaces}
+                currency={currentTrip.currency}
+                currencyExponent={currentTrip.currencyExponent}
+                movingItemId={moveItem.isPending ? moveItem.variables.itemId : null}
+                findings={feasibility.data?.items ?? []}
+                selectedDate={activeDate}
+                onSelectDate={setSelectedDate}
+                onMoveItem={handleMoveItem}
+                onSchedulePlace={handleSchedulePlace}
+                onRemoveItem={(itemId) => removeItem.mutate(itemId)}
+                onSetTime={handleSetTime}
+              />
+            </Suspense>
 
             <aside className="side-panel">
               <SuggestionsPanel
@@ -745,17 +892,41 @@ function TripWorkspace({
         </Sheet>
       )}
 
+      {pendingForceDelete && (
+        <ConfirmDialog
+          title="Xoá địa điểm"
+          confirmLabel="Xoá cả khỏi lịch trình"
+          destructive
+          pending={deletePlace.isPending}
+          onCancel={() => setPendingForceDelete(null)}
+          onConfirm={() => {
+            const { placeId } = pendingForceDelete
+            setPendingForceDelete(null)
+            handleDelete(placeId, true)
+          }}
+        >
+          <p>
+            <strong>{pendingForceDelete.name}</strong> đang nằm trong lịch trình{' '}
+            {pendingForceDelete.dayCount} ngày.
+          </p>
+          <p className="confirm-detail">
+            Xoá địa điểm sẽ bỏ luôn khỏi những ngày đó. Không thể hoàn tác.
+          </p>
+        </ConfirmDialog>
+      )}
+
       {sheet === 'add-expense' && (
         <Sheet title="Thêm khoản chi" onClose={() => setSheet(null)}>
           <AddExpenseForm
             members={currentTrip.members}
             myMemberId={memberId}
+            currency={currentTrip.currency}
             currencyExponent={currentTrip.currencyExponent}
             tripDays={days}
             pending={createExpense.isPending}
             submitError={
               createExpense.error instanceof ApiError
-                ? (createExpense.error.problem.detail ?? createExpense.error.message)
+                ? createExpense.error.text
                 : null
             }
             onAdd={(body) =>

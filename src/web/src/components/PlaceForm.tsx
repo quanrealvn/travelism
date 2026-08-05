@@ -91,13 +91,6 @@ export function PlaceForm({
     }))
   }
 
-  function reset() {
-    setForm(EMPTY)
-    setPickedAddress(null)
-    setManualCoords(false)
-    onLocationChange?.(null)
-  }
-
   function clearLocation() {
     setForm((current) => ({ ...current, lat: '', lng: '' }))
     setPickedAddress(null)
@@ -160,7 +153,11 @@ export function PlaceForm({
       openHoursText: form.openHoursText.trim() === '' ? null : form.openHoursText,
     })
 
-    reset()
+    // Deliberately not cleared here. The submit handler cannot know whether the
+    // server accepted it, and clearing on the way out threw away everything the
+    // user typed the moment anything was rejected — including the searched
+    // location, so they had to find the place again to fix a duration. On
+    // success the sheet closes and unmounts this form, which clears it anyway.
   }
 
   const hasCoordinates = form.lat.trim() !== '' && form.lng.trim() !== ''

@@ -178,6 +178,6 @@ function describe(error: ApiError): string {
     case 'VALIDATION_FAILED':
       return Object.values(error.fieldErrors())[0] ?? 'Thông tin chưa hợp lệ.'
     default:
-      return error.message
+      return error.text
   }
 }

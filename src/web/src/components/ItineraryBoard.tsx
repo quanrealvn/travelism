@@ -72,6 +72,8 @@ export function ItineraryBoard({
   // drag — important on touch, where every tap moves a pixel or two.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
+  const confirmedPlaceIds = new Set(confirmedPlaces.map((place) => place.id))
+
   const scheduledPlaceIdsByDate = new Map<IsoDate, Set<string>>()
   for (const item of items) {
     const set = scheduledPlaceIdsByDate.get(item.date) ?? new Set<string>()
@@ -149,6 +151,7 @@ export function ItineraryBoard({
               currency={currency}
               currencyExponent={currencyExponent}
               movingItemId={movingItemId}
+              confirmedPlaceIds={confirmedPlaceIds}
               // Feasibility is fetched for the selected day, so other columns
               // show no badges rather than stale ones from another day.
               findings={selectedDate === date ? findings : []}
@@ -236,6 +239,7 @@ function DayColumn({
   currency,
   currencyExponent,
   movingItemId,
+  confirmedPlaceIds,
   findings,
   selected,
   onSelect,
@@ -249,6 +253,7 @@ function DayColumn({
   currency: string
   currencyExponent: number
   movingItemId: string | null
+  confirmedPlaceIds: Set<string>
   findings: FeasibilityFindingResponse[]
   selected: boolean
   onSelect: () => void
@@ -309,6 +314,7 @@ function DayColumn({
               currency={currency}
               currencyExponent={currencyExponent}
               busy={movingItemId === item.id}
+              unconfirmed={!confirmedPlaceIds.has(item.placeId)}
               findings={findings.filter((f) => f.itineraryItemId === item.id)}
               onRemove={() => onRemoveItem(item.id)}
               onSetTime={onSetTime}
@@ -325,6 +331,7 @@ function ItemCard({
   currency,
   currencyExponent,
   busy,
+  unconfirmed,
   findings,
   onRemove,
   onSetTime,
@@ -333,6 +340,7 @@ function ItemCard({
   currency: string
   currencyExponent: number
   busy: boolean
+  unconfirmed: boolean
   findings: FeasibilityFindingResponse[]
   onRemove: () => void
   onSetTime: (itemId: string, startTime: string | null) => void
@@ -358,7 +366,20 @@ function ItemCard({
       </span>
 
       <div className="item-body">
-        <span className="item-name">{item.placeName}</span>
+        <span className="item-name">
+          {item.placeName}
+          {/*
+            The itinerary is built from confirmed places, but nothing keeps it
+            consistent when one leaves that set: un-confirming a scheduled place
+            left the stop on the plan with no sign that the group had changed
+            its mind about it.
+          */}
+          {unconfirmed && (
+            <span className="item-unconfirmed" title="Địa điểm này không còn được chốt">
+              chưa chốt lại
+            </span>
+          )}
+        </span>
         <span className="item-meta">
           {formatDuration(item.estimatedDurationMinutes)} ·{' '}
           {formatMoney(item.actualCost ?? item.estimatedCost, currency, currencyExponent)}

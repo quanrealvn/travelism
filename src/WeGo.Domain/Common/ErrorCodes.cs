@@ -21,6 +21,13 @@ public static class ErrorCodes
     public const string InvalidStatusTransition = "INVALID_STATUS_TRANSITION";
     public const string TripFull = "TRIP_FULL";
 
+    /// <summary>
+    /// This browser already holds as many trips as the session cookie can carry.
+    /// A refusal rather than an eviction: dropping the oldest silently would
+    /// lose a trip whose invite code is only ever displayed inside it.
+    /// </summary>
+    public const string DeviceTripLimit = "DEVICE_TRIP_LIMIT";
+
     // Auth (401/403)
     public const string Unauthenticated = "UNAUTHENTICATED";
     public const string Forbidden = "FORBIDDEN";

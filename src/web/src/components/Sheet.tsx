@@ -25,10 +25,50 @@ export function Sheet({ title, onClose, children }: SheetProps) {
     // Remembered before focus moves, so it can be handed back on close.
     const opener = document.activeElement as HTMLElement | null
 
+    function focusable(): HTMLElement[] {
+      return [
+        ...(panel.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? []),
+      ].filter((el) => el.offsetParent !== null || el === document.activeElement)
+    }
+
     function handleKey(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         event.stopPropagation()
         onClose()
+        return
+      }
+
+      /*
+       * Tab wraps inside the panel. Without this, a keyboard user tabbed
+       * straight past the sheet into the page behind the dimmed backdrop and
+       * could change tabs or open the trip switcher while a modal was up — the
+       * pointer was blocked and the keyboard was not.
+       */
+      if (event.key !== 'Tab') {
+        return
+      }
+
+      const stops = focusable()
+      if (stops.length === 0) {
+        return
+      }
+
+      const first = stops[0]!
+      const last = stops[stops.length - 1]!
+      const active = document.activeElement
+
+      if (!event.shiftKey && active === last) {
+        event.preventDefault()
+        first.focus()
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!panel.current?.contains(active)) {
+        // Focus escaped some other way — a click on the backdrop, say.
+        event.preventDefault()
+        first.focus()
       }
     }
 

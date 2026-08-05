@@ -40,12 +40,22 @@ public sealed record SessionToken(IReadOnlyList<TripMembership> Memberships)
         return false;
     }
 
+    /// <summary>True when another trip would not fit — see <see cref="With"/>.</summary>
+    public bool IsFull => Memberships.Count >= SessionTokenService.MaxMemberships;
+
     /// <summary>
     /// The same session with <paramref name="membership"/> at the front.
     /// <para>
     /// Re-joining a trip already held replaces the old entry rather than adding
     /// a second: a browser has exactly one identity per trip, and two entries
     /// would make which one wins depend on ordering.
+    /// </para>
+    /// <para>
+    /// Never evicts. An earlier version dropped the least recently used trip to
+    /// make room, which silently cost people trips they still wanted — the trip
+    /// stayed on the server but its invite code is only ever shown inside it, so
+    /// for a trip you owned it was gone. Callers check <see cref="IsFull"/> and
+    /// refuse instead, which is a thing the person can act on.
     /// </para>
     /// </summary>
     public SessionToken With(TripMembership membership)
@@ -57,13 +67,6 @@ public sealed record SessionToken(IReadOnlyList<TripMembership> Memberships)
             {
                 next.Add(existing);
             }
-        }
-
-        if (next.Count > SessionTokenService.MaxMemberships)
-        {
-            next.RemoveRange(
-                SessionTokenService.MaxMemberships,
-                next.Count - SessionTokenService.MaxMemberships);
         }
 
         return new SessionToken(next);

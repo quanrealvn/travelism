@@ -31,6 +31,13 @@ public static class TripEndpoints
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
+            // Checked before the trip is created, so a refusal does not leave an
+            // orphaned trip nobody holds a membership for.
+            if (DeviceIsFull(http, authOptions, tokens, out var problem))
+            {
+                return problem;
+            }
+
             var result = await trips.CreateAsync(request, cancellationToken);
             return result.ToHttp(created =>
             {
@@ -49,6 +56,11 @@ public static class TripEndpoints
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
+            if (DeviceIsFull(http, authOptions, tokens, out var deviceFull))
+            {
+                return deviceFull;
+            }
+
             var result = await trips.JoinAsync(request, cancellationToken);
 
             if (result.IsSuccess)
@@ -209,6 +221,34 @@ public static class TripEndpoints
             ErrorCodes.MethodNotAllowed,
             "Deleting a trip is not supported in v1.")))
         .WithName("DeleteTrip");
+    }
+
+    /// <summary>
+    /// True when the cookie cannot carry another trip, with the refusal to send.
+    /// <para>
+    /// A trip already held does not count against the limit — re-joining one
+    /// replaces its entry rather than adding to it, so it must not be refused.
+    /// </para>
+    /// </summary>
+    private static bool DeviceIsFull(
+        HttpContext http,
+        AuthOptions authOptions,
+        SessionTokenService tokens,
+        out IResult problem)
+    {
+        problem = Results.Empty;
+
+        if (!tokens.TryValidate(SessionCookie.Read(http, authOptions), out var existing)
+            || !existing.IsFull)
+        {
+            return false;
+        }
+
+        problem = Problems.From(Failure.Conflict(
+            ErrorCodes.DeviceTripLimit,
+            $"This browser already holds {SessionTokenService.MaxMemberships} trips. "
+            + "Remove one from this device before adding another."));
+        return true;
     }
 
     /// <summary>

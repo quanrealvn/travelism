@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ActivityResponse, TripResponse } from '../api/api-types'
 import { formatMoney } from '../api/money'
 import { formatDateLabel } from '../itinerary/tripDates'
+import { timeZoneLabel } from '../api/labels'
 import { ActivityFeed } from './ActivityFeed'
 import { Sheet } from './Sheet'
 import { IconCheck, IconCopy } from './icons'
@@ -80,7 +81,7 @@ export function TripSheet({
 
         <div className="fact">
           <dt className="fact-label">Múi giờ</dt>
-          <dd className="fact-value">{trip.timeZoneId}</dd>
+          <dd className="fact-value">{timeZoneLabel(trip.timeZoneId)}</dd>
         </div>
 
         <div className="fact">

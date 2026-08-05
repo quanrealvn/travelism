@@ -6,11 +6,10 @@
  * below follows from that: generous type, high contrast, and touch targets
  * sized for a thumb rather than a mouse.
  *
- * The colour scheme follows the Fly.io dashboard's structure — dark chrome,
- * one vivid accent, a light working canvas — rather than any sampled value
- * from it. Chrome recedes, the canvas is calm, and saturation is spent on the
- * few things that carry meaning: which category a place is, how settled it is,
- * and who owes whom.
+ * The colour scheme follows the Fly.io dashboard: a pale violet-to-rose wash
+ * behind white cards, frosted chrome, one vivid violet accent, and tinted
+ * rounded tiles behind icons. Saturation is spent only where the colour is the
+ * information — which category a place is, how settled it is, who owes whom.
  */
 
 :root {
@@ -58,14 +57,18 @@
   --s-12: 3rem;
 
   /* ---- Canvas -----------------------------------------------------------
-   * Near-neutral with the faintest violet cast, so the accent looks related to
-   * the page rather than dropped onto it.
+   * A pale violet-to-rose wash rather than a flat grey, with white cards
+   * floating on it — the Fly.io dashboard's actual surface treatment. It gives
+   * the accent somewhere to belong and stops a phone screen full of white
+   * cards from reading as a document.
    */
-  --c-bg: #f7f7fb;
+  --c-bg: #faf9ff;
+  --c-wash-violet: #ede9fe;
+  --c-wash-rose: #fce7f3;
   --c-surface: #ffffff;
-  --c-surface-sunken: #f0f0f6;
-  --c-line: #e4e4ed;
-  --c-line-strong: #cdcddb;
+  --c-surface-sunken: #f4f3fb;
+  --c-line: #e7e5f2;
+  --c-line-strong: #cfcce2;
 
   /* Contrast ratios are against --c-surface and were measured, not guessed:
    * an earlier ink was picked by eye at a claimed 4.6:1 and actually measured
@@ -75,26 +78,34 @@
   --c-ink-3: #6b6b82;      /* 5.2:1  — the lightest text allowed anywhere */
 
   /* ---- Chrome -----------------------------------------------------------
-   * The frame the app lives in: top bar, tab bar, trip switcher. Dark, so the
-   * eye goes to the content and the accent has somewhere to glow.
+   * The frame the app lives in: top bar and tab bar. Frosted white over the
+   * wash rather than a dark slab — content scrolls under it and stays legible
+   * through it, and the page reads as one surface instead of three.
    */
-  --c-frame: #17171f;
-  --c-frame-raised: #21212c;
-  --c-frame-line: #31313f;
-  --c-frame-ink: #f5f5f8;      /* 15.6:1 on --c-frame */
-  --c-frame-ink-2: #a3a3b8;    /*  6.9:1 — inactive nav */
+  /* 88%, not 78%: at the lower value a card title behind the tab bar stayed
+     readable *as text* and competed with the tab labels. Frosted chrome only
+     works when what is behind it becomes texture. */
+  --c-chrome: rgb(255 255 255 / 88%);
+  --c-chrome-solid: #ffffff;
+  --c-chrome-raised: #f2f0fb;
+
+  /* A tinted rounded tile behind an icon. Used on every nav item and every
+     status pill, which is what makes the dashboard read as a set rather than
+     as a list of links. */
+  --c-tile: #ede9fe;
+  --c-tile-ink: #6d3aed;
 
   /* ---- Accent -----------------------------------------------------------
-   * One violet, in two weights: the deep one carries text and fills buttons on
-   * the light canvas (6.0:1 either way), the bright one is only ever used on
-   * the dark chrome, where the deep one would disappear.
+   * One violet. The deep one carries text and fills buttons on the light canvas
+   * at 6.0:1 either way.
    */
   --c-brand: #6d3aed;
   --c-brand-hover: #5b2bd4;
   --c-brand-ink: #ffffff;
   --c-brand-soft: #f0ebfe;
   --c-brand-border: #cdbcfb;
-  --c-brand-bright: #a78bfa;   /* 7.4:1 on --c-frame */
+  /* For a tinted surface where the deep accent would go muddy. */
+  --c-brand-bright: #a78bfa;
 
   /* ---- Meaning ----------------------------------------------------------
    * Saturated, and spent only where the colour is the information. Each has a
@@ -105,6 +116,9 @@
   --c-emerald: #047857;
   --c-emerald-soft: #dcfaef;
   --c-amber: #a1620a;
+  /* For text on --c-amber-soft. The pair above measures 4.36:1 at 12px, which
+     fails AA; this one measures 7.8:1 on the same tint. */
+  --c-amber-ink: #6d4004;
   --c-amber-soft: #fdf0d5;
   --c-sky: #0369a1;
   --c-sky-soft: #e0f2fe;

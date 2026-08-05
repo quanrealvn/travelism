@@ -82,7 +82,57 @@ describe('api client', () => {
       })
       .catch((caught: unknown) => caught)) as ApiError
 
-    expect(error.fieldErrors()).toEqual({ name: 'Bắt buộc', lat: 'Ngoài phạm vi' })
+    // Named in Vietnamese from the stable code, not passed through: the server
+    // writes these in English, and they were the one place an otherwise fully
+    // Vietnamese app switched language mid-sentence.
+    expect(error.fieldErrors()).toEqual({
+      name: 'Tên không được để trống.',
+      lat: 'Vĩ độ nằm ngoài khoảng cho phép.',
+    })
+  })
+
+  it('falls back to the server message for a code it does not know', async () => {
+    // An untranslated sentence that says what is wrong beats a translated one
+    // that does not, and a new code showing up in English is visible rather
+    // than silently becoming "không hợp lệ".
+    mockFetch(
+      422,
+      {
+        status: 422,
+        code: 'VALIDATION_FAILED',
+        errors: [{ field: 'name', code: 'SOMETHING_NEW', message: 'Must be a palindrome.' }],
+      },
+      false,
+    )
+
+    const error = (await api
+      .createPlace('t', {
+        name: '',
+        lat: 0,
+        lng: 0,
+        category: 'Food',
+        timeSlots: ['Morning'],
+        estimatedDurationMinutes: 30,
+      })
+      .catch((caught: unknown) => caught)) as ApiError
+
+    expect(error.fieldErrors()).toEqual({ name: 'Must be a palindrome.' })
+  })
+
+  it('names the whole failure in Vietnamese where the code is known', async () => {
+    mockFetch(409, { status: 409, code: 'DEVICE_TRIP_LIMIT', detail: 'Too many trips.' }, false)
+
+    const error = (await api
+      .createTrip({
+        name: 'x',
+        destination: 'y',
+        startDate: '2026-03-01',
+        endDate: '2026-03-02',
+        ownerDisplayName: 'Quan',
+      })
+      .catch((caught: unknown) => caught)) as ApiError
+
+    expect(error.text).toMatch(/tối đa số chuyến đi/i)
   })
 
   it('survives an error response that is not ProblemDetails', async () => {

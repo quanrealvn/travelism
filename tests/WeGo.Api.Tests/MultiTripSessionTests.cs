@@ -200,22 +200,73 @@ public sealed class MultiTripSessionTests(WeGoAppFactory factory) : IClassFixtur
     }
 
     [Fact]
-    public async Task A_browser_stops_holding_the_least_recent_trip_past_the_cap()
+    public async Task Past_the_cap_the_next_trip_is_refused_rather_than_the_oldest_evicted()
     {
-        // The cookie has a size limit; something has to give. The oldest trip
-        // falls off the device rather than the newest failing to be saved.
+        // Evicting silently lost trips people still wanted: the trip survived on
+        // the server, but its invite code is only ever shown inside it, so for a
+        // trip you owned there was no way back. A refusal is something the
+        // person can act on.
         var client = factory.CreateApiClient();
         var oldest = await client.CreateTripAsync(name: "Cũ nhất");
 
-        for (var i = 0; i < WeGo.Api.Auth.SessionTokenService.MaxMemberships; i++)
+        for (var i = 1; i < WeGo.Api.Auth.SessionTokenService.MaxMemberships; i++)
         {
             await client.CreateTripAsync(name: $"Chuyến {i}");
         }
 
+        var response = await client.PostAsJsonAsync("/trips", new
+        {
+            name = "Một chuyến nữa",
+            destination = "Đâu đó",
+            startDate = new DateOnly(2026, 3, 1),
+            endDate = new DateOnly(2026, 3, 3),
+            ownerDisplayName = "Quan",
+        }, ApiClient.Json);
+
+        await response.ShouldBeAsync(HttpStatusCode.Conflict);
+        (await response.ReadProblemAsync()).Code.Should().Be(ErrorCodes.DeviceTripLimit);
+
+        // The trips already held are untouched, including the first one.
         (await client.GetMyTripsAsync()).Should()
             .HaveCount(WeGo.Api.Auth.SessionTokenService.MaxMemberships);
         (await client.GetAsync($"/trips/{oldest.Trip.Id}")).StatusCode
-            .Should().Be(HttpStatusCode.Forbidden);
+            .Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task A_full_device_can_still_rejoin_a_trip_it_already_holds()
+    {
+        // Re-joining replaces an entry rather than adding one, so it must not be
+        // refused for want of room.
+        var client = factory.CreateApiClient();
+        var first = await client.CreateTripAsync(name: "Đầu tiên");
+
+        for (var i = 1; i < WeGo.Api.Auth.SessionTokenService.MaxMemberships; i++)
+        {
+            await client.CreateTripAsync(name: $"Chuyến {i}");
+        }
+
+        (await client.GetAsync($"/trips/{first.Trip.Id}")).StatusCode
+            .Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Forgetting_a_trip_makes_room_for_another()
+    {
+        var client = factory.CreateApiClient();
+        var spare = await client.CreateTripAsync(name: "Bỏ đi");
+
+        for (var i = 1; i < WeGo.Api.Auth.SessionTokenService.MaxMemberships; i++)
+        {
+            await client.CreateTripAsync(name: $"Chuyến {i}");
+        }
+
+        await client.DeleteAsync($"/session/trips/{spare.Trip.Id}");
+
+        // The refusal is a real limit with a real way out, not a dead end.
+        await client.CreateTripAsync(name: "Chuyến mới");
+        (await client.GetMyTripsAsync()).Should()
+            .HaveCount(WeGo.Api.Auth.SessionTokenService.MaxMemberships);
     }
 
     [Fact]

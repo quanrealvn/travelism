@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using WeGo.Api.Contracts;
 using WeGo.Api.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using WeGo.Domain.Common;
+using WeGo.Domain.Entities;
 
 namespace WeGo.Api.Tests;
 
@@ -12,7 +14,7 @@ namespace WeGo.Api.Tests;
 /// </summary>
 public sealed class FrozenWeatherFactory : WeGoAppFactory
 {
-    /// <summary>2026-03-02 17:00 UTC — already 3 March in Asia/Bangkok (UTC+7).</summary>
+    /// <summary>2026-03-02 17:00 UTC — already 3 March in Indochina Time (UTC+7).</summary>
     public override DateTimeOffset? FixedNow => new(2026, 3, 2, 17, 0, 0, TimeSpan.Zero);
 }
 
@@ -82,8 +84,8 @@ public sealed class WeatherTests
     [Fact]
     public async Task Today_is_decided_in_the_trip_timezone_not_the_servers()
     {
-        // Frozen at 2026-03-02 17:00 UTC, which is already 3 March in Bangkok.
-        // A trip ending on 2 March is over there, so there is nothing to
+        // Frozen at 2026-03-02 17:00 UTC, which is already 3 March at UTC+7.
+        // A trip ending on 2 March is already over there, so there is nothing to
         // forecast — even though it is still 2 March in UTC.
         var (factory, client, tripId) = await ArrangeAsync(
             "Timezone", new DateOnly(2026, 3, 1), new DateOnly(2026, 3, 2));
@@ -105,7 +107,13 @@ public sealed class WeatherTests
 
         await client.GetAsync($"/trips/{tripId}/weather");
 
-        factory.Weather.LastTimeZoneId.Should().Be("Asia/Bangkok");
+        // The trip's own zone, whatever the default happens to be — asserting a
+        // specific identifier here only pinned TripDefaults in a second place.
+        var expected = await factory.WithDbAsync(async db =>
+            (await db.Trips.AsNoTracking().FirstAsync(t => t.Id == tripId)).TimeZoneId);
+
+        factory.Weather.LastTimeZoneId.Should().Be(expected);
+        expected.Should().Be(TripDefaults.TimeZoneId);
     }
 
     [Fact]
@@ -118,7 +126,7 @@ public sealed class WeatherTests
 
         await client.GetAsync($"/trips/{tripId}/weather");
 
-        factory.Weather.LastFrom.Should().Be(new DateOnly(2026, 3, 3), "today in Bangkok");
+        factory.Weather.LastFrom.Should().Be(new DateOnly(2026, 3, 3), "today at UTC+7");
     }
 
     [Fact]

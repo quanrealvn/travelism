@@ -13,7 +13,7 @@ public sealed class Trip : Entity
 
     public DateOnly EndDate { get; set; }
 
-    /// <summary>IANA identifier, e.g. <c>Asia/Bangkok</c>.</summary>
+    /// <summary>IANA identifier, e.g. <c>Asia/Ho_Chi_Minh</c>.</summary>
     public string TimeZoneId { get; set; } = TripDefaults.TimeZoneId;
 
     /// <summary>ISO 4217 alpha-3. Frozen after creation (see DECISIONS.md).</summary>
@@ -39,7 +39,12 @@ public sealed class Trip : Entity
 
 public static class TripDefaults
 {
-    public const string TimeZoneId = "Asia/Bangkok";
+    /// <summary>
+    /// Indochina Time, same offset as Asia/Bangkok — which is what this used to
+    /// say, and which a Vietnamese traveller planning Mộc Châu was then shown
+    /// as a fact about their own trip. Nothing about the arithmetic changes.
+    /// </summary>
+    public const string TimeZoneId = "Asia/Ho_Chi_Minh";
     public const string Currency = "VND";
     public const int MaxMembers = 10;
     public const int MaxSpanDays = 60;

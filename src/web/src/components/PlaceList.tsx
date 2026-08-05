@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type {
   MemberResponse,
   PlaceReferenceRequest,
@@ -6,8 +7,17 @@ import type {
 } from '../api/api-types'
 import { formatDuration, formatMoney } from '../api/money'
 import { placeCategoryLabel, timeSlotsLabel } from '../api/labels'
+import { categoryStyle } from '../map/placeMarkers'
 import { PlaceDetail } from './PlaceDetail'
-import { IconClose, IconExternal } from './icons'
+import {
+  IconCheckCircle,
+  IconClock,
+  IconClose,
+  IconExternal,
+  IconFlag,
+  IconSkip,
+  IconSparkle,
+} from './icons'
 import { Spinner } from './Spinner'
 
 interface PlaceListProps {
@@ -41,12 +51,17 @@ interface PlaceListProps {
  * The wishlist reads as the decision it represents: what nobody has backed yet,
  * what someone wants, and what the group has actually agreed on.
  */
-const GROUPS: { status: PlaceStatus; title: string; hint: string }[] = [
-  { status: 'Confirmed', title: 'Đã chốt', hint: 'Cả nhóm đều thích' },
-  { status: 'Shortlist', title: 'Đang cân nhắc', hint: 'Có người thích' },
-  { status: 'Idea', title: 'Ý tưởng', hint: 'Chưa ai thích' },
-  { status: 'Visited', title: 'Đã đi', hint: '' },
-  { status: 'Skipped', title: 'Đã bỏ qua', hint: '' },
+const GROUPS: {
+  status: PlaceStatus
+  title: string
+  hint: string
+  Icon: (props: { className?: string }) => JSX.Element
+}[] = [
+  { status: 'Confirmed', title: 'Đã chốt', hint: 'Cả nhóm đều thích', Icon: IconCheckCircle },
+  { status: 'Shortlist', title: 'Đang cân nhắc', hint: 'Có người thích', Icon: IconClock },
+  { status: 'Idea', title: 'Ý tưởng', hint: 'Chưa ai thích', Icon: IconSparkle },
+  { status: 'Visited', title: 'Đã đi', hint: '', Icon: IconFlag },
+  { status: 'Skipped', title: 'Đã bỏ qua', hint: '', Icon: IconSkip },
 ]
 
 export function PlaceList(props: PlaceListProps) {
@@ -54,9 +69,17 @@ export function PlaceList(props: PlaceListProps) {
 
   if (places.length === 0) {
     return (
-      <p className="empty-state">
-        Chưa có địa điểm nào. Thêm địa điểm đầu tiên để bắt đầu lên kế hoạch.
-      </p>
+      <div className="empty-state">
+        <p>Chưa có địa điểm nào.</p>
+        {/*
+          Naming the three ways in. Pasting a Google Maps link is the app's
+          actual answer to "OpenStreetMap doesn't have it", and it was only
+          discoverable by opening the form and reading a hint inside it.
+        */}
+        <p className="empty-state-hint">
+          Tìm theo tên, dán link Google Maps, hoặc bấm thẳng lên bản đồ.
+        </p>
+      </div>
     )
   }
 
@@ -70,8 +93,17 @@ export function PlaceList(props: PlaceListProps) {
 
         return (
           <section key={group.status} className="wishlist-group">
+            {/*
+              A pill rather than a heading with a bar: icon, name and count as
+              one object, the way a dashboard states a status. The icon also
+              means the group is not distinguished by colour alone.
+            */}
             <h3 className={`group-title group-${group.status.toLowerCase()}`}>
-              {group.title} <span className="group-count">{inGroup.length}</span>
+              <span className="group-pill">
+                <group.Icon />
+                {group.title}
+                <span className="group-count">{inGroup.length}</span>
+              </span>
               {group.hint && <span className="group-hint">{group.hint}</span>}
             </h3>
 
@@ -119,25 +151,40 @@ function PlaceRow({
     .map((id) => members.find((member) => member.id === id)?.displayName)
     .filter((name): name is string => Boolean(name))
 
+  // "đợi Linh" says what has to happen next; "1/2" makes you work it out.
+  const waitingOn = members
+    .filter((member) => !place.likedByMemberIds.includes(member.id))
+    .map((member) => member.displayName)
+
+  const style = categoryStyle(place.category)
+
   return (
     <li
       className={place.id === selectedPlaceId ? 'place has-detail selected' : 'place has-detail'}
       data-testid={`place-${place.id}`}
     >
-      <button
-        type="button"
-        className={likedByMe ? 'place-like liked' : 'place-like'}
-        onClick={() => onToggleLike(place.id, likedByMe)}
-        disabled={busy}
-        aria-pressed={likedByMe}
-        aria-label={likedByMe ? `Bỏ thích ${place.name}` : `Thích ${place.name}`}
-        title={likedNames.length > 0 ? `Thích bởi: ${likedNames.join(', ')}` : 'Chưa ai thích'}
-      >
-        {likedByMe ? '♥' : '♡'}
-        <span className="place-like-count">
-          {likeCount}/{memberCount}
-        </span>
-      </button>
+      {/*
+        The card's left rail is the category, in the category's own colour and
+        glyph. It used to be the like button, filled rose — which is the colour
+        this app uses for "food", so a waterfall and a tea hill both carried a
+        food-coloured tile. The rail is the scannable index down a long list,
+        and it was spending the category palette on something else.
+      */}
+      <span className="place-category" style={{ '--tile-colour': style.color } as CSSProperties}>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.75}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d={style.path} />
+        </svg>
+        <span className="visually-hidden">{style.label}</span>
+      </span>
 
       <button
         type="button"
@@ -172,6 +219,11 @@ function PlaceRow({
           <IconExternal />
         </a>
 
+        {/*
+          Destructive, and it sat 8px from a benign action at identical weight
+          on every one of forty cards. It is quiet until you go near it, and it
+          turns rose then — which is what this palette reserves for danger.
+        */}
         <button
           type="button"
           className="place-delete"
@@ -194,22 +246,43 @@ function PlaceRow({
         onSave={(description, references) => onSaveDetail(place.id, description, references)}
       />
 
-      {statusActions.length > 0 && (
-        <div className="place-actions">
-          {statusActions.map((action) => (
-            <button
-              key={action.status}
-              type="button"
-              className="place-status-action"
-              onClick={() => onChangeStatus(place.id, action.status)}
-              disabled={busy}
-              title={action.title}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="place-actions">
+        {/*
+          Agreeing is the mechanism this whole app runs on, so the vote is a
+          labelled action rather than a glyph in the gutter — and it names who
+          you are still waiting on instead of showing a fraction.
+        */}
+        <button
+          type="button"
+          className={likedByMe ? 'place-like liked' : 'place-like'}
+          onClick={() => onToggleLike(place.id, likedByMe)}
+          disabled={busy}
+          aria-pressed={likedByMe}
+          aria-label={likedByMe ? `Bỏ thích ${place.name}` : `Thích ${place.name}`}
+          title={likedNames.length > 0 ? `Thích bởi: ${likedNames.join(', ')}` : 'Chưa ai thích'}
+        >
+          <span aria-hidden="true">{likedByMe ? '♥' : '♡'}</span>
+          {likeCount}/{memberCount}
+        </button>
+
+        {waitingOn.length > 0 && likeCount > 0 && (
+          <span className="place-waiting">đợi {waitingOn.join(', ')}</span>
+        )}
+
+        {statusActions.map((action) => (
+          <button
+            key={action.status}
+            type="button"
+            className={`place-status-action tone-${action.tone}`}
+            onClick={() => onChangeStatus(place.id, action.status)}
+            disabled={busy}
+            title={action.title}
+          >
+            <action.Icon />
+            {action.label}
+          </button>
+        ))}
+      </div>
     </li>
   )
 }
@@ -218,6 +291,9 @@ interface StatusAction {
   status: PlaceStatus
   label: string
   title: string
+  Icon: (props: { className?: string }) => JSX.Element
+  /** "go" moves the place forward; "quiet" walks it back or aside. */
+  tone: 'go' | 'quiet'
 }
 
 /**
@@ -236,25 +312,59 @@ function availableStatusActions(place: PlaceResponse, tripUnderway: boolean): St
     actions.push({
       status: 'Confirmed',
       label: 'Chốt',
-      title: 'Chốt luôn, không cần đợi mọi người thích',
+      // Not "without waiting", which framed the ordinary way of deciding as a
+      // shortcut past the rules. Past three people, unanimity is the exception.
+      title: 'Chốt cho cả nhóm',
+      Icon: IconCheckCircle,
+      tone: 'go',
     })
   }
 
   if (place.status === 'Confirmed') {
-    actions.push({ status: 'Shortlist', label: 'Bỏ chốt', title: 'Đưa lại vào danh sách cân nhắc' })
+    actions.push({
+      status: 'Shortlist',
+      label: 'Bỏ chốt',
+      title: 'Đưa lại vào danh sách cân nhắc',
+      Icon: IconClock,
+      tone: 'quiet',
+    })
 
     if (tripUnderway) {
-      actions.push({ status: 'Visited', label: 'Đã đi', title: 'Đánh dấu đã đến nơi này' })
-      actions.push({ status: 'Skipped', label: 'Bỏ qua', title: 'Đánh dấu đã bỏ qua' })
+      actions.push({
+        status: 'Visited',
+        label: 'Đã đi',
+        title: 'Đánh dấu đã đến nơi này',
+        Icon: IconFlag,
+        tone: 'go',
+      })
+      actions.push({
+        status: 'Skipped',
+        label: 'Bỏ qua',
+        title: 'Đánh dấu đã bỏ qua',
+        Icon: IconSkip,
+        tone: 'quiet',
+      })
     }
   }
 
   if (place.status === 'Visited') {
-    actions.push({ status: 'Skipped', label: 'Sửa: bỏ qua', title: 'Sửa lại thành đã bỏ qua' })
+    actions.push({
+      status: 'Skipped',
+      label: 'Sửa: bỏ qua',
+      title: 'Sửa lại thành đã bỏ qua',
+      Icon: IconSkip,
+      tone: 'quiet',
+    })
   }
 
   if (place.status === 'Skipped') {
-    actions.push({ status: 'Visited', label: 'Sửa: đã đi', title: 'Sửa lại thành đã đi' })
+    actions.push({
+      status: 'Visited',
+      label: 'Sửa: đã đi',
+      title: 'Sửa lại thành đã đi',
+      Icon: IconFlag,
+      tone: 'quiet',
+    })
   }
 
   return actions

@@ -83,6 +83,7 @@ function renderForm(overrides: Partial<Parameters<typeof AddExpenseForm>[0]> = {
     <AddExpenseForm
       members={MEMBERS}
       myMemberId={QUAN}
+      currency="VND"
       currencyExponent={0}
       tripDays={['2026-03-01', '2026-03-02']}
       pending={false}

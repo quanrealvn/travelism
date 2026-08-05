@@ -38,7 +38,27 @@ export type SyncStatus = 'connecting' | 'live' | 'offline'
 export function useTripSync(tripId: string | undefined, myMemberId: string | undefined): SyncStatus {
   const queryClient = useQueryClient()
   const [status, setStatus] = useState<SyncStatus>('connecting')
+  const [networkDown, setNetworkDown] = useState(
+    () => typeof navigator !== 'undefined' && navigator.onLine === false,
+  )
   const connectionRef = useRef<HubConnection | null>(null)
+
+  /*
+   * The browser knows the network went away immediately; SignalR only finds out
+   * when a keep-alive times out, which took about thirty seconds. For that half
+   * minute the app displayed "Đang đồng bộ trực tiếp" while syncing nothing.
+   */
+  useEffect(() => {
+    const goOffline = () => setNetworkDown(true)
+    const goOnline = () => setNetworkDown(false)
+
+    window.addEventListener('offline', goOffline)
+    window.addEventListener('online', goOnline)
+    return () => {
+      window.removeEventListener('offline', goOffline)
+      window.removeEventListener('online', goOnline)
+    }
+  }, [])
 
   useEffect(() => {
     if (!tripId) {
@@ -118,5 +138,6 @@ export function useTripSync(tripId: string | undefined, myMemberId: string | und
     }
   }, [tripId, myMemberId, queryClient])
 
-  return status
+  // The network wins: a socket that has not noticed it is dead is not live.
+  return networkDown ? 'offline' : status
 }

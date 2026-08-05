@@ -56,9 +56,29 @@ export function ExpensePanel({
           </p>
         ) : (
           <>
-            <p className="balance-total">
-              Tổng chi: <strong>{formatMoney(balance.totalSpent, currency, currencyExponent)}</strong>
-            </p>
+            {/*
+              The settlement first, in the largest type on the card. Nobody
+              opens a split-the-bill screen to learn the group total — they
+              open it to find out what they owe and to whom. That answer used
+              to be the smallest, lowest-contrast line here, under a 32px
+              vanity number.
+            */}
+            {balance.transfers.length === 0 ? (
+              <p className="settle-none">Không ai nợ ai 🎉</p>
+            ) : (
+              <ul className="settle-list" aria-label="Cần thanh toán">
+                {balance.transfers.map((transfer, index) => (
+                  <li key={index}>
+                    <span className="settle-who">
+                      {nameOf(transfer.fromMemberId)} → {nameOf(transfer.toMemberId)}
+                    </span>
+                    <strong className="settle-amount">
+                      {formatMoney(transfer.amount, currency, currencyExponent)}
+                    </strong>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <ul className="balance-list">
               {balance.balances.map((entry) => (
@@ -70,6 +90,12 @@ export function ExpensePanel({
                   data-testid={`balance-${entry.memberId}`}
                 >
                   <span>{nameOf(entry.memberId)}{entry.memberId === myMemberId && ' (bạn)'}</span>
+                  {/*
+                    A solid chip rather than coloured text straight onto the
+                    gradient: the same words measured 3.6:1 at the light end of
+                    the gradient and passed only at the dark end, so contrast
+                    depended on where the text happened to land.
+                  */}
                   <span
                     className={
                       entry.net > 0 ? 'net positive' : entry.net < 0 ? 'net negative' : 'net'
@@ -85,25 +111,15 @@ export function ExpensePanel({
               ))}
             </ul>
 
-            {balance.transfers.length === 0 ? (
-              <p className="settle-none">Không ai nợ ai.</p>
-            ) : (
-              <ul className="settle-list" aria-label="Cần thanh toán">
-                {balance.transfers.map((transfer, index) => (
-                  <li key={index}>
-                    <strong>{nameOf(transfer.fromMemberId)}</strong> trả{' '}
-                    <strong>{nameOf(transfer.toMemberId)}</strong>{' '}
-                    {formatMoney(transfer.amount, currency, currencyExponent)}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <p className="balance-total">
+              Tổng chi <strong>{formatMoney(balance.totalSpent, currency, currencyExponent)}</strong>
+            </p>
           </>
         )}
       </section>
 
       <section>
-        <h3>Chi tiêu ({expenses.length})</h3>
+        <h3>Các khoản đã chi ({expenses.length})</h3>
 
         {expenses.length === 0 ? (
           <p className="empty-state small">Chưa có khoản chi nào.</p>
@@ -149,6 +165,7 @@ export function ExpensePanel({
 export function AddExpenseForm(props: {
   members: MemberResponse[]
   myMemberId: string
+  currency: string
   currencyExponent: number
   tripDays: string[]
   pending: boolean
@@ -161,6 +178,7 @@ export function AddExpenseForm(props: {
 function ExpenseForm({
   members,
   myMemberId,
+  currency,
   currencyExponent,
   tripDays,
   pending,
@@ -169,6 +187,7 @@ function ExpenseForm({
 }: {
   members: MemberResponse[]
   myMemberId: string
+  currency: string
   currencyExponent: number
   tripDays: string[]
   pending: boolean
@@ -187,7 +206,20 @@ function ExpenseForm({
     setLocalError(null)
 
     const minorUnits = parseMoney(amount, currencyExponent)
-    if (minorUnits === null || Number.isNaN(minorUnits) || minorUnits <= 0) {
+
+    // "Không đọc được" and "phải lớn hơn 0" are different problems, and telling
+    // somebody who typed "1,500,000" that it must be greater than zero sends
+    // them looking for the wrong mistake.
+    if (minorUnits === null || Number.isNaN(minorUnits)) {
+      setLocalError(
+        currencyExponent === 0
+          ? 'Số tiền chỉ gồm chữ số, ví dụ 200000 hoặc 200.000.'
+          : 'Số tiền không hợp lệ.',
+      )
+      return
+    }
+
+    if (minorUnits <= 0) {
       setLocalError('Số tiền phải lớn hơn 0.')
       return
     }
@@ -203,9 +235,18 @@ function ExpenseForm({
       splitType: 'Equal',
     })
 
-    setTitle('')
-    setAmount('')
+    // Not cleared here — see the note in PlaceForm. A rejected submit used to
+    // wipe the title and the amount, so a rounding complaint cost you both.
+    // The sheet unmounts this form when the server accepts it.
   }
+
+  const parsedAmount = parseMoney(amount, currencyExponent)
+  const amountEcho =
+    parsedAmount === null
+      ? ''
+      : Number.isNaN(parsedAmount)
+        ? 'Không đọc được số tiền'
+        : `= ${formatMoney(parsedAmount, currency, currencyExponent)}`
 
   return (
     // The sheet supplies the title; see the note in PlaceForm.
@@ -224,7 +265,16 @@ function ExpenseForm({
             inputMode="numeric"
             placeholder="200000"
             required
+            aria-describedby="expense-amount-echo"
           />
+          {/*
+            What the app read, shown while typing. A money field that quietly
+            interprets separators has to say what it decided before the user
+            commits to it, not after.
+          */}
+          <span className="field-echo" id="expense-amount-echo" aria-live="polite">
+            {amountEcho}
+          </span>
         </label>
         <label>
           Ngày

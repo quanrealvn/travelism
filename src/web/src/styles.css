@@ -38,7 +38,16 @@ body {
   font-size: var(--t-md);
   line-height: var(--lh-normal);
   color: var(--c-ink);
-  background: var(--c-bg);
+  /*
+   * Two soft washes over near-white, fixed so they stay put while content
+   * scrolls. A flat grey page makes every white card a rectangle on a
+   * rectangle; this gives them something to sit on.
+   */
+  background:
+    radial-gradient(80rem 40rem at 8% -8%, var(--c-wash-violet), transparent 60%),
+    radial-gradient(60rem 32rem at 96% 0%, var(--c-wash-rose), transparent 55%),
+    var(--c-bg);
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   /* Any horizontal scroll on a phone is a bug, never a feature. */
   overflow-x: hidden;
@@ -387,9 +396,9 @@ button[type='submit']:hover:not(:disabled),
 }
 
 /*
- * Dark chrome, light canvas. The frame is the one part of the screen that is
- * always present and never the thing being looked at, so it recedes and lets
- * the accent — and the places — carry the colour.
+ * Frosted chrome over the wash. The frame is the one part of the screen that
+ * is always present and never the thing being looked at, so it stays quiet and
+ * lets the content through it rather than sitting on top as a slab.
  */
 .topbar {
   position: sticky;
@@ -401,19 +410,22 @@ button[type='submit']:hover:not(:disabled),
   min-height: var(--header-h);
   padding: var(--s-2) var(--s-4);
   padding-top: max(var(--s-2), env(safe-area-inset-top));
-  color: var(--c-frame-ink);
-  background: var(--c-frame);
+  color: var(--c-ink);
+  background: var(--c-chrome);
+  backdrop-filter: blur(22px) saturate(170%);
+  border-bottom: 1px solid var(--c-line);
 }
 
 .topbar .icon-button {
-  color: var(--c-frame-ink-2);
-  background: none;
-  border-color: var(--c-frame-line);
+  color: var(--c-ink-2);
+  background: var(--c-chrome-solid);
+  border-color: var(--c-line);
 }
 
 .topbar .icon-button:hover:not(:disabled) {
-  color: var(--c-frame-ink);
-  background: var(--c-frame-raised);
+  color: var(--c-brand);
+  background: var(--c-tile);
+  border-color: var(--c-brand-border);
 }
 
 .topbar-main {
@@ -425,7 +437,7 @@ button[type='submit']:hover:not(:disabled),
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  font-size: var(--t-lg);
+  font-size: var(--t-xl);
   font-weight: var(--fw-semibold);
   line-height: var(--lh-tight);
   /* The trip name is the anchor; truncating beats wrapping the bar to two rows. */
@@ -439,7 +451,18 @@ button[type='submit']:hover:not(:disabled),
   align-items: center;
   gap: var(--s-2);
   font-size: var(--t-xs);
-  color: var(--c-frame-ink-2);
+  color: var(--c-ink-2);
+  min-width: 0;
+}
+
+/*
+ * text-overflow does not apply to a flex container, so both of these lines
+ * were hard-cutting mid-word with no ellipsis. It applies to a block child,
+ * which is what these are.
+ */
+.topbar-title,
+.topbar-sub-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -478,14 +501,14 @@ button[type='submit']:hover:not(:disabled),
 }
 
 .topbar-trip:hover:not(:disabled) {
-  background: var(--c-frame-raised);
+  background: var(--c-chrome-raised);
 }
 
 .topbar-switch {
   width: 1rem;
   height: 1rem;
   flex: 0 0 auto;
-  color: var(--c-frame-ink-2);
+  color: var(--c-ink-2);
 }
 
 /* Content with no tab bar under it — the trips screen. */
@@ -505,6 +528,17 @@ button[type='submit']:hover:not(:disabled),
 .trip-cards {
   display: grid;
   gap: var(--s-3);
+}
+
+/*
+ * Three to a row once there is room. A trip card stretched to 1180px holds its
+ * content in the first 300px and strands the close control 900px away from the
+ * name it belongs to.
+ */
+@media (min-width: 48rem) {
+  .trip-cards {
+    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+  }
 }
 
 .trip-card {
@@ -623,6 +657,14 @@ button[type='submit']:hover:not(:disabled),
   width: 100%;
 }
 
+/* A full-bleed violet bar reads as a banner, not a button. */
+@media (min-width: 48rem) {
+  .trip-list-new {
+    width: auto;
+    justify-self: start;
+  }
+}
+
 /* ==========================================================================
    Tab bar — the primary navigation, in the thumb zone
    ========================================================================== */
@@ -637,8 +679,9 @@ button[type='submit']:hover:not(:disabled),
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
   padding-bottom: env(safe-area-inset-bottom);
-  background: var(--c-frame);
-  border-top: 1px solid var(--c-frame-line);
+  background: var(--c-chrome);
+  backdrop-filter: blur(22px) saturate(170%);
+  border-top: 1px solid var(--c-line);
   box-shadow: var(--e-lift);
 }
 
@@ -650,7 +693,7 @@ button[type='submit']:hover:not(:disabled),
   padding: var(--s-2) var(--s-1);
   /* Not the faintest ink available: an unselected tab is still a destination
      somebody has to be able to read. */
-  color: var(--c-frame-ink-2);
+  color: var(--c-ink-2);
   background: none;
   border: none;
   border-radius: 0;
@@ -660,14 +703,35 @@ button[type='submit']:hover:not(:disabled),
 
 .tabbar-item:hover:not(:disabled) {
   background: none;
-  color: var(--c-frame-ink);
+  color: var(--c-ink);
 }
 
-/* The bright violet, not the deep one: on near-black the deep accent reads as
-   a dark smudge. */
 .tabbar-item[aria-selected='true'] {
-  color: var(--c-brand-bright);
+  color: var(--c-brand);
   font-weight: var(--fw-semibold);
+}
+
+/*
+ * A tinted rounded tile behind the icon, filling in when the tab is active.
+ * This is the dashboard's central device: it turns a row of glyphs into a set
+ * of objects, and gives "selected" somewhere to live that is not just colour.
+ */
+.tabbar-icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 1.625rem;
+  border-radius: var(--r-sm);
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.tabbar-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.tabbar-item[aria-selected='true'] .tabbar-icon {
+  background: var(--c-tile);
 }
 
 /* A lit bar over the active tab, so position is not carried by colour alone. */
@@ -679,7 +743,7 @@ button[type='submit']:hover:not(:disabled),
   width: 2rem;
   height: 2px;
   transform: translateX(-50%);
-  background: var(--c-brand-bright);
+  background: var(--c-brand);
   border-radius: 0 0 var(--r-full) var(--r-full);
 }
 
@@ -711,15 +775,21 @@ button[type='submit']:hover:not(:disabled),
   font-size: var(--t-2xs);
   font-weight: var(--fw-semibold);
   line-height: 1.125rem;
-  color: var(--c-frame);
-  background: var(--c-brand-bright);
-  border: 2px solid var(--c-frame);
+  /*
+   * Neutral, not a filled accent circle. These are inventory counts that are
+   * never zero, and a violet badge is the universal "unread, needs you" mark —
+   * so every tab looked permanently alerted and the signal meant nothing. It
+   * also stays available for genuine new-activity notice later.
+   */
+  color: var(--c-ink-2);
+  background: var(--c-surface-sunken);
+  border: 2px solid var(--c-chrome-solid);
   border-radius: var(--r-full);
 }
 
-.tabbar-item[aria-selected='false'] .tabbar-count {
-  color: var(--c-frame-ink);
-  background: var(--c-frame-line);
+.tabbar-item[aria-selected='true'] .tabbar-count {
+  color: var(--c-brand);
+  background: var(--c-tile);
 }
 
 /* ==========================================================================
@@ -832,6 +902,35 @@ button[type='submit']:hover:not(:disabled),
   padding-bottom: calc(var(--s-6) + env(safe-area-inset-bottom));
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+/*
+ * The submit stays on screen while the body scrolls under it.
+ *
+ * On a 900px-tall laptop the add-place form ran past the sheet's bottom edge,
+ * so the last field was clipped mid-input and there was no visible way to
+ * save — the app's primary creation flow, with nothing to press.
+ */
+.sheet-body form > button[type='submit'],
+.sheet-body .expense-form > button[type='submit'],
+.sheet-body .place-form > button[type='submit'] {
+  position: sticky;
+  bottom: calc(-1 * var(--s-4));
+  z-index: 1;
+  margin: var(--s-2) calc(-1 * var(--s-4)) calc(-1 * var(--s-4));
+  width: calc(100% + var(--s-8));
+  border-radius: 0;
+  box-shadow: var(--e-lift);
+}
+
+/* A hint that there is more below, so the clipped edge reads as scrollable. */
+.sheet-body {
+  background:
+    linear-gradient(var(--c-bg) 30%, transparent) top / 100% 1.5rem no-repeat,
+    linear-gradient(transparent, var(--c-bg) 70%) bottom / 100% 1.5rem no-repeat,
+    radial-gradient(farthest-side at 50% 0, rgb(23 23 31 / 10%), transparent) top / 100% 0.5rem no-repeat,
+    radial-gradient(farthest-side at 50% 100%, rgb(23 23 31 / 10%), transparent) bottom / 100% 0.5rem no-repeat;
+  background-attachment: local, local, scroll, scroll;
 }
 
 /* ==========================================================================
@@ -989,6 +1088,16 @@ button[type='submit']:hover:not(:disabled),
    Sections & shared states
    ========================================================================== */
 
+/* One top margin for every section label, so they all bind downward to their
+   own content rather than one of them reading as a caption for the last. */
+.sheet-body .section-title {
+  margin-top: var(--s-8);
+}
+
+.sheet-body .section-title:first-child {
+  margin-top: 0;
+}
+
 .section-title {
   display: flex;
   align-items: baseline;
@@ -1023,19 +1132,29 @@ button[type='submit']:hover:not(:disabled),
     margin-bottom: var(--s-4);
   }
 
-  .money-body > .panel-head {
-    max-width: 52rem;
-  }
 }
 
+/*
+ * A tinted panel, not a dashed outline. A dashed border is a dropzone in every
+ * modern interface language, and using it for "there is nothing here yet" made
+ * the largest element on the desktop itinerary look like an admin panel from
+ * 2015. Dashed is kept for the one place it is literally true: the drop target.
+ */
 .empty-state {
+  display: grid;
+  gap: var(--s-2);
   padding: var(--s-8) var(--s-5);
   color: var(--c-ink-2);
   text-align: center;
   text-wrap: balance;
-  background: var(--c-surface);
-  border: 1px dashed var(--c-line-strong);
+  background: var(--c-brand-soft);
+  border: 1px solid transparent;
   border-radius: var(--r-lg);
+}
+
+.empty-state-hint {
+  font-size: var(--t-sm);
+  color: var(--c-ink-3);
 }
 
 .empty-state.small {
@@ -1214,9 +1333,15 @@ button .spinner {
   font-family: var(--font-sans);
 }
 
-/* Leaflet ships 30px controls; a thumb needs more. */
-.leaflet-touch .leaflet-bar a,
-.leaflet-bar a {
+/*
+ * Leaflet ships 30px controls; a thumb needs more.
+ *
+ * Scoped under .trip-map for specificity: leaflet.css now loads inside the map
+ * chunk rather than the entry bundle, so it arrives *after* this file and wins
+ * any tie. The controls silently went back to 30×30 when that moved.
+ */
+.trip-map.leaflet-touch .leaflet-bar a,
+.trip-map .leaflet-bar a {
   width: var(--tap);
   height: var(--tap);
   font-size: var(--t-xl);
@@ -1277,7 +1402,6 @@ button .spinner {
   place-items: center;
   width: 1.375rem;
   height: 1.375rem;
-  font-size: 0.75rem;
   line-height: 1;
   color: #fff;
   /* markerHtml sets --pin-color per category. Without this the pins all came
@@ -1287,6 +1411,12 @@ button .spinner {
   border: 2px solid #fff;
   border-radius: var(--r-full);
   box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+}
+
+.place-pin-dot svg {
+  width: 0.8125rem;
+  height: 0.8125rem;
+  stroke-width: 2.25;
 }
 
 .place-pin-label {
@@ -1360,6 +1490,96 @@ button .spinner {
 }
 
 /* ==========================================================================
+   Confirm dialog
+   ========================================================================== */
+
+.confirm-body {
+  display: grid;
+  gap: var(--s-3);
+  margin-bottom: var(--s-5);
+  line-height: var(--lh-normal);
+}
+
+.confirm-detail {
+  font-size: var(--t-sm);
+  color: var(--c-ink-2);
+}
+
+.confirm-actions {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.confirm-actions button {
+  flex: 1;
+}
+
+.button-danger {
+  color: var(--c-brand-ink);
+  background: var(--c-danger);
+  border-color: var(--c-danger);
+}
+
+.button-danger:hover:not(:disabled) {
+  background: #8f251d;
+  border-color: #8f251d;
+}
+
+/* ==========================================================================
+   Wishlist filter
+   ========================================================================== */
+
+.place-filter {
+  display: grid;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+
+.place-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+/*
+ * Chips carry their category's own colour, so the filter, the pins and the
+ * card edges are one vocabulary rather than three.
+ */
+.filter-chip {
+  min-height: 2.5rem;
+  padding: 0 var(--s-3);
+  font-size: var(--t-sm);
+  color: var(--c-ink-2);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-full);
+}
+
+.filter-chip::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--chip-colour, currentcolor);
+  border-radius: var(--r-full);
+}
+
+.filter-chip[aria-pressed='true'] {
+  color: var(--c-ink);
+  background: var(--c-surface-sunken);
+  border-color: var(--chip-colour, var(--c-ink-3));
+  font-weight: var(--fw-medium);
+}
+
+.place-filter-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  font-size: var(--t-xs);
+  color: var(--c-ink-2);
+}
+
+/* ==========================================================================
    Wishlist
    ========================================================================== */
 
@@ -1375,20 +1595,34 @@ button .spinner {
 
 .group-title {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--s-2);
   font-size: var(--t-md);
   font-weight: var(--fw-semibold);
 }
 
-/* The status colour rides on a bar so the heading itself stays legible instead
-   of being tinted down into the background. */
-.group-title::before {
-  content: '';
-  width: 0.25rem;
-  height: 1.125rem;
-  background: var(--group-colour, var(--c-ink-3));
+/*
+ * Icon, name and count as one pill — a status the way a dashboard states one,
+ * rather than a heading with a colour bar beside it. The glyph is what stops
+ * the group being distinguishable by colour alone.
+ */
+.group-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-3) var(--s-1) var(--s-2);
+  font-size: var(--t-sm);
+  color: var(--group-colour, var(--c-ink-2));
+  background: var(--group-soft, var(--c-surface-sunken));
+  border: 1px solid color-mix(in srgb, var(--group-colour, var(--c-ink-3)) 25%, transparent);
   border-radius: var(--r-full);
+}
+
+.group-pill svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
 }
 
 /*
@@ -1421,16 +1655,17 @@ button .spinner {
   background: var(--group-colour, var(--c-slate));
 }
 
-/* Ink on the tint rather than the group's own colour on it: at 12px the
-   coloured-on-tinted pairs measured as low as 4.36:1. The tint still carries
-   the group, and the number stays readable. */
+/* Ink on white inside the tinted pill: at 12px the coloured-on-tinted pairs
+   measured as low as 4.36:1. The pill around it still carries the colour. */
 .group-count {
-  padding: 0 var(--s-2);
+  min-width: 1.375rem;
+  padding: 0 var(--s-1);
   font-size: var(--t-2xs);
-  font-weight: var(--fw-semibold);
-  line-height: 1.25rem;
+  font-weight: var(--fw-bold);
+  line-height: 1.375rem;
+  text-align: center;
   color: var(--c-ink);
-  background: var(--group-soft, var(--c-surface-sunken));
+  background: var(--c-surface);
   border-radius: var(--r-full);
 }
 
@@ -1471,6 +1706,7 @@ button .spinner {
 .place {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto 1fr;
   align-items: start;
   gap: var(--s-2) var(--s-3);
   padding: var(--s-3);
@@ -1488,37 +1724,52 @@ button .spinner {
   box-shadow: 0 0 0 3px var(--c-brand-soft);
 }
 
-.place-like {
+/* The category's colour and glyph, as the card's scannable left index. */
+.place-category {
   grid-column: 1;
   grid-row: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+  display: grid;
+  place-items: center;
   width: var(--tap);
-  min-width: var(--tap);
   height: var(--tap);
-  padding: 0;
-  font-size: var(--t-lg);
-  line-height: 1;
-  /* --c-ink-2, not --c-ink-3: the count under the heart is 12px, and against
-     the sunken fill the lighter ink only reached 4.2:1. */
-  color: var(--c-ink-2);
-  background: var(--c-surface-sunken);
-  border: 1px solid transparent;
+  color: var(--tile-colour, var(--c-slate));
+  background: color-mix(in srgb, var(--tile-colour, var(--c-slate)) 12%, white);
+  border: 1px solid color-mix(in srgb, var(--tile-colour, var(--c-slate)) 28%, transparent);
   border-radius: var(--r-md);
+}
+
+.place-category svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.place-like {
+  min-height: 2.5rem;
+  padding: 0 var(--s-3);
+  font-size: var(--t-sm);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--c-ink-2);
+  background: var(--c-surface);
+  border-color: var(--c-line-strong);
+}
+
+.place-like:hover:not(:disabled) {
+  border-color: var(--c-warm);
+  background: var(--c-warm-soft);
 }
 
 .place-like.liked {
   /* A darker terracotta than --c-warm, which measured 3.6:1 on its own tint. */
   color: #a4472a;
   background: var(--c-warm-soft);
-  border-color: color-mix(in srgb, var(--c-warm) 35%, transparent);
+  border-color: color-mix(in srgb, var(--c-warm) 40%, transparent);
 }
 
-.place-like-count {
-  font-size: var(--t-2xs);
-  font-weight: var(--fw-semibold);
-  line-height: 1.2;
+/* What has to happen next, rather than a fraction to work out. */
+.place-waiting {
+  font-size: var(--t-xs);
+  color: var(--c-ink-2);
 }
 
 .place-main {
@@ -1585,21 +1836,50 @@ button .spinner {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s-2);
-  padding-top: var(--s-2);
+  /* Pushed to the bottom, so in a grid of equal-height cards the divider and
+     the actions form one baseline across the row instead of landing wherever
+     each card's content happens to end. */
+  margin-top: auto;
+  padding-top: var(--s-3);
   border-top: 1px solid var(--c-line);
 }
 
+/*
+ * Two weights, because these actions are not equivalent. "Chốt" and "Đã đi"
+ * move a place forward and carry the accent; "Bỏ chốt" walks it back and does
+ * not — it was previously the loudest thing on a confirmed card, which made
+ * un-agreeing the most inviting action on a place the group had agreed on.
+ */
 .place-status-action {
   min-height: 2.5rem;
   padding: 0 var(--s-3);
   font-size: var(--t-sm);
+}
+
+.place-status-action svg {
+  width: 0.9375rem;
+  height: 0.9375rem;
+}
+
+.place-status-action.tone-go {
   color: var(--c-brand);
   background: var(--c-brand-soft);
   border-color: transparent;
 }
 
-.place-status-action:hover:not(:disabled) {
+.place-status-action.tone-go:hover:not(:disabled) {
   background: var(--c-brand-border);
+}
+
+.place-status-action.tone-quiet {
+  color: var(--c-ink-2);
+  background: none;
+  border-color: var(--c-line-strong);
+}
+
+.place-status-action.tone-quiet:hover:not(:disabled) {
+  color: var(--c-ink);
+  background: var(--c-surface-sunken);
 }
 
 .place-external,
@@ -1619,11 +1899,21 @@ button .spinner {
 }
 
 .place-external:hover {
-  color: var(--c-ink);
-  background: var(--c-line);
+  color: var(--c-brand);
+  background: var(--c-tile);
 }
 
-.place-delete:hover:not(:disabled) {
+/*
+ * Quiet until approached. It is the destructive control on a card and it sat
+ * at identical weight, 8px from a benign one, on every place in the list.
+ */
+.place-delete {
+  color: var(--c-ink-3);
+  background: none;
+}
+
+.place-delete:hover:not(:disabled),
+.place-delete:focus-visible {
   color: var(--c-danger);
   background: var(--c-danger-soft);
 }
@@ -1686,16 +1976,29 @@ button .spinner {
   flex: 0 0 auto;
 }
 
-/* Quieter than a link: this is a way in to editing, not a destination. */
+/*
+ * A text link, not a bordered pill.
+ *
+ * A dashed stroke means "dropzone, not yet real" in every dashboard language
+ * there is, and this is a permanent action on every card — six dashed pills a
+ * screen made the whole list read as an unfinished wireframe. It also cost a
+ * full row of card height to announce that a description was absent.
+ */
 .detail-edit {
+  /* Reads as a link, but still 40px of thumb. Looking like text is not a
+     reason to be hard to hit. */
+  min-height: 2.5rem;
+  padding: 0 var(--s-1);
   color: var(--c-ink-2);
   background: none;
-  border: 1px dashed var(--c-line-strong);
+  border: none;
 }
 
 .detail-edit:hover:not(:disabled) {
-  color: var(--c-ink);
-  background: var(--c-surface-sunken);
+  color: var(--c-brand);
+  background: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .place-detail.editing {
@@ -2059,8 +2362,23 @@ button .spinner {
 }
 
 .item-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  /* The badge sat hard against the name — "Đồi chè trái timchưa chốt lại". */
+  gap: var(--s-1) var(--s-2);
   font-weight: var(--fw-medium);
   line-height: var(--lh-snug);
+}
+
+.item-unconfirmed {
+  padding: 0 var(--s-2);
+  font-size: var(--t-2xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1.25rem;
+  color: var(--c-amber-ink);
+  background: var(--c-amber-soft);
+  border-radius: var(--r-full);
 }
 
 .item-meta {
@@ -2145,7 +2463,7 @@ button .spinner {
 
 .badge-warning,
 .day-verdict-warning {
-  color: var(--c-amber);
+  color: var(--c-amber-ink);
   background: var(--c-amber-soft);
 }
 
@@ -2331,20 +2649,24 @@ button .spinner {
   letter-spacing: 0.06em;
 }
 
+/* Demoted to a caption: it is context, not the answer. */
 .balance-total {
-  margin-bottom: var(--s-4);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
   font-size: var(--t-sm);
-  color: rgb(255 255 255 / 75%);
+  color: rgb(255 255 255 / 80%);
+  border-top: 1px solid rgb(255 255 255 / 20%);
 }
 
 .balance-total strong {
-  display: block;
-  font-size: var(--t-3xl);
-  font-weight: var(--fw-bold);
-  line-height: var(--lh-tight);
+  font-size: var(--t-md);
+  font-weight: var(--fw-semibold);
   color: #fff;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
 }
 
 .balance-card .search-hint {
@@ -2354,8 +2676,7 @@ button .spinner {
 .balance-list {
   display: grid;
   gap: var(--s-2);
-  padding-bottom: var(--s-3);
-  border-bottom: 1px solid rgb(255 255 255 / 20%);
+  margin-top: var(--s-4);
 }
 
 .balance-list li {
@@ -2370,42 +2691,74 @@ button .spinner {
   font-weight: var(--fw-semibold);
 }
 
+/*
+ * Solid chips, not coloured text on the gradient. Measured straight onto the
+ * violet these read 3.6:1 and 4.0:1 depending where along the gradient they
+ * landed — the two numbers this whole tab exists to communicate.
+ */
 .net {
-  font-weight: var(--fw-medium);
-  color: rgb(255 255 255 / 70%);
+  padding: 0 var(--s-2);
+  font-size: var(--t-xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1.375rem;
+  color: var(--c-ink-2);
+  background: rgb(255 255 255 / 92%);
+  border-radius: var(--r-full);
   text-align: right;
+  white-space: nowrap;
 }
 
 .net.positive {
-  color: #7ff0c4;
+  color: #05603a;
 }
 
 .net.negative {
-  color: #ffb59a;
+  color: #9a3412;
 }
 
+/* The answer the tab exists for, in the largest type on the card. */
 .settle-list {
   display: grid;
   gap: var(--s-2);
-  margin-top: var(--s-3);
 }
 
 .settle-list li {
-  padding: var(--s-2) var(--s-3);
-  font-size: var(--t-sm);
-  background: rgb(255 255 255 / 12%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-1) var(--s-3);
+  padding: var(--s-3);
+  background: rgb(255 255 255 / 14%);
+  border: 1px solid rgb(255 255 255 / 22%);
   border-radius: var(--r-md);
 }
 
-.settle-none {
-  margin-top: var(--s-3);
+.settle-who {
   font-size: var(--t-sm);
-  color: rgb(255 255 255 / 75%);
+  color: rgb(255 255 255 / 88%);
 }
 
+.settle-amount {
+  font-size: var(--t-xl);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.settle-none {
+  font-size: var(--t-lg);
+  font-weight: var(--fw-semibold);
+  color: #fff;
+}
+
+/* One gap across breakpoints. At 4px, two 12px-radius cards pinch at the
+   corners and read as neither separated nor joined. */
 .expense-list {
   display: grid;
-  gap: var(--s-2);
+  gap: var(--s-3);
 }
 
 .expense-list li {
@@ -2479,6 +2832,18 @@ button .spinner {
    Mobile-only view switching (below 1024px)
    ========================================================================== */
 
+/*
+ * One day at a time — phones only.
+ *
+ * At 820px two day columns fit side by side, and hiding them there was the
+ * mobile composition leaking into a screen with room for a real layout.
+ */
+@media (max-width: 47.999rem) {
+  .itinerary-days .day-column:not(.selected) {
+    display: none;
+  }
+}
+
 @media (max-width: 63.999rem) {
   .wishlist-view[data-pane='list'] .map-panel,
   .wishlist-view[data-pane='map'] .list-panel {
@@ -2488,11 +2853,6 @@ button .spinner {
   /* Full-bleed map: the shell's padding is cancelled for this pane only. */
   .wishlist-view[data-pane='map'] .map-panel {
     margin-inline: calc(-1 * var(--s-4));
-  }
-
-  /* One day at a time. The day rail above is the day switcher. */
-  .itinerary-days .day-column:not(.selected) {
-    display: none;
   }
 
   /* The day's plan is what somebody opened this tab to see; the pool of
@@ -2513,6 +2873,20 @@ button .spinner {
   .content {
     padding-bottom: calc(var(--nav-h) + 5.5rem + env(safe-area-inset-bottom));
   }
+
+  /* And it sits over the panel's own last row too, not only the page's. */
+  .list-panel,
+  .money-body {
+    padding-bottom: var(--s-8);
+  }
+}
+
+.field-echo {
+  min-height: 1rem;
+  font-size: var(--t-xs);
+  font-weight: var(--fw-regular);
+  color: var(--c-ink-2);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ==========================================================================
@@ -2554,14 +2928,73 @@ button .spinner {
     padding-top: var(--s-4);
   }
 
+  /*
+   * align-items: start, not stretch. Cards hold different amounts — one has a
+   * description and two links, its neighbour has neither — and stretching them
+   * to a shared height left 175px of blank white inside the sparse one, which
+   * reads as broken rather than as sparse.
+   */
   .place-list {
     grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+    align-items: start;
   }
 
   /* 14rem rather than 16: it is what lets a three-day trip — the common case —
      sit on one row at 1440px instead of wrapping its last day onto its own. */
   .itinerary-days {
     grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  }
+
+  /*
+   * 820px is a layout, not a wide phone.
+   *
+   * These splits used to begin at 1024, so a tablet got the mobile composition
+   * stretched: a three-row expense list at full width with ~500px between each
+   * title and its amount, and the bottom 45% of the screen left empty. They fit
+   * comfortably here.
+   */
+  .money-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 19rem;
+    gap: var(--s-5);
+    align-items: start;
+  }
+
+  .money-body > .panel-head {
+    grid-column: 1 / -1;
+  }
+
+  .expenses {
+    display: contents;
+  }
+
+  .expenses > .balance-card {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .expenses > section {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .itinerary-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 16rem;
+    gap: var(--s-5);
+    align-items: start;
+  }
+
+  .itinerary-body > .day-rail {
+    grid-column: 1 / -1;
+  }
+
+  .itinerary-body > .itinerary {
+    grid-column: 1;
+  }
+
+  .itinerary-body > .side-panel {
+    grid-column: 2;
   }
 }
 
@@ -2589,6 +3022,21 @@ button .spinner {
     flex: 0 1 auto;
   }
 
+  /*
+   * A real type scale. The trip name was 17px at 390 and 17px at 1440 — about
+   * 1.5% of the width — and the only moment of scale anywhere in the app was
+   * one number on the balance card. Contrast in type size is most of what
+   * separates a product from an internal tool.
+   */
+  .topbar-title {
+    font-size: var(--t-2xl);
+    letter-spacing: -0.02em;
+  }
+
+  .topbar-sub {
+    font-size: var(--t-sm);
+  }
+
   /* The thumb no longer rules: navigation becomes a bar under the title,
      still on the dark frame so the chrome reads as one piece. */
   .tabbar {
@@ -2598,7 +3046,7 @@ button .spinner {
     display: flex;
     gap: var(--s-1);
     padding: var(--s-2) var(--s-8);
-    border-top: 1px solid var(--c-frame-line);
+    border-top: 1px solid var(--c-line);
     border-bottom: none;
     box-shadow: none;
   }
@@ -2617,28 +3065,26 @@ button .spinner {
   }
 
   .tabbar-item:hover:not(:disabled) {
-    background: var(--c-frame-raised);
+    background: var(--c-chrome-raised);
   }
 
   .tabbar-item[aria-selected='true'] {
-    background: color-mix(in srgb, var(--c-brand-bright) 18%, transparent);
+    background: var(--c-tile);
   }
 
   .tabbar-icon {
-    width: 1.125rem;
-    height: 1.125rem;
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .tabbar-icon svg {
+    width: 1.0625rem;
+    height: 1.0625rem;
   }
 
   .tabbar-count {
     position: static;
-    color: var(--c-frame);
-    background: var(--c-brand-bright);
     border: none;
-  }
-
-  .tabbar-item[aria-selected='false'] .tabbar-count {
-    color: var(--c-frame-ink);
-    background: var(--c-frame-line);
   }
 
   .fab {
@@ -2679,8 +3125,19 @@ button .spinner {
   }
 
   .itinerary-body {
-    grid-template-columns: minmax(0, 1fr) 17rem;
+    grid-template-columns: minmax(0, 1fr) 19rem;
     align-items: start;
+  }
+
+  /* The pool and the suggestions are the same idea — places you could add —
+     so they share one rail instead of bracketing the plan. */
+  .itinerary-body > .itinerary {
+    grid-column: 1;
+  }
+
+  .itinerary-body > .side-panel {
+    grid-column: 2;
+    grid-row: 2 / span 2;
   }
 
   .itinerary-body > .day-rail {
@@ -2689,20 +3146,53 @@ button .spinner {
     padding-inline: 0;
   }
 
+  /*
+   * The days take the width; the pool moves to a rail on the right beside the
+   * suggestions. At 12rem the pool wrapped every name it held — "Thác Dải /
+   * Yếm" — on a 1440px screen, while the plan itself was squeezed into two
+   * columns that wrapped the third day onto a row of its own.
+   */
   .itinerary {
-    grid-template-columns: 12rem minmax(0, 1fr);
-    align-items: start;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .itinerary-pool {
+    grid-column: 1;
+  }
+
+  /*
+   * The spend list on the left, the balance as a sticky rail on the right.
+   *
+   * A single capped column left a ~480px strip of empty gradient beside it,
+   * and put ~600px of nothing between each expense title and its amount. The
+   * balance is the thing people glance back at, so it belongs in the rail.
+   */
+  .money-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 22rem;
+    gap: var(--s-6);
+    align-items: start;
+  }
+
+  .money-body > .panel-head {
+    grid-column: 1 / -1;
+    max-width: none;
+  }
+
+  .expenses {
+    display: contents;
+  }
+
+  .expenses > .balance-card {
+    grid-column: 2;
+    grid-row: 2;
     position: sticky;
     top: calc(var(--sticky-top) + var(--s-4));
   }
 
-  /* One column, capped: a balance and a list of what was spent are read down,
-     and stretching them across 1440px only makes the eye travel further. */
-  .money-body {
-    max-width: 52rem;
+  .expenses > section {
+    grid-column: 1;
+    grid-row: 2;
   }
 
   .side-panel {

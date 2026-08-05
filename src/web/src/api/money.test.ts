@@ -59,6 +59,37 @@ describe('parseMoney', () => {
   })
 })
 
+describe('parseMoney — a currency with no minor unit refuses fractions', () => {
+  /*
+   * VND has no đồng-and-a-half. Reading a fractional part as anything at all
+   * silently changed the amount by a factor of ten or a hundred: "12.5" became
+   * 125 and "0.4" became 4, both accepted without a word. Somebody typing 1.2
+   * meaning một phẩy hai triệu got 12 ₫.
+   */
+  it.each(['12.5', '0.4', '12,5', '1,500,000', '1.23', '99.9'])(
+    'refuses %s rather than guessing at it',
+    (input) => {
+      expect(parseMoney(input, 0)).toBeNaN()
+    },
+  )
+
+  it('still accepts well-formed thousands groups', () => {
+    expect(parseMoney('200.000', 0)).toBe(200_000)
+    expect(parseMoney('1.500.000', 0)).toBe(1_500_000)
+    expect(parseMoney('999', 0)).toBe(999)
+  })
+
+  it('refuses exponent notation, which is never somebody typing an amount', () => {
+    expect(parseMoney('1e6', 0)).toBeNaN()
+    expect(parseMoney('1e6', 2)).toBeNaN()
+  })
+
+  it('still takes a decimal for a currency that has one', () => {
+    expect(parseMoney('12,34', 2)).toBe(1_234)
+    expect(parseMoney('0,40', 2)).toBe(40)
+  })
+})
+
 describe('formatDuration', () => {
   it.each([
     [5, '5 phút'],

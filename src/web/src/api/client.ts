@@ -22,6 +22,7 @@ import type {
   UpdatePlaceRequest,
   WeatherResponse,
 } from './api-types'
+import { fieldErrorText, problemText } from './labels'
 
 /**
  * A failed request, carrying the server's stable `code` so callers branch on
@@ -40,13 +41,22 @@ export class ApiError extends Error {
     return this.problem.code
   }
 
-  /** Field errors from a 422, keyed by field name for form display. */
+  /**
+   * Field errors from a 422, keyed by field name for form display, translated
+   * where the code is one we know. The server's English message is the fallback
+   * — see fieldErrorText.
+   */
   fieldErrors(): Record<string, string> {
     const result: Record<string, string> = {}
     for (const error of this.problem.errors ?? []) {
-      result[error.field] = error.message
+      result[error.field] = fieldErrorText(error.field, error.code, error.message)
     }
     return result
+  }
+
+  /** The whole-request failure, in Vietnamese where the code is known. */
+  get text(): string {
+    return problemText(this.code, this.problem.detail ?? this.message)
   }
 }
 

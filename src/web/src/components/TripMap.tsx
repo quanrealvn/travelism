@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   AttributionControl,
   MapContainer,
@@ -10,9 +10,13 @@ import {
   useMapEvents,
 } from 'react-leaflet'
 import L from 'leaflet'
+// Imported here rather than in main.tsx so it travels in the map's own chunk.
+// In the entry bundle it was 15KB of CSS every visitor paid for before the
+// first paint, including the ones who never open the map.
+import 'leaflet/dist/leaflet.css'
 import type { PlaceResponse } from '../api/api-types'
 import { formatDuration, formatMoney } from '../api/money'
-import { allCategoryStyles, categoryStyle, markerHtml } from '../map/placeMarkers'
+import { allCategoryStyles, categoryStyle, LABEL_ZOOM, markerHtml } from '../map/placeMarkers'
 
 /**
  * Each place gets its own icon, because the label is part of it.
@@ -22,10 +26,10 @@ import { allCategoryStyles, categoryStyle, markerHtml } from '../map/placeMarker
  * simpler than generating five tinted PNGs. It also means the label scales and
  * truncates with CSS instead of being baked into an image.
  */
-function iconFor(place: PlaceResponse, selected: boolean): L.DivIcon {
+function iconFor(place: PlaceResponse, selected: boolean, zoom: number): L.DivIcon {
   return new L.DivIcon({
     className: 'place-pin-wrapper',
-    html: markerHtml(place, selected),
+    html: markerHtml(place, selected, zoom),
     // Sized generously and anchored at the dot's centre-bottom: the label
     // overflows the box horizontally, which is fine, but the pin point must sit
     // exactly on the coordinate.
@@ -72,6 +76,8 @@ interface TripMapProps {
   routePoints?: LatLng[]
 }
 
+const INITIAL_ZOOM = 11
+
 export function TripMap({
   places,
   currency,
@@ -82,6 +88,12 @@ export function TripMap({
   onPickLocation,
   routePoints,
 }: TripMapProps) {
+  const [zoom, setZoom] = useState(INITIAL_ZOOM)
+
+  // Whether labels are drawn at all, rather than the zoom itself: markers only
+  // need to be rebuilt when this flips, not on every step of a pinch.
+  const labelZoom = zoom >= LABEL_ZOOM
+
   const center = useMemo<[number, number]>(() => {
     if (places.length === 0) {
       return FALLBACK_CENTER
@@ -98,10 +110,14 @@ export function TripMap({
   return (
     <MapContainer
       center={center}
-      zoom={11}
+      zoom={INITIAL_ZOOM}
       scrollWheelZoom
       className="trip-map"
       aria-label="Bản đồ các địa điểm"
+      // Out of the tab order, along with every marker: with forty places the
+      // map put forty stops between the header and the first thing in the list,
+      // and the list is the accessible view of the same data.
+      keyboard={false}
       // Leaflet puts attribution bottom-right by default, which on a phone is
       // exactly where the floating action button sits. A map does not scroll,
       // so the notice was permanently unreachable rather than briefly covered
@@ -116,6 +132,7 @@ export function TripMap({
       />
 
       <MapFocus places={places} selectedPlaceId={selectedPlaceId ?? null} />
+      <WatchZoom onChange={setZoom} />
       {onPickLocation && <ClickToPick onPick={onPickLocation} />}
 
       {routePoints && routePoints.length > 1 && (
@@ -133,9 +150,13 @@ export function TripMap({
 
       {places.map((place) => (
         <Marker
-          key={`${place.id}-${place.category}-${place.status}-${place.id === selectedPlaceId}`}
+          // The zoom is in the key because the icon's HTML depends on it:
+          // Leaflet caches a DivIcon's markup, so a marker only redraws when
+          // React gives it a new identity.
+          key={`${place.id}-${place.category}-${place.status}-${place.id === selectedPlaceId}-${labelZoom}`}
           position={[place.lat, place.lng]}
-          icon={iconFor(place, place.id === selectedPlaceId)}
+          icon={iconFor(place, place.id === selectedPlaceId, zoom)}
+          keyboard={false}
           // The selected pin is lifted above the others so its label is not
           // buried under a neighbour's.
           zIndexOffset={place.id === selectedPlaceId ? 1000 : 0}
@@ -154,7 +175,9 @@ export function TripMap({
         </Marker>
       ))}
 
-      <MapLegend />
+      {/* A key for nothing is noise; the legend only means something once
+          there is at least one pin to read it against. */}
+      {places.length > 0 && <MapLegend places={places} />}
     </MapContainer>
   )
 }
@@ -163,10 +186,15 @@ export function TripMap({
  * What the colours mean. Rendered outside the map panes so it does not pan
  * with the tiles.
  */
-function MapLegend() {
+function MapLegend({ places }: { places: PlaceResponse[] }) {
+  // Only the categories actually on this map. Listing all five for a trip of
+  // three restaurants explains four colours that are not there.
+  const present = new Set(places.map((place) => place.category))
+  const shown = allCategoryStyles().filter((style) => present.has(style.category))
+
   return (
     <div className="map-legend" aria-label="Chú giải bản đồ">
-      {allCategoryStyles().map((style) => (
+      {shown.map((style) => (
         <span key={style.category} className="legend-item">
           <span className="legend-swatch" style={{ background: style.color }} aria-hidden="true" />
           {style.label}
@@ -184,6 +212,19 @@ function MapLegend() {
 function ClickToPick({ onPick }: { onPick: (location: LatLng) => void }) {
   useMapEvents({
     click: (event) => onPick({ lat: event.latlng.lat, lng: event.latlng.lng }),
+  })
+
+  return null
+}
+
+/**
+ * Reports the zoom upward, so the markers can decide whether to carry a name.
+ * Only `zoomend` — reacting to every frame of a pinch would rebuild forty
+ * markers per gesture.
+ */
+function WatchZoom({ onChange }: { onChange: (zoom: number) => void }) {
+  const map = useMapEvents({
+    zoomend: () => onChange(map.getZoom()),
   })
 
   return null

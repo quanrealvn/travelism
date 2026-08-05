@@ -143,6 +143,58 @@ export function IconLink({ className }: IconProps) {
   )
 }
 
+/* --- Place status. One glyph each, so a group is never colour alone. --- */
+
+/** Confirmed: the group agreed. */
+export function IconCheckCircle({ className }: IconProps) {
+  return (
+    <svg {...svgProps(className)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m8.5 12 2.5 2.5 4.5-5" />
+    </svg>
+  )
+}
+
+/** Shortlisted: somebody wants it, the rest have not said. */
+export function IconClock({ className }: IconProps) {
+  return (
+    <svg {...svgProps(className)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5V12l3 1.75" />
+    </svg>
+  )
+}
+
+/** An idea nobody has backed yet. */
+export function IconSparkle({ className }: IconProps) {
+  return (
+    <svg {...svgProps(className)}>
+      <path d="M12 3.5 13.7 9l5.5 1.7-5.5 1.7L12 18l-1.7-5.6L4.8 10.7 10.3 9z" />
+      <path d="M18.5 4.5v2.6M17.2 5.8h2.6" />
+    </svg>
+  )
+}
+
+/** Visited: it happened. */
+export function IconFlag({ className }: IconProps) {
+  return (
+    <svg {...svgProps(className)}>
+      <path d="M5 21V4" />
+      <path d="M5 4.5h10.5l-1.6 3.4 1.6 3.4H5" />
+    </svg>
+  )
+}
+
+/** Skipped: decided against, on purpose. */
+export function IconSkip({ className }: IconProps) {
+  return (
+    <svg {...svgProps(className)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m8.5 8.5 7 7" />
+    </svg>
+  )
+}
+
 export function IconCheck({ className }: IconProps) {
   return (
     <svg {...svgProps(className)}>

@@ -3,6 +3,7 @@ import {
   allCategoryStyles,
   categoryStyle,
   escapeHtml,
+  LABEL_ZOOM,
   markerHtml,
   statusOpacity,
 } from './placeMarkers'
@@ -41,13 +42,19 @@ describe('categoryStyle', () => {
     expect(new Set(colours).size).toBe(ALL_CATEGORIES.length)
   })
 
-  it('gives every category a glyph as well as a colour', () => {
+  it('gives every category an icon as well as a colour', () => {
     // Colour alone would be unreadable for anyone who cannot separate the red
     // and green pins.
     for (const category of ALL_CATEGORIES) {
-      expect(categoryStyle(category).glyph).not.toBe('')
+      expect(categoryStyle(category).path).not.toBe('')
       expect(categoryStyle(category).label).not.toBe('')
     }
+  })
+
+  it('draws every category with its own icon', () => {
+    const paths = ALL_CATEGORIES.map((category) => categoryStyle(category).path)
+
+    expect(new Set(paths).size).toBe(ALL_CATEGORIES.length)
   })
 
   it('falls back rather than returning undefined for an unknown category', () => {
@@ -107,30 +114,58 @@ describe('escapeHtml', () => {
 })
 
 describe('markerHtml', () => {
-  it('carries the place name as a visible label', () => {
-    expect(markerHtml(place(), false)).toContain('Thác Dải Yếm')
+  const CLOSE = LABEL_ZOOM
+
+  it('carries the place name as a visible label when zoomed in', () => {
+    expect(markerHtml(place(), false, CLOSE)).toContain('Thác Dải Yếm')
   })
 
   it('carries the category colour', () => {
-    expect(markerHtml(place({ category: 'Food' }), false)).toContain(categoryStyle('Food').color)
+    expect(markerHtml(place({ category: 'Food' }), false, CLOSE)).toContain(
+      categoryStyle('Food').color,
+    )
   })
 
   it('marks the selected pin so it can be lifted above the rest', () => {
-    expect(markerHtml(place(), true)).toContain('selected')
-    expect(markerHtml(place(), false)).not.toContain('selected')
+    expect(markerHtml(place(), true, CLOSE)).toContain('selected')
+    expect(markerHtml(place(), false, CLOSE)).not.toContain('selected')
   })
 
   it('never interpolates a name unescaped', () => {
     // Names come from user input and from the geocoder, and Leaflet's DivIcon
     // takes raw HTML — so this is the boundary that has to hold.
-    const html = markerHtml(place({ name: '<img src=x onerror=alert(1)>' }), false)
+    const html = markerHtml(place({ name: '<img src=x onerror=alert(1)>' }), false, CLOSE)
 
     expect(html).not.toContain('<img')
     expect(html).toContain('&lt;img')
   })
 
   it('reflects status through opacity', () => {
-    expect(markerHtml(place({ status: 'Confirmed' }), false)).toContain('opacity:1')
-    expect(markerHtml(place({ status: 'Idea' }), false)).not.toContain('opacity:1')
+    expect(markerHtml(place({ status: 'Confirmed' }), false, CLOSE)).toContain('opacity:1')
+    expect(markerHtml(place({ status: 'Idea' }), false, CLOSE)).not.toContain('opacity:1')
+  })
+})
+
+describe('markerHtml — labels when the map is busy', () => {
+  it('drops the label when zoomed out', () => {
+    // Forty always-on labels tile into rows of white strips that cover the map
+    // and each other; you can read neither the names nor the terrain.
+    const html = markerHtml(place(), false, LABEL_ZOOM - 1)
+
+    expect(html).not.toContain('Thác Dải Yếm')
+    expect(html).toContain('place-pin-dot')
+  })
+
+  it('keeps the label for the selected place at any zoom', () => {
+    // Whatever you just picked has to be identifiable, and it is exactly one
+    // label, so it cannot cause the pile-up.
+    expect(markerHtml(place(), true, LABEL_ZOOM - 5)).toContain('Thác Dải Yếm')
+  })
+
+  it('still carries colour and status when the label is dropped', () => {
+    const html = markerHtml(place({ category: 'Food', status: 'Confirmed' }), false, LABEL_ZOOM - 1)
+
+    expect(html).toContain(categoryStyle('Food').color)
+    expect(html).toContain('opacity:1')
   })
 })

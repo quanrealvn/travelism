@@ -600,3 +600,55 @@ client, and the only place the server turns an enum into words.
 Entries written before this stay as they were. Rewriting stored history to make
 old rows match a new wording would be editing a log, which is the one thing a
 log must not do.
+
+### D54 — The review was right about the palette; the dark chrome was mine
+An external review of the running app produced 20 findings and a screenshot of
+the actual Fly.io dashboard. The dashboard is **light** — a pale violet-to-rose
+wash behind white cards, frosted translucent chrome, tinted rounded tiles behind
+icons, status pills pairing icon + label + count. The near-black frame in D49
+was built from a description, not from the thing, and it was wrong.
+
+The palette moved to that: gradient wash on `body` (fixed, so it stays put while
+content scrolls), chrome at 88% white over a 22px blur, and the accent unchanged.
+88% rather than 78% because at the lower value a card title behind the tab bar
+stayed legible *as text* and competed with the tab labels — frosted chrome only
+works when what is behind it becomes texture.
+
+### D55 — Category icons are path data, not emoji
+Emoji carry their own multi-colour artwork, so a 🍜 on a rose tile and a stroked
+⛰ on a mint tile sat in identical tiles looking like two design systems — and
+both were visually heavier than every stroke icon around them. Categories now
+carry SVG path data in `placeMarkers.ts`, shared between React and the map's
+DivIcon, drawn in the category's own colour at 1.75 stroke.
+
+The card's left rail is the category tile now, not the like button. The like was
+filled rose — which is this palette's *food* colour — so a waterfall and a tea
+hill both wore a food-coloured tile, and the one scannable index down a long
+list was spending the category palette on something else.
+
+### D56 — What the audit cannot see
+`npm run ux` passed with zero findings before and after the review that produced
+these fixes. Everything below was invisible to it:
+
+- A form that erased everything typed the moment the server rejected anything —
+  including the searched location, so a duration complaint cost you the place.
+- 20 seconds of white screen on a 400kbps connection, because `index.html` shipped
+  an empty `<div id="root">` and 492KB of JavaScript had to execute first.
+- Forty always-on map labels tiling into rows of white strips over the map.
+- A place on the itinerary that could not be deleted, explained in English API
+  instructions ("Re-send with ?force=true") to a Vietnamese user.
+- One tap losing a trip with no confirmation, and a 21st trip silently evicting
+  the two oldest — whose invite codes are only ever shown inside them.
+- "12.5" parsed as 125 đồng and "0.4" as 4, silently.
+- Neither sheet trapping focus: the pointer was blocked and the keyboard was not.
+- A settlement — the answer the money tab exists for — rendered as the smallest,
+  lowest-contrast line on the card, under a 32px number nobody needs.
+- Coloured text on the violet gradient measuring 3.6:1 at one end and passing at
+  the other. The audit skips gradients rather than guessing, so it said nothing.
+- 820px having no layout at all: the mobile composition stretched, with the
+  bottom 45% of the screen empty.
+
+Two of the fixes were themselves caught by the audit on the next run — a text
+link at 32px tall, and amber-on-amber at 4.36:1 — which is the arrangement
+working as intended: the harness holds the measurable floor, and human review
+finds what a floor cannot express.
