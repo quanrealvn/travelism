@@ -5,8 +5,10 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using WeGo.Infrastructure.Geocoding;
+using WeGo.Domain.Abstractions;
 using WeGo.Infrastructure.Persistence;
 using WeGo.Infrastructure.Routing;
+using WeGo.Infrastructure.Weather;
 
 namespace WeGo.Api.Tests.Infrastructure;
 
@@ -43,6 +45,15 @@ public class WeGoAppFactory : WebApplicationFactory<Program>
     /// <summary>Stands in for OSRM.</summary>
     public StubRouteProvider Routes { get; } = new();
 
+    /// <summary>Stands in for Open-Meteo.</summary>
+    public StubWeatherProvider Weather { get; } = new();
+
+    /// <summary>
+    /// Overridable so a test can freeze time — the weather rules turn on what
+    /// "today" is in the trip's timezone.
+    /// </summary>
+    public virtual DateTimeOffset? FixedNow => null;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -66,8 +77,24 @@ public class WeGoAppFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<IRouteProvider>();
             services.AddSingleton<IRouteProvider>(Routes);
+
+            services.RemoveAll<IWeatherProvider>();
+            services.AddSingleton<IWeatherProvider>(Weather);
+
+            if (FixedNow is { } now)
+            {
+                services.RemoveAll<IClock>();
+                services.AddSingleton<IClock>(new FrozenClock(now));
+            }
         });
     }
+
+    /// <summary>A clock that does not move, for rules that depend on "today".</summary>
+    private sealed class FrozenClock(DateTimeOffset now) : IClock
+    {
+        public DateTimeOffset UtcNow { get; } = now;
+    }
+
 
     public HttpClient CreateApiClient() => CreateClient(new WebApplicationFactoryClientOptions
     {

@@ -8,7 +8,7 @@ to that trip.
 The contract is [`SPEC_PROMPT.md`](SPEC_PROMPT.md). Choices it does not make are
 recorded in [`DECISIONS.md`](DECISIONS.md).
 
-**Milestone 1 is complete**: trips, members, cookie auth, place CRUD, map.
+**All seven milestones are complete.**
 
 ---
 
@@ -58,11 +58,11 @@ Current state:
 
 | Suite                | Result |
 | -------------------- | ------ |
-| Domain unit tests    | 199 passing |
-| API integration tests | 148 passing |
-| Frontend (Vitest)    | 50 passing |
-| Domain line coverage | 95.95% (gate 90%) |
-| Api line coverage    | 92.97% (gate 70%) |
+| Domain unit tests    | 432 passing |
+| API integration tests | 290 passing |
+| Frontend (Vitest)    | 119 passing |
+| Domain line coverage | 97.59% (gate 90%) |
+| Api line coverage    | 95.69% (gate 70%) |
 
 ### Adding a place
 
@@ -156,15 +156,29 @@ fine for a deployment — see D20.
 
 ---
 
-## Milestones
+## Milestones — all complete
 
-1. **Trip/Member/auth + Place CRUD + map** ← done
-2. Place state machine + likes + wishlist UI
-3. Itinerary CRUD + dnd + suggestions
-4. Feasibility + OSRM + cache + route polyline
-5. Expenses + balance + settlement
-6. SignalR sync + snapshot + reconnect
-7. Weather + polish
+1. **Trip/Member/auth + Place CRUD + map** — cookie auth, IDOR sweep, soft delete
+2. **Place state machine + likes + wishlist** — §4 matrix enumerated in tests
+3. **Itinerary + drag-and-drop + suggestions** — optimistic move with rollback
+4. **Feasibility + OSRM + cache + route line** — haversine fallback, source surfaced
+5. **Expenses + balance + settlement** — integer minor units throughout
+6. **SignalR sync + snapshot + reconnect** — broadcast only after commit
+7. **Weather + activity feed + PWA** — trip-timezone "today", stale flagged
 
-Each milestone stops for adversarial review
-([`ADVERSARIAL_REVIEWER.md`](ADVERSARIAL_REVIEWER.md)) before the next begins.
+Each was built and then walked against
+[`ADVERSARIAL_REVIEWER.md`](ADVERSARIAL_REVIEWER.md) before the next began.
+Defects that pass caught, and the fixes, are recorded in the commit messages
+and in [`DECISIONS.md`](DECISIONS.md).
+
+## Things worth knowing
+
+- **Money is never a float.** Amounts are `long` minor units end to end; the
+  only conversion to a decimal is `formatMoney`, on the way to the screen.
+- **Calendar dates never shift.** `DateOnly`/`TimeOnly` end to end, no
+  `DateTime` anywhere, and "today" is resolved in the trip's timezone (D36).
+- **Two spec conflicts were arbitrated**, both flagged for review: the
+  Equal-split remainder rule (D34) and the trip-span reading (D7).
+- **Place search has real limits.** OpenStreetMap does not contain every place
+  in Vietnam; pasting a Google Maps link (D32) and clicking the map (D28) are
+  the answers to that, not better queries.

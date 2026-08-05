@@ -6,6 +6,7 @@ using WeGo.Domain.Abstractions;
 using WeGo.Infrastructure.Geocoding;
 using WeGo.Infrastructure.Persistence;
 using WeGo.Infrastructure.Routing;
+using WeGo.Infrastructure.Weather;
 
 namespace WeGo.Infrastructure;
 
@@ -30,6 +31,24 @@ public static class InfrastructureServiceCollectionExtensions
 
         services.AddWeGoGeocoding(configuration);
         services.AddWeGoRouting(configuration);
+        services.AddWeGoWeather(configuration);
+
+        return services;
+    }
+
+    private static IServiceCollection AddWeGoWeather(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var options = new OpenMeteoOptions();
+        configuration.GetSection(OpenMeteoOptions.SectionName).Bind(options);
+        services.AddSingleton(options);
+
+        services.AddHttpClient<IWeatherProvider, OpenMeteoWeatherProvider>(client =>
+        {
+            client.BaseAddress = new Uri(options.BaseAddress);
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+        });
 
         return services;
     }

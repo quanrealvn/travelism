@@ -23,6 +23,26 @@ export const queryKeys = {
   feasibility: (tripId: string, date: string) => ['feasibility', tripId, date] as const,
   expenses: (tripId: string) => ['expenses', tripId] as const,
   balance: (tripId: string) => ['balance', tripId] as const,
+  weather: (tripId: string) => ['weather', tripId] as const,
+  activity: (tripId: string) => ['activity', tripId] as const,
+}
+
+export function useWeather(tripId: string) {
+  return useQuery({
+    queryKey: queryKeys.weather(tripId),
+    queryFn: () => api.weather(tripId),
+    // The server caches for three hours; there is no value in asking more often.
+    staleTime: 30 * 60_000,
+    retry: false,
+  })
+}
+
+export function useActivity(tripId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.activity(tripId),
+    queryFn: () => api.activity(tripId),
+    enabled,
+  })
 }
 
 export function useExpenses(tripId: string) {

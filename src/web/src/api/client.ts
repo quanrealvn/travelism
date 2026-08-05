@@ -1,4 +1,5 @@
 import type {
+  ActivityResponse,
   BalanceResponse,
   CreateExpenseRequest,
   CreateItineraryItemRequest,
@@ -17,6 +18,7 @@ import type {
   TripSessionResponse,
   UpdateItineraryItemRequest,
   UpdatePlaceRequest,
+  WeatherResponse,
 } from './api-types'
 
 /**
@@ -133,6 +135,12 @@ export const api = {
 
   deleteItineraryItem: (tripId: string, itemId: string) =>
     request<ItineraryItemResponse>(`/trips/${tripId}/itinerary/${itemId}`, { method: 'DELETE' }),
+
+  /** 204 means "nothing to forecast" (spec §5.5), which surfaces as null. */
+  weather: (tripId: string) => request<WeatherResponse | null>(`/trips/${tripId}/weather`),
+
+  activity: (tripId: string, limit = 40) =>
+    request<ActivityResponse[]>(`/trips/${tripId}/activity?limit=${limit}`),
 
   listExpenses: (tripId: string) => request<ExpenseResponse[]>(`/trips/${tripId}/expenses`),
 

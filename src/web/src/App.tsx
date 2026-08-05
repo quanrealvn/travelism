@@ -20,6 +20,8 @@ import {
   useSuggestions,
   useToggleLike,
   useTrip,
+  useActivity,
+  useWeather,
 } from './api/hooks'
 import type {
   CreatePlaceRequest,
@@ -32,6 +34,8 @@ import { TripMap } from './components/TripMap'
 import type { LatLng } from './components/TripMap'
 import { ItineraryBoard } from './components/ItineraryBoard'
 import { ExpensePanel } from './components/ExpensePanel'
+import { WeatherStrip } from './components/WeatherStrip'
+import { ActivityFeed } from './components/ActivityFeed'
 import { SuggestionsPanel } from './components/SuggestionsPanel'
 import { tripDays } from './itinerary/tripDates'
 import { useTripSync } from './api/useTripSync'
@@ -95,7 +99,7 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   // The location being composed, shared by the map and the form so a click on
   // one shows up on the other.
   const [draftLocation, setDraftLocation] = useState<LatLng | null>(null)
-  const [view, setView] = useState<'wishlist' | 'itinerary' | 'money'>('wishlist')
+  const [view, setView] = useState<'wishlist' | 'itinerary' | 'money' | 'activity'>('wishlist')
   const [selectedDate, setSelectedDate] = useState<IsoDate | null>(null)
 
   // Computed before the early returns below, because the suggestions query is a
@@ -109,6 +113,8 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   const createExpense = useCreateExpense(tripId)
   const deleteExpense = useDeleteExpense(tripId)
   const syncStatus = useTripSync(tripId, memberId)
+  const weather = useWeather(tripId)
+  const activity = useActivity(tripId, view === 'activity')
 
   if (trip.isLoading || places.isLoading || itinerary.isLoading) {
     return <p className="loading">Đang tải chuyến đi…</p>
@@ -279,12 +285,33 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
         >
           Chi tiêu ({expenses.data?.length ?? 0})
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'activity'}
+          onClick={() => setView('activity')}
+        >
+          Hoạt động
+        </button>
       </nav>
 
       {actionError && (
         <p className="form-error" role="alert">
           {actionError}
         </p>
+      )}
+
+      {view === 'activity' && (
+        <main className="money-body">
+          <section className="side-panel">
+            <h2>Hoạt động</h2>
+            <ActivityFeed
+              entries={activity.data ?? []}
+              members={currentTrip.members}
+              loading={activity.isLoading}
+            />
+          </section>
+        </main>
       )}
 
       {view === 'money' && (
@@ -312,6 +339,13 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
 
       {view === 'itinerary' && (
         <main className="itinerary-body">
+          <WeatherStrip
+            weather={weather.data}
+            days={days}
+            selectedDate={activeDate}
+            onSelectDate={setSelectedDate}
+          />
+
           <ItineraryBoard
             days={days}
             items={itineraryItems}

@@ -81,6 +81,34 @@ export interface ItineraryItemResponse {
   updatedByMemberId: string
 }
 
+export interface DailyWeatherResponse {
+  date: IsoDate
+  maxTempC: number | null
+  minTempC: number | null
+  precipitationMm: number | null
+  /** WMO weather code; see weatherText. */
+  weatherCode: number | null
+}
+
+export interface WeatherResponse {
+  lat: number
+  lng: number
+  timeZoneId: string
+  /** True when served from cache during an upstream outage (spec §5.5). */
+  stale: boolean
+  days: DailyWeatherResponse[]
+}
+
+export interface ActivityResponse {
+  id: string
+  memberId: string
+  action: string
+  entityType: string
+  entityId: string
+  summaryText: string
+  at: string
+}
+
 export type ExpenseCategory = 'Transport' | 'Lodging' | 'Food' | 'Tickets' | 'Other'
 export type SplitType = 'Equal' | 'Custom'
 

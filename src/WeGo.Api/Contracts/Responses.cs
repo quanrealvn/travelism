@@ -145,6 +145,34 @@ public sealed record SnapshotResponse(
     IReadOnlyList<ExpenseResponse> Expenses,
     BalanceResponse Balance);
 
+public sealed record DailyWeatherResponse(
+    DateOnly Date,
+    double? MaxTempC,
+    double? MinTempC,
+    double? PrecipitationMm,
+    int? WeatherCode);
+
+/// <param name="Stale">
+/// True when the upstream service was unreachable and this came from cache
+/// (spec §5.5). The client must say so rather than present it as current.
+/// </param>
+public sealed record WeatherResponse(
+    double Lat,
+    double Lng,
+    string TimeZoneId,
+    bool Stale,
+    IReadOnlyList<DailyWeatherResponse> Days);
+
+/// <summary>An entry in the trip's audit trail.</summary>
+public sealed record ActivityResponse(
+    Guid Id,
+    Guid MemberId,
+    string Action,
+    string EntityType,
+    Guid EntityId,
+    string SummaryText,
+    DateTimeOffset At);
+
 /// <summary>Who the caller is, for a client that has a cookie but no state.</summary>
 public sealed record SessionResponse(
     Guid TripId,

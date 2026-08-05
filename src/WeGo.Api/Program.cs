@@ -34,6 +34,7 @@ builder.Services.AddScoped<ItineraryService>();
 builder.Services.AddScoped<TravelTimeService>();
 builder.Services.AddScoped<ExpenseService>();
 builder.Services.AddScoped<SnapshotService>();
+builder.Services.AddScoped<WeatherService>();
 
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ITripBroadcaster, TripBroadcaster>();
@@ -90,6 +91,7 @@ app.MapTripEndpoints();
 app.MapPlaceEndpoints();
 app.MapItineraryEndpoints();
 app.MapExpenseEndpoints();
+app.MapWeatherEndpoints();
 
 // Spec §5.8: one group per trip, joined with the same cookie the API uses.
 app.MapHub<TripHub>("/hubs/trip");

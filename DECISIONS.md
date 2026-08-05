@@ -312,6 +312,33 @@ and trip membership. The client only offers `Equal`, because a per-member share
 editor is a real piece of UI and the two-person case does not need one yet. The
 endpoint is not gated on this, so a custom split can be posted directly.
 
+### D36 — "Today" is resolved in the trip's timezone, never the browser's or the server's
+Calendar values reach the server timezone-free: `<input type="date">` yields a
+plain `YYYY-MM-DD`, and `DateOnly`/`TimeOnly` carry it end to end. But two rules
+need to know what *today* is — §7.12 (no forecast for a past trip) and §5.5 (a
+forecast starts from today, not from a trip's already-past start date).
+
+That question is answered in `Trip.TimeZoneId`. A Mộc Châu trip ends when it is
+over in Mộc Châu, whoever is looking and from where. Deriving it from the
+browser would make the answer depend on which member opened the app; deriving it
+from the server would make it depend on where the app happens to be hosted.
+`WeatherTests` freezes the clock at a moment that is 2 March in UTC and already
+3 March in `Asia/Bangkok`, and asserts a trip ending 2 March has no forecast.
+
+The trip timezone is also passed to Open-Meteo, so the forecast's day boundaries
+are the traveller's rather than UTC's.
+
+### D37 — Realtime broadcasts invalidate rather than patch
+A broadcast payload carries the changed entity, so the client *could* apply it
+directly. It invalidates the affected queries instead, because the server owns
+derived state — a place's status after a like, the entire balance after an
+expense — and reapplying those rules client-side would be a second
+implementation to keep in agreement with the first. The extra fetch is cheap;
+a divergence between two copies of the settlement algorithm would not be.
+
+A client ignores its own echoes, so the person who made a change does not watch
+it flicker.
+
 ### D26 — `@testing-library/react` is pinned to v16 for a single `@testing-library/dom`
 RTL 14 depends on its own nested `@testing-library/dom@9`, while
 `user-event@14` resolves the hoisted `@testing-library/dom@10`. RTL installs the
