@@ -4,6 +4,7 @@ using WeGo.Api;
 using WeGo.Api.Auth;
 using WeGo.Api.Endpoints;
 using WeGo.Api.Errors;
+using WeGo.Api.Realtime;
 using WeGo.Api.Services;
 using WeGo.Domain.Common;
 using WeGo.Infrastructure;
@@ -32,6 +33,10 @@ builder.Services.AddScoped<GeocodingService>();
 builder.Services.AddScoped<ItineraryService>();
 builder.Services.AddScoped<TravelTimeService>();
 builder.Services.AddScoped<ExpenseService>();
+builder.Services.AddScoped<SnapshotService>();
+
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<ITripBroadcaster, TripBroadcaster>();
 
 builder.Services.AddProblemDetails();
 
@@ -85,6 +90,9 @@ app.MapTripEndpoints();
 app.MapPlaceEndpoints();
 app.MapItineraryEndpoints();
 app.MapExpenseEndpoints();
+
+// Spec §5.8: one group per trip, joined with the same cookie the API uses.
+app.MapHub<TripHub>("/hubs/trip");
 
 // An unmatched path under the API surface must answer with the JSON error
 // contract; only genuinely non-API paths fall through to the SPA shell.

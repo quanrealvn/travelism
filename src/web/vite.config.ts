@@ -10,14 +10,18 @@ const API_ORIGIN = process.env.WEGO_API_ORIGIN ?? 'http://localhost:5080'
  * `/api` prefix, so the dev server proxies exactly those paths and lets Vite
  * serve everything else.
  */
-const API_PATHS = ['/trips', '/session']
+const API_PATHS = ['/trips', '/session', '/hubs']
 
 export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
     proxy: Object.fromEntries(
-      API_PATHS.map((path) => [path, { target: API_ORIGIN, changeOrigin: false }]),
+      API_PATHS.map((path) => [
+        path,
+        // ws so the SignalR hub can upgrade through the dev server.
+        { target: API_ORIGIN, changeOrigin: false, ws: path === '/hubs' },
+      ]),
     ),
   },
   build: {

@@ -1,7 +1,9 @@
 using WeGo.Api.Auth;
 using WeGo.Api.Common;
 using WeGo.Api.Contracts;
+using WeGo.Api.Realtime;
 using WeGo.Api.Services;
+using WeGo.Domain.Entities;
 
 namespace WeGo.Api.Endpoints;
 
@@ -26,13 +28,20 @@ public static class PlaceEndpoints
             Guid tripId,
             CreatePlaceRequest request,
             PlaceService places,
+            ITripBroadcaster broadcaster,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var caller = http.GetTripContext();
             var result = await places.CreateAsync(tripId, caller.MemberId, request, cancellationToken);
-            return result.ToHttp(place =>
-                Results.Created($"/trips/{tripId}/places/{place.Id}", place.ToResponse()));
+
+            return await result.BroadcastThenRespond(
+                broadcaster, tripId, caller.MemberId,
+                TripEvents.PlaceChanged, nameof(Place),
+                place => place.Id,
+                place => place.ToResponse(),
+                place => Results.Created($"/trips/{tripId}/places/{place.Id}", place.ToResponse()),
+                cancellationToken);
         })
         .WithName("CreatePlace");
 
@@ -78,12 +87,20 @@ public static class PlaceEndpoints
             Guid placeId,
             UpdatePlaceRequest request,
             PlaceService places,
+            ITripBroadcaster broadcaster,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var caller = http.GetTripContext();
             var result = await places.UpdateAsync(tripId, placeId, caller.MemberId, request, cancellationToken);
-            return result.ToHttp(place => Results.Ok(place.ToResponse()));
+
+            return await result.BroadcastThenRespond(
+                broadcaster, tripId, caller.MemberId,
+                TripEvents.PlaceChanged, nameof(Place),
+                place => place.Id,
+                place => place.ToResponse(),
+                place => Results.Ok(place.ToResponse()),
+                cancellationToken);
         })
         .WithName("UpdatePlace");
 
@@ -91,12 +108,20 @@ public static class PlaceEndpoints
             Guid tripId,
             Guid placeId,
             PlaceService places,
+            ITripBroadcaster broadcaster,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var caller = http.GetTripContext();
             var result = await places.LikeAsync(tripId, placeId, caller.MemberId, cancellationToken);
-            return result.ToHttp(place => Results.Ok(place.ToResponse()));
+
+            return await result.BroadcastThenRespond(
+                broadcaster, tripId, caller.MemberId,
+                TripEvents.PlaceChanged, nameof(Place),
+                place => place.Id,
+                place => place.ToResponse(),
+                place => Results.Ok(place.ToResponse()),
+                cancellationToken);
         })
         .WithName("LikePlace");
 
@@ -104,12 +129,20 @@ public static class PlaceEndpoints
             Guid tripId,
             Guid placeId,
             PlaceService places,
+            ITripBroadcaster broadcaster,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var caller = http.GetTripContext();
             var result = await places.UnlikeAsync(tripId, placeId, caller.MemberId, cancellationToken);
-            return result.ToHttp(place => Results.Ok(place.ToResponse()));
+
+            return await result.BroadcastThenRespond(
+                broadcaster, tripId, caller.MemberId,
+                TripEvents.PlaceChanged, nameof(Place),
+                place => place.Id,
+                place => place.ToResponse(),
+                place => Results.Ok(place.ToResponse()),
+                cancellationToken);
         })
         .WithName("UnlikePlace");
 
@@ -118,13 +151,21 @@ public static class PlaceEndpoints
             Guid placeId,
             ChangePlaceStatusRequest request,
             PlaceService places,
+            ITripBroadcaster broadcaster,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var caller = http.GetTripContext();
             var result = await places.ChangeStatusAsync(
                 tripId, placeId, caller.MemberId, request.Status, request.SkipReason, cancellationToken);
-            return result.ToHttp(place => Results.Ok(place.ToResponse()));
+
+            return await result.BroadcastThenRespond(
+                broadcaster, tripId, caller.MemberId,
+                TripEvents.PlaceChanged, nameof(Place),
+                place => place.Id,
+                place => place.ToResponse(),
+                place => Results.Ok(place.ToResponse()),
+                cancellationToken);
         })
         .WithName("ChangePlaceStatus");
 
@@ -133,13 +174,21 @@ public static class PlaceEndpoints
             Guid placeId,
             bool? force,
             PlaceService places,
+            ITripBroadcaster broadcaster,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var caller = http.GetTripContext();
             var result = await places.DeleteAsync(
                 tripId, placeId, caller.MemberId, force == true, cancellationToken);
-            return result.ToHttp(place => Results.Ok(place.ToResponse()));
+
+            return await result.BroadcastThenRespond(
+                broadcaster, tripId, caller.MemberId,
+                TripEvents.PlaceDeleted, nameof(Place),
+                place => place.Id,
+                place => place.ToResponse(),
+                place => Results.Ok(place.ToResponse()),
+                cancellationToken);
         })
         .WithName("DeletePlace");
     }

@@ -1,7 +1,9 @@
 using WeGo.Api.Auth;
 using WeGo.Api.Common;
 using WeGo.Api.Contracts;
+using WeGo.Api.Realtime;
 using WeGo.Api.Services;
+using WeGo.Domain.Entities;
 
 namespace WeGo.Api.Endpoints;
 
@@ -25,13 +27,20 @@ public static class ExpenseEndpoints
             Guid tripId,
             CreateExpenseRequest request,
             ExpenseService expenses,
+            ITripBroadcaster broadcaster,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var caller = http.GetTripContext();
             var result = await expenses.CreateAsync(tripId, caller.MemberId, request, cancellationToken);
-            return result.ToHttp(expense =>
-                Results.Created($"/trips/{tripId}/expenses/{expense.Id}", expense.ToResponse()));
+
+            return await result.BroadcastThenRespond(
+                broadcaster, tripId, caller.MemberId,
+                TripEvents.ExpenseChanged, nameof(Expense),
+                expense => expense.Id,
+                expense => expense.ToResponse(),
+                expense => Results.Created($"/trips/{tripId}/expenses/{expense.Id}", expense.ToResponse()),
+                cancellationToken);
         })
         .WithName("CreateExpense");
 
@@ -39,12 +48,20 @@ public static class ExpenseEndpoints
             Guid tripId,
             Guid expenseId,
             ExpenseService expenses,
+            ITripBroadcaster broadcaster,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var caller = http.GetTripContext();
             var result = await expenses.DeleteAsync(tripId, expenseId, caller.MemberId, cancellationToken);
-            return result.ToHttp(expense => Results.Ok(expense.ToResponse()));
+
+            return await result.BroadcastThenRespond(
+                broadcaster, tripId, caller.MemberId,
+                TripEvents.ExpenseChanged, nameof(Expense),
+                expense => expense.Id,
+                expense => expense.ToResponse(),
+                expense => Results.Ok(expense.ToResponse()),
+                cancellationToken);
         })
         .WithName("DeleteExpense");
 

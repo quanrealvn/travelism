@@ -2,8 +2,10 @@ using WeGo.Api.Auth;
 using WeGo.Api.Common;
 using WeGo.Api.Contracts;
 using WeGo.Api.Errors;
+using WeGo.Api.Realtime;
 using WeGo.Api.Services;
 using WeGo.Domain.Common;
+using WeGo.Domain.Entities;
 
 namespace WeGo.Api.Endpoints;
 
@@ -43,10 +45,25 @@ public static class TripEndpoints
             TripService trips,
             AuthOptions authOptions,
             SessionTokenService tokens,
+            ITripBroadcaster broadcaster,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var result = await trips.JoinAsync(request, cancellationToken);
+
+            if (result.IsSuccess)
+            {
+                var joined = result.Value!;
+                await broadcaster.BroadcastAsync(
+                    joined.Trip.Id,
+                    TripEvents.MemberJoined,
+                    nameof(Member),
+                    joined.Member.Id,
+                    joined.Member.ToResponse(),
+                    joined.Member.Id,
+                    cancellationToken);
+            }
+
             return result.ToHttp(joined =>
             {
                 IssueSession(http, authOptions, tokens, joined);
@@ -89,14 +106,33 @@ public static class TripEndpoints
             Guid tripId,
             UpdateTripRequest request,
             TripService trips,
+            ITripBroadcaster broadcaster,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var caller = http.GetTripContext();
             var result = await trips.UpdateAsync(tripId, caller.MemberId, request, cancellationToken);
-            return result.ToHttp(t => Results.Ok(t.Trip.ToResponse(t.Members)));
+
+            return await result.BroadcastThenRespond(
+                broadcaster, tripId, caller.MemberId,
+                TripEvents.TripChanged, nameof(Trip),
+                t => t.Trip.Id,
+                t => t.Trip.ToResponse(t.Members),
+                t => Results.Ok(t.Trip.ToResponse(t.Members)),
+                cancellationToken);
         })
         .WithName("UpdateTrip");
+
+        group.MapGet("/snapshot", async (
+            Guid tripId,
+            SnapshotService snapshots,
+            CancellationToken cancellationToken) =>
+        {
+            // Spec §5.8: everything a reconnecting client needs, in one call.
+            var snapshot = await snapshots.GetAsync(tripId, cancellationToken);
+            return Results.Ok(snapshot);
+        })
+        .WithName("GetSnapshot");
 
         group.MapGet("/members", async (
             Guid tripId,

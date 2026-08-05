@@ -1,7 +1,9 @@
 using WeGo.Api.Auth;
 using WeGo.Api.Common;
 using WeGo.Api.Contracts;
+using WeGo.Api.Realtime;
 using WeGo.Api.Services;
+using WeGo.Domain.Entities;
 
 namespace WeGo.Api.Endpoints;
 
@@ -26,13 +28,20 @@ public static class ItineraryEndpoints
             Guid tripId,
             CreateItineraryItemRequest request,
             ItineraryService itinerary,
+            ITripBroadcaster broadcaster,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var caller = http.GetTripContext();
             var result = await itinerary.CreateAsync(tripId, caller.MemberId, request, cancellationToken);
-            return result.ToHttp(item =>
-                Results.Created($"/trips/{tripId}/itinerary/{item.Id}", item.ToResponse()));
+
+            return await result.BroadcastThenRespond(
+                broadcaster, tripId, caller.MemberId,
+                TripEvents.ItineraryChanged, nameof(ItineraryItem),
+                item => item.Id,
+                item => item.ToResponse(),
+                item => Results.Created($"/trips/{tripId}/itinerary/{item.Id}", item.ToResponse()),
+                cancellationToken);
         })
         .WithName("CreateItineraryItem");
 
@@ -41,13 +50,21 @@ public static class ItineraryEndpoints
             Guid itemId,
             UpdateItineraryItemRequest request,
             ItineraryService itinerary,
+            ITripBroadcaster broadcaster,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var caller = http.GetTripContext();
             var result = await itinerary.UpdateAsync(
                 tripId, itemId, caller.MemberId, request, cancellationToken);
-            return result.ToHttp(item => Results.Ok(item.ToResponse()));
+
+            return await result.BroadcastThenRespond(
+                broadcaster, tripId, caller.MemberId,
+                TripEvents.ItineraryChanged, nameof(ItineraryItem),
+                item => item.Id,
+                item => item.ToResponse(),
+                item => Results.Ok(item.ToResponse()),
+                cancellationToken);
         })
         .WithName("UpdateItineraryItem");
 
@@ -55,12 +72,20 @@ public static class ItineraryEndpoints
             Guid tripId,
             Guid itemId,
             ItineraryService itinerary,
+            ITripBroadcaster broadcaster,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
             var caller = http.GetTripContext();
             var result = await itinerary.DeleteAsync(tripId, itemId, caller.MemberId, cancellationToken);
-            return result.ToHttp(item => Results.Ok(item.ToResponse()));
+
+            return await result.BroadcastThenRespond(
+                broadcaster, tripId, caller.MemberId,
+                TripEvents.ItineraryChanged, nameof(ItineraryItem),
+                item => item.Id,
+                item => item.ToResponse(),
+                item => Results.Ok(item.ToResponse()),
+                cancellationToken);
         })
         .WithName("DeleteItineraryItem");
 

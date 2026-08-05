@@ -134,6 +134,17 @@ public sealed record BalanceResponse(
     string Currency,
     int CurrencyExponent);
 
+/// <summary>
+/// The whole trip in one response (spec §5.8). A reconnecting client replaces
+/// its state with this rather than replaying events it may have missed.
+/// </summary>
+public sealed record SnapshotResponse(
+    TripResponse Trip,
+    IReadOnlyList<PlaceResponse> Places,
+    IReadOnlyList<ItineraryItemResponse> Itinerary,
+    IReadOnlyList<ExpenseResponse> Expenses,
+    BalanceResponse Balance);
+
 /// <summary>Who the caller is, for a client that has a cookie but no state.</summary>
 public sealed record SessionResponse(
     Guid TripId,

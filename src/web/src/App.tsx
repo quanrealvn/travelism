@@ -34,6 +34,7 @@ import { ItineraryBoard } from './components/ItineraryBoard'
 import { ExpensePanel } from './components/ExpensePanel'
 import { SuggestionsPanel } from './components/SuggestionsPanel'
 import { tripDays } from './itinerary/tripDates'
+import { useTripSync } from './api/useTripSync'
 import { PlaceForm } from './components/PlaceForm'
 import { PlaceList } from './components/PlaceList'
 import { formatMoney } from './api/money'
@@ -107,6 +108,7 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   const balance = useBalance(tripId)
   const createExpense = useCreateExpense(tripId)
   const deleteExpense = useDeleteExpense(tripId)
+  const syncStatus = useTripSync(tripId, memberId)
 
   if (trip.isLoading || places.isLoading || itinerary.isLoading) {
     return <p className="loading">Đang tải chuyến đi…</p>
@@ -240,6 +242,9 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
         </div>
 
         <div className="trip-invite">
+          <span className={`sync sync-${syncStatus}`} title="Trạng thái đồng bộ">
+            {syncStatus === 'live' ? '● trực tiếp' : syncStatus === 'connecting' ? '○ đang nối' : '○ ngoại tuyến'}
+          </span>
           <span className="label">Mã mời</span>
           <code>{currentTrip.inviteCode}</code>
           <p className="members">

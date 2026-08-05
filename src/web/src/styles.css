@@ -173,6 +173,26 @@ legend {
   text-align: right;
 }
 
+.sync {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.2rem;
+}
+
+.sync-live {
+  color: #17563f;
+}
+
+.sync-connecting {
+  color: var(--muted);
+}
+
+.sync-offline {
+  color: #8a5a00;
+}
+
 .trip-invite .label {
   display: block;
   font-size: 0.75rem;
