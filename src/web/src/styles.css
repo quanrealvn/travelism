@@ -460,11 +460,17 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/*
+ * Pill-shaped, like the floating action button and the active tab. The primary
+ * action was the one filled control in the app still wearing the 12px radius of
+ * a text input, so it read as a different family from everything around it.
+ */
 button[type='submit'],
 .button-primary {
   color: var(--c-brand-ink);
   background: var(--g-brand);
   border-color: transparent;
+  border-radius: var(--r-full);
 }
 
 button[type='submit']:hover:not(:disabled),
@@ -1295,6 +1301,10 @@ button[type='submit']:hover:not(:disabled),
   display: flex;
   flex-direction: column;
   max-height: 88dvh;
+  /* Clips its children to the radius. Without it the scrolling body and the
+     sticky footer paint square right over the rounded corners, so the sheet
+     had a rounded top and a hard-cornered bottom. */
+  overflow: hidden;
   background: var(--c-bg);
   border-radius: var(--r-xl) var(--r-xl) 0 0;
   box-shadow: var(--e-3);
@@ -1357,12 +1367,18 @@ button[type='submit']:hover:not(:disabled),
 .sheet-body .expense-form > button[type='submit'],
 .sheet-body .place-form > button[type='submit'] {
   position: sticky;
-  bottom: calc(-1 * var(--s-4));
+  /* Inset and pill-shaped, the same object as the floating action button it
+     replaces on desktop. It used to be welded across the sheet's full width
+     with square corners, which read as a browser dialog's OK bar rather than
+     as anything else in this app. */
+  bottom: var(--s-2);
   z-index: 1;
-  margin: var(--s-2) calc(-1 * var(--s-4)) calc(-1 * var(--s-4));
-  width: calc(100% + var(--s-8));
-  border-radius: 0;
-  box-shadow: var(--e-lift);
+  margin-top: var(--s-4);
+  width: 100%;
+  border-radius: var(--r-full);
+  /* Heavier than the content it floats over, so the edge stays legible where
+     a field scrolls under it. */
+  box-shadow: var(--e-3);
 }
 
 /* A hint that there is more below, so the clipped edge reads as scrollable. */
@@ -3145,6 +3161,11 @@ button .spinner {
 
 .badge,
 .day-verdict {
+  /* Flex with a gap, so the icon is beside the text rather than welded to its
+     first letter. */
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
   padding: 0 var(--s-2);
   font-size: var(--t-2xs);
   font-weight: var(--fw-medium);

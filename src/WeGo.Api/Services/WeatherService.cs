@@ -7,6 +7,7 @@ using WeGo.Domain;
 using WeGo.Domain.Abstractions;
 using WeGo.Domain.Common;
 using WeGo.Domain.Entities;
+using WeGo.Infrastructure.Geocoding;
 using WeGo.Infrastructure.Persistence;
 using WeGo.Infrastructure.Weather;
 
@@ -19,6 +20,7 @@ namespace WeGo.Api.Services;
 public sealed class WeatherService(
     WeGoDbContext db,
     IWeatherProvider provider,
+    IGeocoder geocoder,
     IMemoryCache cache,
     OpenMeteoOptions options,
     IClock clock)
@@ -36,7 +38,7 @@ public sealed class WeatherService(
             .FirstAsync(t => t.Id == tripId, cancellationToken)
             .ConfigureAwait(false);
 
-        var origin = await FindOriginAsync(tripId, cancellationToken).ConfigureAwait(false);
+        var origin = await FindOriginAsync(trip, cancellationToken).ConfigureAwait(false);
         if (origin is null)
         {
             // Spec §5.5 forbids a hard-coded fallback location: a forecast for
@@ -99,15 +101,15 @@ public sealed class WeatherService(
 
     /// <summary>
     /// Spec §5.5: the centroid of confirmed places, else the first place, else
-    /// nothing at all.
+    /// the trip's own destination, else nothing at all.
     /// </summary>
     private async Task<(double Lat, double Lng)?> FindOriginAsync(
-        Guid tripId,
+        Trip trip,
         CancellationToken cancellationToken)
     {
         var confirmed = await db.Places
             .AsNoTracking()
-            .Where(p => p.TripId == tripId && p.Status == PlaceStatus.Confirmed)
+            .Where(p => p.TripId == trip.Id && p.Status == PlaceStatus.Confirmed)
             .Select(p => new { p.Lat, p.Lng })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -119,13 +121,47 @@ public sealed class WeatherService(
 
         var first = await db.Places
             .AsNoTracking()
-            .Where(p => p.TripId == tripId)
+            .Where(p => p.TripId == trip.Id)
             .OrderBy(p => p.CreatedAt)
             .Select(p => new { p.Lat, p.Lng })
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return first is null ? null : (first.Lat, first.Lng);
+        if (first is not null)
+        {
+            return (first.Lat, first.Lng);
+        }
+
+        /*
+         * A trip with no places yet still has a destination, and it is the
+         * whole reason the trip exists. Without this a brand new trip showed no
+         * forecast at all — which reads as the feature being broken rather than
+         * as "add somewhere first", because nothing on the screen says so.
+         *
+         * Not the hard-coded fallback §5.5 forbids: that rule exists so a
+         * forecast is never shown for somewhere the trip is not, and this is
+         * the one place the trip is definitely going.
+         */
+        if (string.IsNullOrWhiteSpace(trip.Destination))
+        {
+            return null;
+        }
+
+        try
+        {
+            var matches = await geocoder
+                .SearchAsync(trip.Destination, 1, null, cancellationToken)
+                .ConfigureAwait(false);
+
+            var match = matches.FirstOrDefault();
+            return match is null ? null : (match.Lat, match.Lng);
+        }
+        catch (GeocodingUnavailableException)
+        {
+            // A forecast is worth less than the search box it borrows. If the
+            // geocoder is down, no weather is the right answer, not a 500.
+            return null;
+        }
     }
 
     private DateOnly TodayInTripTimeZone(string timeZoneId)

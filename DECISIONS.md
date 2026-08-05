@@ -942,3 +942,40 @@ tiles covering the real size, so a fixed delay raced the tile server. Three runs
 of the same layout reported 1, 2 and 7 tiles — the signature of a race, not a
 defect. The audit now waits for the tile count itself, bounded, so a map that
 genuinely never loads is still caught.
+
+### D81 — A trip with no places forecasts its destination
+
+`FindOriginAsync` returned the centroid of a trip's places and null when it had
+none, so a brand new trip showed no weather at all — with nothing on the screen
+to say why, which reads as the feature being broken rather than as "add
+somewhere first".
+
+It now falls back to geocoding the trip's own destination, the same answer the
+map already uses for its centre. This is not the hard-coded fallback §5.5
+forbids: that rule exists so a forecast is never shown for somewhere the trip is
+not, and the destination is the one place it definitely is. A geocoder outage
+costs the forecast and not the request — 204, never a 502, because the forecast
+is a courtesy borrowed from the search box.
+
+The test that asserted the old behaviour was rewritten rather than deleted, and
+two joined it: the genuine "nowhere to ask about" case, and the outage.
+
+### D82 — Icons in a badge are glyphs, and the badge is a flex container
+
+The feasibility levels used the literal characters `✕`, `!` and `i`, and the
+badge had no `display: flex` — so an info finding rendered as "iChưa đặt giờ",
+where the icon reads as a typo in the first word. Real glyphs now, with a gap.
+
+### D83 — The sheet clips, and its submit is a pill
+
+The panel had a border radius and no `overflow: hidden`, so the scrolling body
+and the sticky footer painted square over the rounded corners: a sheet with a
+rounded top and hard bottom.
+
+The submit inside it was full-bleed with `border-radius: 0`, welded across the
+sheet's width — which reads as a browser dialog's OK bar, not as anything else
+in this app. It is an inset pill now, the same object as the floating action
+button it stands in for, with a heavier shadow so its edge stays legible where a
+field scrolls under it. Primary buttons everywhere took the pill radius with it;
+they were the last filled controls still wearing the 12px radius of a text
+input.

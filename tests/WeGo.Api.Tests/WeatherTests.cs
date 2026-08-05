@@ -5,6 +5,7 @@ using WeGo.Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using WeGo.Domain.Common;
 using WeGo.Domain.Entities;
+using WeGo.Infrastructure.Geocoding;
 
 namespace WeGo.Api.Tests;
 
@@ -37,17 +38,55 @@ public sealed class WeatherTests
     }
 
     [Fact]
-    public async Task A_trip_with_no_places_has_nothing_to_forecast()
+    public async Task A_trip_with_no_places_falls_back_to_its_destination()
     {
-        // Spec §5.5 forbids a hard-coded fallback location.
+        // A brand new trip has no places and every reason to want a forecast —
+        // it is the trip you are still deciding. Showing nothing, with nothing
+        // on screen to say why, reads as the feature being broken.
+        //
+        // Not the hard-coded fallback §5.5 forbids: that rule exists so a
+        // forecast is never shown for somewhere the trip is not, and the
+        // destination is the one place it definitely is.
         var (factory, client, tripId) = await ArrangeAsync(
             "NoPlaces", new DateOnly(2026, 3, 3), new DateOnly(2026, 3, 6), withPlace: false);
         using var _ = factory;
 
         var response = await client.GetAsync($"/trips/{tripId}/weather");
 
+        await response.ShouldBeAsync(HttpStatusCode.OK);
+        factory.Weather.Calls.Should().Be(1);
+        factory.Geocoder.Calls.Should().ContainSingle(call => call.Query == "Mộc Châu, Vietnam");
+    }
+
+    [Fact]
+    public async Task A_trip_whose_destination_cannot_be_found_has_nothing_to_forecast()
+    {
+        // The genuine "nowhere to ask about" case. Still no invented location:
+        // a forecast for the wrong province is worse than none.
+        var (factory, client, tripId) = await ArrangeAsync(
+            "Unfindable", new DateOnly(2026, 3, 3), new DateOnly(2026, 3, 6), withPlace: false);
+        using var _ = factory;
+        factory.Geocoder.Results.Clear();
+
+        var response = await client.GetAsync($"/trips/{tripId}/weather");
+
         await response.ShouldBeAsync(HttpStatusCode.NoContent);
         factory.Weather.Calls.Should().Be(0, "there is nowhere to ask about");
+    }
+
+    [Fact]
+    public async Task A_geocoder_outage_costs_the_forecast_rather_than_the_request()
+    {
+        var (factory, client, tripId) = await ArrangeAsync(
+            "GeocoderDown", new DateOnly(2026, 3, 3), new DateOnly(2026, 3, 6), withPlace: false);
+        using var _ = factory;
+        factory.Geocoder.FailWith = new GeocodingUnavailableException("upstream down");
+
+        var response = await client.GetAsync($"/trips/{tripId}/weather");
+
+        // 204, not 502: the forecast is a courtesy borrowed from the search
+        // box, and it must not turn an outage there into an error here.
+        await response.ShouldBeAsync(HttpStatusCode.NoContent);
     }
 
     [Fact]
