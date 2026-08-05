@@ -240,6 +240,108 @@ legend {
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / 35%));
 }
 
+/* Place pins: colour by category, name always visible */
+.place-pin-wrapper {
+  /* Leaflet gives DivIcon a white background by default. */
+  background: none;
+  border: 0;
+}
+
+.place-pin {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  /* The label overflows the icon box on purpose; the dot stays on the point. */
+  width: max-content;
+  transition: transform 120ms ease;
+}
+
+.place-pin-dot {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 auto;
+  /* A circle rather than a rotated teardrop: the glyph sits directly inside
+     this element, so rotating it for the classic pin shape would rotate the
+     glyph with it. */
+  border-radius: 50%;
+  background: var(--pin-color);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.place-pin-label {
+  max-width: 8.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: rgb(255 255 255 / 88%);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 18%);
+}
+
+.place-pin.selected {
+  transform: scale(1.15);
+}
+
+.place-pin.selected .place-pin-dot {
+  border-color: var(--ink);
+}
+
+.place-pin.selected .place-pin-label {
+  background: var(--ink);
+  color: #fff;
+  max-width: 12rem;
+}
+
+.popup-status {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+/* Legend */
+.map-legend {
+  position: absolute;
+  bottom: 0.6rem;
+  left: 0.6rem;
+  z-index: 500;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.6rem;
+  max-width: 18rem;
+  background: rgb(255 255 255 / 92%);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.5rem;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 20%);
+  font-size: 0.68rem;
+  color: var(--ink);
+  pointer-events: none;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.legend-swatch {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  border: 1px solid rgb(255 255 255 / 90%);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 15%);
+}
+
 /* Place list */
 .place-list {
   list-style: none;

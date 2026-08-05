@@ -186,7 +186,27 @@ coordinate entry path, and an upstream outage answers 502
 `GEOCODING_UNAVAILABLE` while leaving place creation entirely unaffected. Both
 are covered by tests.
 
-### D27 — Leaflet marker images must be `import`ed, not built with `new URL(...)`
+### D38 — Map pins are coloured by category and carry their name
+Identical pins stop being useful past about three places. Each marker is now a
+Leaflet `DivIcon` rendering a coloured dot plus the place name.
+
+**Category, not status,** is the colour axis. On a map the useful question is
+"where is the food, where are the sights" — status is already the organising
+idea of the wishlist, and using it here too would put two colour scales in
+competition for the same pixels. Status shows as opacity instead: a confirmed
+stop reads solid, an unbacked idea recedes without disappearing.
+
+Every category carries a **glyph as well as a colour**. Roughly 1 in 12 men
+cannot reliably separate the red and green pins, and a map that encodes meaning
+only in hue is unreadable for them. A legend sits in the corner.
+
+`DivIcon` takes a **raw HTML string**, which makes a place name untrusted markup
+the moment it goes in one — names come from user input and from the geocoder.
+`escapeHtml` guards that boundary and is tested with an `<img onerror>` payload.
+
+### D27 — Leaflet's *default* marker images must be `import`ed, not built with `new URL(...)`
+*(Superseded in effect by D38, which replaced the default pins entirely — kept
+because the trap is worth remembering if an image-based icon ever returns.)*
 `new URL('leaflet/dist/images/marker-icon.png', import.meta.url)` looks like the
 idiomatic Vite asset reference and silently is not: Vite only rewrites that form
 for **relative** paths, so a bare package specifier is left alone, the images are

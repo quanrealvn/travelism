@@ -9,31 +9,30 @@ import {
   useMapEvents,
 } from 'react-leaflet'
 import L from 'leaflet'
-import markerIconUrl from 'leaflet/dist/images/marker-icon.png'
-import markerIconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
-import markerShadowUrl from 'leaflet/dist/images/marker-shadow.png'
 import type { PlaceResponse } from '../api/api-types'
 import { formatDuration, formatMoney } from '../api/money'
+import { allCategoryStyles, categoryStyle, markerHtml } from '../map/placeMarkers'
 
 /**
- * Leaflet resolves its default marker images relative to its own CSS, which a
- * bundler rewrites — so out of the box every pin is a broken image.
+ * Each place gets its own icon, because the label is part of it.
  *
- * These must be real `import` statements. Writing
- * `new URL('leaflet/dist/images/marker-icon.png', import.meta.url)` looks
- * equivalent but is not: Vite only rewrites that form for relative paths, so a
- * bare package specifier is left alone, the images are never emitted, and the
- * URLs 404 at runtime with no error in the console.
+ * A DivIcon rather than Leaflet's default image pin: the marker has to carry a
+ * colour, a glyph and the place name, and building that from HTML is far
+ * simpler than generating five tinted PNGs. It also means the label scales and
+ * truncates with CSS instead of being baked into an image.
  */
-const markerIcon = new L.Icon({
-  iconUrl: markerIconUrl,
-  iconRetinaUrl: markerIconRetinaUrl,
-  shadowUrl: markerShadowUrl,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-})
+function iconFor(place: PlaceResponse, selected: boolean): L.DivIcon {
+  return new L.DivIcon({
+    className: 'place-pin-wrapper',
+    html: markerHtml(place, selected),
+    // Sized generously and anchored at the dot's centre-bottom: the label
+    // overflows the box horizontally, which is fine, but the pin point must sit
+    // exactly on the coordinate.
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+    popupAnchor: [0, -28],
+  })
+}
 
 /**
  * A hollow marker for the not-yet-saved location, visibly different from the
@@ -126,22 +125,46 @@ export function TripMap({
 
       {places.map((place) => (
         <Marker
-          key={place.id}
+          key={`${place.id}-${place.category}-${place.status}-${place.id === selectedPlaceId}`}
           position={[place.lat, place.lng]}
-          icon={markerIcon}
+          icon={iconFor(place, place.id === selectedPlaceId)}
+          // The selected pin is lifted above the others so its label is not
+          // buried under a neighbour's.
+          zIndexOffset={place.id === selectedPlaceId ? 1000 : 0}
           eventHandlers={{ click: () => onSelectPlace?.(place.id) }}
-          opacity={selectedPlaceId && selectedPlaceId !== place.id ? 0.6 : 1}
         >
           <Popup>
             <strong>{place.name}</strong>
             <br />
-            {place.category} · {formatDuration(place.estimatedDurationMinutes)}
+            {categoryStyle(place.category).label} ·{' '}
+            {formatDuration(place.estimatedDurationMinutes)}
             <br />
             {formatMoney(place.estimatedCost, currency, currencyExponent)}
+            <br />
+            <span className="popup-status">{place.status}</span>
           </Popup>
         </Marker>
       ))}
+
+      <MapLegend />
     </MapContainer>
+  )
+}
+
+/**
+ * What the colours mean. Rendered outside the map panes so it does not pan
+ * with the tiles.
+ */
+function MapLegend() {
+  return (
+    <div className="map-legend" aria-label="Chú giải bản đồ">
+      {allCategoryStyles().map((style) => (
+        <span key={style.category} className="legend-item">
+          <span className="legend-swatch" style={{ background: style.color }} aria-hidden="true" />
+          {style.label}
+        </span>
+      ))}
+    </div>
   )
 }
 
