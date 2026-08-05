@@ -20,6 +20,7 @@ import type {
   TripSummaryResponse,
   UpdateItineraryItemRequest,
   UpdatePlaceRequest,
+  UpdateTripRequest,
   WeatherResponse,
 } from './api-types'
 import { fieldErrorText, problemText } from './labels'
@@ -131,6 +132,16 @@ export const api = {
   createPlace: (tripId: string, body: CreatePlaceRequest) =>
     request<PlaceResponse>(`/trips/${tripId}/places`, {
       method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  /**
+   * Only the fields you send are touched — the server distinguishes "absent"
+   * from an explicit null, so renaming a trip cannot clear its dates.
+   */
+  updateTrip: (tripId: string, body: UpdateTripRequest) =>
+    request<TripResponse>(`/trips/${tripId}`, {
+      method: 'PATCH',
       body: JSON.stringify(body),
     }),
 

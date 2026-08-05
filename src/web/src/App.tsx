@@ -24,6 +24,7 @@ import {
   useForgetTrip,
   useMyTrips,
   useUpdatePlace,
+  useUpdateTrip,
   useWeather,
 } from './api/hooks'
 import type {
@@ -54,10 +55,11 @@ import { TripList } from './components/TripList'
 import { Spinner } from './components/Spinner'
 import { useNarrowScreen } from './hooks/useNarrowScreen'
 import { mostRelevantTrip } from './trips/defaultTrip'
+import { TripTitle } from './components/TripTitle'
 import {
   IconCalendar,
-  IconChevron,
   IconClose,
+  IconCompass,
   IconInfo,
   IconPin,
   IconPlus,
@@ -369,6 +371,7 @@ function TripWorkspace({
   onBrowseTrips: () => void
 }) {
   const trip = useTrip(tripId)
+  const renameTrip = useUpdateTrip(tripId)
   const places = usePlaces(tripId)
   const createPlace = useCreatePlace(tripId)
   const deletePlace = useDeletePlace(tripId)
@@ -585,75 +588,84 @@ function TripWorkspace({
 
   return (
     <div className="app">
-      <header className="topbar">
-        {/*
-          The trip name is the switcher. A browser holding one trip has nothing
-          to switch to, so the chevron only appears once there is.
-        */}
-        <button
-          type="button"
-          className="topbar-trip"
-          onClick={onBrowseTrips}
-          aria-label={`Chuyến đi ${currentTrip.name}. Xem tất cả chuyến đi`}
-        >
-          <span className="topbar-main">
-            {/* The name is its own span: text-overflow does not apply to a
-                flex container, so putting the chevron beside it was enough to
-                make the title hard-cut mid-word with no ellipsis. */}
-            <span className="topbar-title">
-              <span className="topbar-title-text">{currentTrip.name}</span>
-              {tripCount > 1 && <IconChevron className="topbar-switch" />}
-            </span>
-            {/*
-              The day count comes first: it is the most useful number here and
-              a long destination used to push it off the end entirely.
-            */}
-            <span className="topbar-sub">
-              {/*
-                Live is the normal state and says nothing — a dot is enough.
-                Anything else is worth a word: this was the one signal in the
-                app carried by colour alone, on an 8px dot, with the label
-                hidden and the explanation in a hover title nobody on a phone
-                can reach.
-              */}
-              <span className={`sync sync-${syncStatus}`}>
-                <span className={syncStatus === 'live' ? 'visually-hidden' : undefined}>
-                  {SYNC_TITLE[syncStatus]}
-                </span>
-              </span>
-              <span className="topbar-sub-text">
-                {days.length} ngày · {currentTrip.destination}
-              </span>
-            </span>
+      {/*
+        `display: contents` on a phone, so the header and the tab bar lay out
+        against the app shell exactly as they did — the bar on top, the pill
+        floating at the bottom. From 1024px up this box becomes the sidebar
+        that holds both. It carries no backdrop-filter and no transform, which
+        is what lets the tab bar stay fixed to the viewport inside it.
+      */}
+      <div className="chrome">
+        <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            <IconCompass />
           </span>
-        </button>
+          <span className="brand-word">WeGo</span>
+        </div>
+
+        <div className="topbar-main">
+          {/*
+            The name is edited where it is displayed. It used to be the trip
+            switcher instead, which meant the one piece of text every trip gets
+            wrong at creation was also the only heading you must not click.
+          */}
+          <TripTitle
+            name={currentTrip.name}
+            onRename={(name) => renameTrip.mutateAsync({ name })}
+          />
+          {/*
+            The day count comes first: it is the most useful number here and
+            a long destination used to push it off the end entirely.
+          */}
+          <p className="topbar-sub">
+            {/*
+              Live is the normal state and says nothing — a dot is enough.
+              Anything else is worth a word: this was the one signal in the
+              app carried by colour alone, on an 8px dot, with the label
+              hidden and the explanation in a hover title nobody on a phone
+              can reach.
+            */}
+            <span className={`sync sync-${syncStatus}`}>
+              <span className={syncStatus === 'live' ? 'visually-hidden' : undefined}>
+                {SYNC_TITLE[syncStatus]}
+              </span>
+            </span>
+            <span className="topbar-sub-text">
+              {days.length} ngày · {currentTrip.destination}
+            </span>
+          </p>
+        </div>
 
         <div className="topbar-actions">
           {/*
-            An explicit control, not only a tappable heading. "Tap the title"
-            is not an affordance anybody goes looking for, so switching trips
-            was effectively hidden behind a guess.
+            Labels are carried in the markup at every width and only hidden
+            visually on a phone, so these keep their accessible names as icon
+            buttons and grow into full rows in the sidebar.
           */}
           {tripCount > 1 && (
             <button
               type="button"
-              className="icon-button"
+              className="nav-action"
               onClick={onBrowseTrips}
-              aria-label={`Đổi chuyến đi — đang giữ ${tripCount} chuyến`}
               title="Đổi chuyến đi"
             >
               <IconSwitch />
+              <span className="nav-action-label">
+                Đổi chuyến đi
+                <span className="nav-action-note">{tripCount} chuyến</span>
+              </span>
             </button>
           )}
 
           <button
             type="button"
-            className="icon-button"
+            className="nav-action"
             onClick={() => setSheet('trip')}
-            aria-label="Thông tin chuyến đi và mã mời"
             title="Thông tin chuyến đi"
           >
             <IconInfo />
+            <span className="nav-action-label">Thông tin &amp; mã mời</span>
           </button>
         </div>
       </header>
@@ -708,7 +720,8 @@ function TripWorkspace({
             )}
           </button>
         ))}
-      </nav>
+        </nav>
+      </div>
 
       <main className="content">
         {actionError && (

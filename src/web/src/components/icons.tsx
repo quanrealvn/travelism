@@ -28,6 +28,16 @@ function svgProps(className?: string) {
   }
 }
 
+/** The app's own mark: a compass needle. */
+export function IconCompass({ className }: IconProps) {
+  return (
+    <svg {...svgProps(className)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m15.5 8.5-2 5-5 2 2-5z" />
+    </svg>
+  )
+}
+
 /** Wishlist: a pin, because a wishlist is a set of places. */
 export function IconPin({ className }: IconProps) {
   return (

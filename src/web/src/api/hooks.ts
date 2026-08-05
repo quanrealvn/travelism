@@ -9,6 +9,7 @@ import type {
   PlaceStatus,
   UpdateItineraryItemRequest,
   UpdatePlaceRequest,
+  UpdateTripRequest,
 } from './api-types'
 
 /** All server state flows through TanStack Query (spec §8). */
@@ -308,6 +309,27 @@ export function useCreatePlace(tripId: string) {
       queryClient.setQueryData<PlaceResponse[]>(queryKeys.places(tripId), (current) =>
         current ? [...current, created] : [created],
       )
+    },
+  })
+}
+
+/**
+ * Editing the trip itself — today only its name, from the sidebar.
+ *
+ * The response replaces the cached trip wholesale rather than merging the
+ * fields that were sent: renaming can move the trip in `/trips/mine` ordering,
+ * and the server is the authority on what the row now says.
+ */
+export function useUpdateTrip(tripId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (body: UpdateTripRequest) => api.updateTrip(tripId, body),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(queryKeys.trip(tripId), updated)
+      // The switcher list carries the name too, and it is what the user looks
+      // at next to confirm the rename took.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.myTrips })
     },
   })
 }

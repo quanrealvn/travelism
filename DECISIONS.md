@@ -693,3 +693,46 @@ expects to be a control, and choosing a trip meant reaching for the topmost row
 of a sheet. There is now an explicit switch button beside the title, shown only
 when the device is holding more than one trip, labelled with how many it is
 holding.
+
+### D61 — The trip name is renamed where it is displayed
+
+A trip is named in the first thirty seconds of existing, before anyone has
+picked dates or decided what the trip is, and `PATCH /trips/{id}` had accepted a
+new name since milestone 1 — but nothing in the client ever called it. "Chuyến
+đi mới" was permanent.
+
+The heading is a button that becomes an input in place. Enter or blur commits,
+Escape cancels, and a rejected save keeps the field open with what you typed
+still in it. That last part is the whole point: a rename that swallows the new
+name and shows the old one back is worse than no rename at all.
+
+Escape is handled on keydown, which fires before the blur it causes — otherwise
+the blur handler saved the edit that had just been cancelled.
+
+### D62 — Desktop navigation is a sidebar
+
+The tabs were right-aligned along the top. At 1440px that put ~750px of empty
+chrome between the trip name and the first tab, and it put this app's three
+primary sections exactly where every dashboard puts account and settings.
+Neither is a spacing problem, so no amount of adjusting the gap was going to fix
+it — the pattern was wrong.
+
+A rail down the left is what this shape of product uses. It gives the trip's
+identity, its switcher and its sections one column to share rather than one line
+to compete for, and it leaves the content area free to be content. The phone
+keeps the floating pill, which was never the problem.
+
+The two chrome elements stay separate in the markup and are joined by a wrapper
+that is `display: contents` below the breakpoint. A real box there at phone
+widths would become the containing block for the tab bar's `position: fixed` and
+pin it to the header — the same trap that `backdrop-filter` set earlier.
+
+### D63 — The audit tests 320px
+
+It ran at 390, 820 and 1440 — the widths this app was composed for, which is
+exactly why they were the wrong ones to trust. 320 is the floor the industry
+still designs to, and it is where a layout that merely works at 390 comes apart.
+
+Adding it found no new failures, which is itself the finding: the overview strip
+wraps to two rows and the cards hold. The value is that it cannot silently stop
+being true.

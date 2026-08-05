@@ -433,14 +433,12 @@ button[type='submit']:hover:not(:disabled),
   min-width: 0;
 }
 
+/* The trips screen's heading. A trip's own name is `.trip-title`, which is a
+   control rather than a label. */
 .topbar-title {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
   font-size: var(--t-xl);
   font-weight: var(--fw-semibold);
   line-height: var(--lh-tight);
-  /* The trip name is the anchor; truncating beats wrapping the bar to two rows. */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -456,11 +454,9 @@ button[type='submit']:hover:not(:disabled),
 }
 
 /*
- * text-overflow does not apply to a flex container, so both of these lines
- * were hard-cutting mid-word with no ellipsis. It applies to a block child,
- * which is what these are.
+ * text-overflow does not apply to a flex container, and this line is inside
+ * one. It applies to a block child, which is what this is.
  */
-.topbar-title-text,
 .topbar-sub-text {
   min-width: 0;
   overflow: hidden;
@@ -484,31 +480,185 @@ button[type='submit']:hover:not(:disabled),
   padding-bottom: calc(var(--nav-clear) + var(--s-8) + env(safe-area-inset-bottom));
 }
 
-/* The whole trip block is the switcher, so it behaves as one control. */
-.topbar-trip {
-  flex: 1;
-  /* Buttons centre their content; a title bar reads from the left. */
-  justify-content: flex-start;
-  gap: 0;
+/*
+ * On a phone the chrome is two independent pieces — a bar on top, a pill
+ * floating at the bottom — so this box generates none of its own. It only
+ * becomes a container at the width where it becomes the sidebar.
+ */
+.chrome {
+  display: contents;
+}
+
+/* The product's own mark. Nowhere on a phone, where the trip name needs the
+   width far more than the app name does. */
+.brand {
+  display: none;
+}
+
+/* ==========================================================================
+   Trip title — renamed in place
+   ========================================================================== */
+
+.trip-title {
   min-width: 0;
-  min-height: 0;
-  padding: var(--s-1) var(--s-2);
+  font-size: var(--t-xl);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+}
+
+.trip-title-button {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  min-width: 0;
+  /* A real control now, so it answers to the same 44px floor as every other
+     one — it was 33px while it was only a heading that happened to be
+     clickable. */
+  min-height: var(--tap);
+  /* Top-aligned, so the pencil stays on the first line as the name wraps. */
+  align-items: flex-start;
+  padding: var(--s-2);
+  /* Pulled back by its own padding so the text starts on the same line as
+     everything below it, despite being inside a button. */
   margin-left: calc(-1 * var(--s-2));
+  font: inherit;
   color: inherit;
   text-align: left;
   background: none;
   border: none;
+  border-radius: var(--r-sm);
 }
 
-.topbar-trip:hover:not(:disabled) {
+.trip-title-button:hover:not(:disabled) {
   background: var(--c-chrome-raised);
 }
 
-.topbar-switch {
+.trip-title-button:hover .trip-title-pencil {
+  color: var(--c-brand);
+  opacity: 1;
+}
+
+/*
+ * Two lines before it truncates. The trip name is the one string on the screen
+ * that has to be readable in full — it is how you know which of your trips you
+ * are looking at — and one line cut "Mộc Châu 3 ngày 2 đêm" at "3 ngày …" on a
+ * phone and at "2 đ…" in the sidebar.
+ */
+.trip-title-text {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/*
+ * Dimmed, but always drawn. A pencil that only appears on hover does not exist
+ * on a touch screen, which is most of this app's traffic — and the whole point
+ * of moving the rename here was that nobody could find it.
+ */
+.trip-title-pencil {
+  flex: 0 0 auto;
   width: 1rem;
   height: 1rem;
+  /* Optically centred on the first line's cap height, since the button is
+     top-aligned so the name can wrap past it. */
+  margin-top: 0.15em;
+  color: var(--c-ink-3);
+  opacity: 0.6;
+  transition:
+    color var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
+}
+
+/*
+ * The field takes a whole line and the buttons wrap under it. Sharing one row
+ * with them left about 140px of input in the sidebar — narrow enough that a
+ * normal trip name scrolled out of its own field while being typed.
+ */
+.trip-rename {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.trip-rename-input {
+  flex: 1 1 100%;
+  min-width: 0;
+  /* Matches the heading it replaces, so committing does not make the line jump. */
+  font: inherit;
+  font-size: var(--t-lg);
+  padding: var(--s-1) var(--s-2);
+}
+
+.trip-rename-actions {
+  display: flex;
   flex: 0 0 auto;
+  align-items: center;
+  gap: var(--s-1);
+  margin-left: auto;
+}
+
+.trip-rename-error {
+  display: block;
+  margin-top: var(--s-1);
+  font-size: var(--t-xs);
+  font-weight: var(--fw-regular);
+  color: var(--c-danger);
+}
+
+/* ==========================================================================
+   Nav actions — icon buttons on a phone, labelled rows in the sidebar
+   ========================================================================== */
+
+.nav-action {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0;
   color: var(--c-ink-2);
+  background: var(--c-chrome-solid);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  transition:
+    color var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+.nav-action:hover:not(:disabled) {
+  color: var(--c-brand);
+  background: var(--c-tile);
+  border-color: var(--c-brand-border);
+}
+
+.nav-action svg {
+  flex: 0 0 auto;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/*
+ * Carried in the markup at every width and hidden visually below the sidebar
+ * breakpoint, rather than rendered conditionally. `display: none` would take
+ * these out of the accessibility tree too, leaving two unnamed icon buttons in
+ * the one place a screen reader needs names most.
+ */
+.nav-action-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Content with no tab bar under it — the trips screen. */
@@ -3137,114 +3287,185 @@ button .spinner {
 
 @media (min-width: 64rem) {
   :root {
-    /* One bar now: the title and the tabs share a row. */
-    --sticky-top: var(--header-h);
-    --map-h: calc(100dvh - 10rem);
+    --sidebar-w: 17rem;
+    /* The content column starts at the top of the viewport: there is no bar
+       above it any more, only the rail beside it. */
+    --sticky-top: 0rem;
+    --map-h: calc(100dvh - 7rem);
   }
 
   /*
-   * Title and navigation on one line.
+   * A sidebar, not a top bar.
    *
-   * As two stacked bars, the second held three tabs against 1200px of empty
-   * white — a strip whose only content was left-aligned in its first sixth.
-   * Side by side they fill the width and read as one app bar.
+   * Three sections right-aligned along the top put this app's primary
+   * navigation exactly where every dashboard puts account and settings, and
+   * left ~750px of empty chrome between the trip name and the first tab. A
+   * rail down the left is what this shape of product uses — Fly.io, Linear and
+   * Wanderlog all do — and it gives the trip's identity, its switcher and its
+   * sections one column to share instead of one line to fight over.
    */
   .app {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    align-items: start;
   }
 
-  .app > .topbar {
-    grid-area: 1 / 1 / 2 / 2;
-  }
-
-  .app > .tabbar {
-    grid-area: 1 / 2 / 2 / 3;
-  }
-
-  .app > .content {
-    grid-area: 2 / 1 / 3 / 3;
-  }
-
-  /* The title takes only what it needs, so the tabs start beside it rather
-     than being pushed to the far edge of the window. */
-  .topbar-trip {
-    flex: 0 1 auto;
-    max-width: 22rem;
-  }
-
-  .content {
-    padding: var(--s-6) var(--s-8) var(--s-10);
+  /* Sticky rather than fixed: it holds its own column in the grid, so the
+     content beside it never has to be padded around it. */
+  .chrome {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    background: var(--c-chrome-solid);
+    border-right: 1px solid var(--c-line);
   }
 
   .topbar {
-    gap: var(--s-6);
-    padding-inline: var(--s-8);
+    position: static;
+    display: block;
+    padding: var(--s-5) var(--s-4) var(--s-4);
+    background: none;
+    /* The rail is opaque; frosting it would only blur the page's own margin. */
+    backdrop-filter: none;
+    border-bottom: 1px solid var(--c-line);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-bottom: var(--s-5);
+    font-size: var(--t-md);
+    font-weight: var(--fw-bold);
+    letter-spacing: -0.01em;
+    color: var(--c-ink);
+  }
+
+  .brand-mark {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    color: var(--c-brand-ink);
+    background: var(--c-brand);
+    border-radius: var(--r-sm);
+  }
+
+  .brand-mark svg {
+    width: 1.125rem;
+    height: 1.125rem;
   }
 
   .topbar-main {
-    flex: 0 1 auto;
+    margin-bottom: var(--s-3);
   }
 
-  /*
-   * A real type scale. The trip name was 17px at 390 and 17px at 1440 — about
-   * 1.5% of the width — and the only moment of scale anywhere in the app was
-   * one number on the balance card. Contrast in type size is most of what
-   * separates a product from an internal tool.
-   */
-  .topbar-title {
-    font-size: var(--t-2xl);
-    letter-spacing: -0.02em;
+  /* Smaller than the phone's, not larger: in a 17rem rail the trip name is an
+     identity line, and the page's own section heading carries the scale. */
+  .trip-title {
+    font-size: var(--t-lg);
+    letter-spacing: -0.01em;
   }
+
 
   .topbar-sub {
-    font-size: var(--t-sm);
+    font-size: var(--t-xs);
+  }
+
+  .topbar-actions {
+    display: grid;
+    gap: var(--s-1);
+  }
+
+  .nav-action {
+    justify-content: flex-start;
+    padding: 0 var(--s-2);
+    font-size: var(--t-xs);
+    font-weight: var(--fw-medium);
+    background: none;
+    border-color: transparent;
+  }
+
+  .nav-action:hover:not(:disabled) {
+    background: var(--c-tile);
+    border-color: transparent;
+  }
+
+  .nav-action svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .nav-action-label {
+    position: static;
+    display: flex;
+    flex: 1;
+    align-items: baseline;
+    gap: var(--s-2);
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
+  }
+
+  .nav-action-note {
+    margin-left: auto;
+    font-size: var(--t-2xs);
+    font-weight: var(--fw-regular);
+    color: var(--c-ink-3);
   }
 
   /*
-   * The thumb no longer rules: the floating pill becomes a segmented group
-   * sitting in a bar under the title, left-aligned with the content.
+   * The sections: full-width rows down the rail, each with its count against
+   * the right edge. The active one keeps the violet fill it has on a phone, so
+   * "where am I" reads identically at both widths.
    */
   .tabbar {
-    position: sticky;
-    top: 0;
-    bottom: auto;
-    left: auto;
-    right: auto;
+    position: static;
     display: flex;
-    align-items: center;
-    justify-content: flex-end;
+    flex: 1;
+    flex-direction: column;
+    align-items: stretch;
     gap: var(--s-1);
-    padding: var(--s-2) var(--s-8) var(--s-2) 0;
-    background: var(--c-chrome);
-    backdrop-filter: blur(22px) saturate(170%);
+    padding: var(--s-3);
+    overflow-y: auto;
+    background: none;
+    backdrop-filter: none;
     border: none;
-    border-bottom: 1px solid var(--c-line);
     border-radius: 0;
     box-shadow: none;
   }
 
   .tabbar-item {
     flex-direction: row;
-    gap: var(--s-2);
+    justify-content: flex-start;
+    gap: var(--s-3);
     min-height: var(--tap);
-    padding: 0 var(--s-4);
-    font-size: var(--t-sm);
+    padding: 0 var(--s-3);
+    border-radius: var(--r-md);
+    font-size: var(--t-md);
   }
 
   .tabbar-item:hover:not(:disabled) {
-    background: var(--c-surface);
+    background: var(--c-surface-sunken);
   }
 
   .tabbar-item[aria-selected='true'] {
-    font-size: var(--t-sm);
+    font-size: var(--t-md);
   }
 
   .tabbar-icon,
   .tabbar-icon svg {
-    width: 1.0625rem;
-    height: 1.0625rem;
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  .tabbar-label {
+    flex: 1;
+    text-align: left;
   }
 
   .tabbar-count {

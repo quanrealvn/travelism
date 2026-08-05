@@ -335,6 +335,21 @@ export interface CreatePlaceRequest {
 
 export type UpdatePlaceRequest = Partial<CreatePlaceRequest>
 
+/**
+ * Every field is optional and each is patched independently: the server tells
+ * "absent" apart from an explicit null, so sending `{ name }` renames the trip
+ * without touching its dates, budget, or destination.
+ */
+export interface UpdateTripRequest {
+  name?: string
+  destination?: string
+  startDate?: IsoDate | null
+  endDate?: IsoDate | null
+  timeZoneId?: string
+  budgetAmount?: number | null
+  status?: TripStatus
+}
+
 /** RFC 7807 body with the stable `code` extension the server always sends. */
 export interface ProblemDetails {
   type?: string

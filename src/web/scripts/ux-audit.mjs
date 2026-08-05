@@ -19,7 +19,14 @@ const BASE = process.env.WEGO_URL ?? 'http://localhost:5080'
 const OUT = process.argv[2] ?? './ux'
 mkdirSync(OUT, { recursive: true })
 
+/*
+ * 320 is the floor the whole industry still designs to — an iPhone SE, a
+ * Galaxy A in display-zoom mode — and it is where a layout that merely "works
+ * on mobile" at 390 falls apart. The other three are the sizes this app was
+ * actually composed for.
+ */
 const VIEWPORTS = [
+  { name: 'small', width: 320, height: 568 },
   { name: 'mobile', width: 390, height: 844 },
   { name: 'tablet', width: 820, height: 1180 },
   { name: 'desktop', width: 1440, height: 900 },
@@ -199,7 +206,7 @@ for (const vp of VIEWPORTS) {
       }
 
       await inSheet(page, vp, 'add-place', /thêm địa điểm/i)
-      await inSheet(page, vp, 'trip-sheet', /thông tin chuyến đi/i)
+      await inSheet(page, vp, 'trip-sheet', /thông tin.*mã mời/i)
 
       // A card opens in place, and the map is one more tap from inside it.
       const firstPlace = page.locator('.place-head').first()
@@ -241,8 +248,10 @@ for (const vp of VIEWPORTS) {
     }
   }
 
-  // The trips screen: the switcher, with both its sections populated.
-  const switcher = page.getByRole('button', { name: /xem tất cả chuyến đi/i })
+  // The trips screen: the switcher, with both its sections populated. It is an
+  // explicit button — the trip name used to be the switcher, and the name is
+  // now the rename control instead.
+  const switcher = page.getByRole('button', { name: /đổi chuyến đi/i })
   if (await switcher.count()) {
     await switcher.first().click()
     await page.waitForTimeout(900)
