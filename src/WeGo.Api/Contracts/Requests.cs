@@ -33,6 +33,9 @@ public sealed record UpdateTripRequest(
 /// <summary>A pasted map link or coordinate pair to turn into a location.</summary>
 public sealed record ResolveLinkRequest(string? Url);
 
+/// <summary>An explicit place status change (spec §4). SkipReason applies only to Skipped.</summary>
+public sealed record ChangePlaceStatusRequest(string? Status, string? SkipReason);
+
 public sealed record CreatePlaceRequest(
     string? Name,
     double? Lat,

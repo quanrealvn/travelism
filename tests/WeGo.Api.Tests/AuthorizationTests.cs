@@ -40,6 +40,9 @@ public sealed class AuthorizationTests(WeGoAppFactory factory) : IClassFixture<W
         ("GET", "/trips/{tripId}/places/{placeId}"),
         ("PATCH", "/trips/{tripId}/places/{placeId}"),
         ("DELETE", "/trips/{tripId}/places/{placeId}"),
+        ("POST", "/trips/{tripId}/places/{placeId}/like"),
+        ("DELETE", "/trips/{tripId}/places/{placeId}/like"),
+        ("POST", "/trips/{tripId}/places/{placeId}/status"),
     ];
 
     [Theory]

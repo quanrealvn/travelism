@@ -3,13 +3,15 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ApiError } from './api/client'
 import {
   queryKeys,
+  useChangePlaceStatus,
   useCreatePlace,
   useDeletePlace,
   usePlaces,
   useSession,
+  useToggleLike,
   useTrip,
 } from './api/hooks'
-import type { CreatePlaceRequest, TripSessionResponse } from './api/api-types'
+import type { CreatePlaceRequest, PlaceStatus, TripSessionResponse } from './api/api-types'
 import { StartScreen } from './components/StartScreen'
 import { TripMap } from './components/TripMap'
 import type { LatLng } from './components/TripMap'
@@ -45,9 +47,11 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   const places = usePlaces(tripId)
   const createPlace = useCreatePlace(tripId)
   const deletePlace = useDeletePlace(tripId)
+  const toggleLike = useToggleLike(tripId, memberId)
+  const changeStatus = useChangePlaceStatus(tripId)
 
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   // The location being composed, shared by the map and the form so a click on
   // one shows up on the other.
   const [draftLocation, setDraftLocation] = useState<LatLng | null>(null)
@@ -72,15 +76,38 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
     createPlace.mutate(body)
   }
 
+  function handleChangeStatus(placeId: string, status: PlaceStatus) {
+    setActionError(null)
+    // A skip reason is optional (spec §4); prompting keeps it to one click when
+    // the traveller has nothing to add.
+    const skipReason =
+      status === 'Skipped'
+        ? (window.prompt('Vì sao bỏ qua? (có thể để trống)') ?? undefined)
+        : undefined
+
+    changeStatus.mutate(
+      { placeId, status, skipReason: skipReason?.trim() === '' ? undefined : skipReason },
+      {
+        onError: (error) => {
+          setActionError(
+            error instanceof ApiError && error.code === 'INVALID_STATUS_TRANSITION'
+              ? error.message
+              : 'Không đổi được trạng thái.',
+          )
+        },
+      },
+    )
+  }
+
   function handleDelete(placeId: string) {
-    setDeleteError(null)
+    setActionError(null)
     deletePlace.mutate(
       { placeId },
       {
         onError: (error) => {
           // PLACE_IN_USE means the place is on the itinerary; milestone 3 adds
           // the confirm-and-force flow, so for now the reason is surfaced.
-          setDeleteError(
+          setActionError(
             error instanceof ApiError && error.code === 'PLACE_IN_USE'
               ? `${error.message}`
               : 'Không xoá được địa điểm.',
@@ -147,20 +174,32 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
         <aside className="side-panel">
           <h2>Wishlist ({currentPlaces.length})</h2>
 
-          {deleteError && (
+          {actionError && (
             <p className="form-error" role="alert">
-              {deleteError}
+              {actionError}
             </p>
           )}
 
           <PlaceList
             places={currentPlaces}
+            members={currentTrip.members}
+            myMemberId={memberId}
             currency={currentTrip.currency}
             currencyExponent={currentTrip.currencyExponent}
             selectedPlaceId={selectedPlaceId}
             deletingPlaceId={deletePlace.isPending ? deletePlace.variables.placeId : null}
+            busyPlaceId={
+              toggleLike.isPending
+                ? toggleLike.variables.placeId
+                : changeStatus.isPending
+                  ? changeStatus.variables.placeId
+                  : null
+            }
+            tripUnderway={currentTrip.status !== 'Planning'}
             onSelect={setSelectedPlaceId}
             onDelete={handleDelete}
+            onToggleLike={(placeId, liked) => toggleLike.mutate({ placeId, liked })}
+            onChangeStatus={handleChangeStatus}
           />
 
           <PlaceForm

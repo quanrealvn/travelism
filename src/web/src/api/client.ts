@@ -4,6 +4,7 @@ import type {
   GeocodeResultResponse,
   JoinTripRequest,
   PlaceResponse,
+  PlaceStatus,
   ProblemDetails,
   TripResponse,
   TripSessionResponse,
@@ -105,6 +106,18 @@ export const api = {
     request<PlaceResponse>(`/trips/${tripId}/places/${placeId}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
+    }),
+
+  likePlace: (tripId: string, placeId: string) =>
+    request<PlaceResponse>(`/trips/${tripId}/places/${placeId}/like`, { method: 'POST' }),
+
+  unlikePlace: (tripId: string, placeId: string) =>
+    request<PlaceResponse>(`/trips/${tripId}/places/${placeId}/like`, { method: 'DELETE' }),
+
+  changePlaceStatus: (tripId: string, placeId: string, status: PlaceStatus, skipReason?: string) =>
+    request<PlaceResponse>(`/trips/${tripId}/places/${placeId}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status, skipReason: skipReason ?? null }),
     }),
 
   deletePlace: (tripId: string, placeId: string, force = false) =>

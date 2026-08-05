@@ -1,25 +1,37 @@
-import type { PlaceResponse } from '../api/api-types'
+import type { MemberResponse, PlaceResponse, PlaceStatus } from '../api/api-types'
 import { formatDuration, formatMoney } from '../api/money'
 
 interface PlaceListProps {
   places: PlaceResponse[]
+  members: MemberResponse[]
+  myMemberId: string
   currency: string
   currencyExponent: number
   selectedPlaceId: string | null
   deletingPlaceId: string | null
+  busyPlaceId: string | null
+  tripUnderway: boolean
   onSelect: (placeId: string) => void
   onDelete: (placeId: string) => void
+  onToggleLike: (placeId: string, liked: boolean) => void
+  onChangeStatus: (placeId: string, status: PlaceStatus) => void
 }
 
-export function PlaceList({
-  places,
-  currency,
-  currencyExponent,
-  selectedPlaceId,
-  deletingPlaceId,
-  onSelect,
-  onDelete,
-}: PlaceListProps) {
+/**
+ * The wishlist reads as the decision it represents: what nobody has backed yet,
+ * what someone wants, and what the group has actually agreed on.
+ */
+const GROUPS: { status: PlaceStatus; title: string; hint: string }[] = [
+  { status: 'Confirmed', title: 'Đã chốt', hint: 'Cả nhóm đều thích' },
+  { status: 'Shortlist', title: 'Đang cân nhắc', hint: 'Có người thích' },
+  { status: 'Idea', title: 'Ý tưởng', hint: 'Chưa ai thích' },
+  { status: 'Visited', title: 'Đã đi', hint: '' },
+  { status: 'Skipped', title: 'Đã bỏ qua', hint: '' },
+]
+
+export function PlaceList(props: PlaceListProps) {
+  const { places, members } = props
+
   if (places.length === 0) {
     return (
       <p className="empty-state">
@@ -29,36 +41,182 @@ export function PlaceList({
   }
 
   return (
-    <ul className="place-list" aria-label="Danh sách địa điểm">
-      {places.map((place) => (
-        <li
-          key={place.id}
-          className={place.id === selectedPlaceId ? 'place selected' : 'place'}
-          data-testid={`place-${place.id}`}
+    <div className="wishlist">
+      {GROUPS.map((group) => {
+        const inGroup = places.filter((place) => place.status === group.status)
+        if (inGroup.length === 0) {
+          return null
+        }
+
+        return (
+          <section key={group.status} className="wishlist-group">
+            <h3 className={`group-title group-${group.status.toLowerCase()}`}>
+              {group.title} <span className="group-count">{inGroup.length}</span>
+              {group.hint && <span className="group-hint">{group.hint}</span>}
+            </h3>
+
+            <ul className="place-list" aria-label={group.title}>
+              {inGroup.map((place) => (
+                <PlaceRow
+                  key={place.id}
+                  place={place}
+                  memberCount={members.length}
+                  {...props}
+                />
+              ))}
+            </ul>
+          </section>
+        )
+      })}
+    </div>
+  )
+}
+
+function PlaceRow({
+  place,
+  memberCount,
+  members,
+  myMemberId,
+  currency,
+  currencyExponent,
+  selectedPlaceId,
+  deletingPlaceId,
+  busyPlaceId,
+  tripUnderway,
+  onSelect,
+  onDelete,
+  onToggleLike,
+  onChangeStatus,
+}: PlaceListProps & { place: PlaceResponse; memberCount: number }) {
+  const likedByMe = place.likedByMemberIds.includes(myMemberId)
+  const likeCount = place.likedByMemberIds.length
+  const busy = busyPlaceId === place.id
+
+  const likedNames = place.likedByMemberIds
+    .map((id) => members.find((member) => member.id === id)?.displayName)
+    .filter((name): name is string => Boolean(name))
+
+  return (
+    <li
+      className={place.id === selectedPlaceId ? 'place selected' : 'place'}
+      data-testid={`place-${place.id}`}
+    >
+      <button
+        type="button"
+        className={likedByMe ? 'place-like liked' : 'place-like'}
+        onClick={() => onToggleLike(place.id, likedByMe)}
+        disabled={busy}
+        aria-pressed={likedByMe}
+        aria-label={likedByMe ? `Bỏ thích ${place.name}` : `Thích ${place.name}`}
+        title={likedNames.length > 0 ? `Thích bởi: ${likedNames.join(', ')}` : 'Chưa ai thích'}
+      >
+        {likedByMe ? '♥' : '♡'}
+        <span className="place-like-count">
+          {likeCount}/{memberCount}
+        </span>
+      </button>
+
+      <button type="button" className="place-main" onClick={() => onSelect(place.id)}>
+        <span className="place-name">{place.name}</span>
+        <span className="place-meta">
+          {place.category} · {formatDuration(place.estimatedDurationMinutes)} ·{' '}
+          {formatMoney(place.estimatedCost, currency, currencyExponent)}
+        </span>
+        <span className="place-slots">{place.timeSlots.join(' · ')}</span>
+        {place.openHoursText && <span className="place-hours">{place.openHoursText}</span>}
+        {place.skipReason && <span className="place-skip-reason">Lý do: {place.skipReason}</span>}
+      </button>
+
+      <div className="place-actions">
+        <PlaceStatusActions
+          place={place}
+          busy={busy}
+          tripUnderway={tripUnderway}
+          onChangeStatus={onChangeStatus}
+        />
+
+        <a
+          className="place-external"
+          href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
+          target="_blank"
+          rel="noreferrer noopener"
+          title="Mở trong Google Maps để xem ảnh và đánh giá"
         >
-          <button type="button" className="place-main" onClick={() => onSelect(place.id)}>
-            <span className="place-name">{place.name}</span>
-            <span className="place-meta">
-              {place.category} · {formatDuration(place.estimatedDurationMinutes)} ·{' '}
-              {formatMoney(place.estimatedCost, currency, currencyExponent)}
-            </span>
-            <span className="place-slots">{place.timeSlots.join(' · ')}</span>
-            {place.openHoursText && <span className="place-hours">{place.openHoursText}</span>}
-          </button>
+          ↗
+        </a>
 
-          <span className={`status status-${place.status.toLowerCase()}`}>{place.status}</span>
+        <button
+          type="button"
+          className="place-delete"
+          onClick={() => onDelete(place.id)}
+          disabled={deletingPlaceId === place.id}
+          aria-label={`Xoá ${place.name}`}
+        >
+          {deletingPlaceId === place.id ? '…' : '✕'}
+        </button>
+      </div>
+    </li>
+  )
+}
 
-          <button
-            type="button"
-            className="place-delete"
-            onClick={() => onDelete(place.id)}
-            disabled={deletingPlaceId === place.id}
-            aria-label={`Xoá ${place.name}`}
-          >
-            {deletingPlaceId === place.id ? '…' : '✕'}
-          </button>
-        </li>
+/**
+ * Only the transitions spec §4 permits from the current status are offered.
+ * mirror of server rule — the server re-checks every edge and answers 409
+ * INVALID_STATUS_TRANSITION; hiding the impossible ones just avoids offering a
+ * button that could only fail.
+ */
+function PlaceStatusActions({
+  place,
+  busy,
+  tripUnderway,
+  onChangeStatus,
+}: {
+  place: PlaceResponse
+  busy: boolean
+  tripUnderway: boolean
+  onChangeStatus: (placeId: string, status: PlaceStatus) => void
+}) {
+  const actions: { status: PlaceStatus; label: string; title: string }[] = []
+
+  if (place.status === 'Shortlist') {
+    actions.push({
+      status: 'Confirmed',
+      label: 'Chốt',
+      title: 'Chốt luôn, không cần đợi mọi người thích',
+    })
+  }
+
+  if (place.status === 'Confirmed') {
+    actions.push({ status: 'Shortlist', label: 'Bỏ chốt', title: 'Đưa lại vào danh sách cân nhắc' })
+
+    if (tripUnderway) {
+      actions.push({ status: 'Visited', label: 'Đã đi', title: 'Đánh dấu đã đến nơi này' })
+      actions.push({ status: 'Skipped', label: 'Bỏ qua', title: 'Đánh dấu đã bỏ qua' })
+    }
+  }
+
+  if (place.status === 'Visited') {
+    actions.push({ status: 'Skipped', label: 'Sửa: bỏ qua', title: 'Sửa lại thành đã bỏ qua' })
+  }
+
+  if (place.status === 'Skipped') {
+    actions.push({ status: 'Visited', label: 'Sửa: đã đi', title: 'Sửa lại thành đã đi' })
+  }
+
+  return (
+    <>
+      {actions.map((action) => (
+        <button
+          key={action.status}
+          type="button"
+          className="place-status-action"
+          onClick={() => onChangeStatus(place.id, action.status)}
+          disabled={busy}
+          title={action.title}
+        >
+          {action.label}
+        </button>
       ))}
-    </ul>
+    </>
   )
 }

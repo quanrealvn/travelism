@@ -232,12 +232,116 @@ legend {
 
 .place {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.5rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 0.5rem 0.6rem;
+}
+
+/* Wishlist grouping */
+.wishlist-group {
+  margin-bottom: 1.1rem;
+}
+
+.group-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 0.4rem;
+}
+
+.group-confirmed {
+  color: #17563f;
+}
+
+.group-count {
+  background: #eef1f0;
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.72rem;
+}
+
+.group-confirmed .group-count {
+  background: #dff0e8;
+}
+
+.group-hint {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+/* Voting */
+.place-like {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  background: none;
+  color: var(--muted);
+  padding: 0.25rem 0.35rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-width: 2.6rem;
+}
+
+.place-like.liked {
+  color: #c2185b;
+  border-color: #f3c6d8;
+  background: #fdeef4;
+}
+
+.place-like-count {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.place-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.place-status-action {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--line);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.45rem;
+  white-space: nowrap;
+}
+
+.place-status-action:hover:not(:disabled) {
+  background: #eef4f2;
+}
+
+.place-external {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.95rem;
+  padding: 0.2rem 0.3rem;
+  border-radius: var(--radius);
+}
+
+.place-external:hover {
+  color: var(--accent);
+  background: #eef4f2;
+}
+
+.place-skip-reason {
+  font-size: 0.75rem;
+  color: var(--danger);
 }
 
 .place.selected {

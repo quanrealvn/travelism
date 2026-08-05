@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
-import type { CreatePlaceRequest, PlaceResponse, UpdatePlaceRequest } from './api-types'
+import type {
+  CreatePlaceRequest,
+  PlaceResponse,
+  PlaceStatus,
+  UpdatePlaceRequest,
+} from './api-types'
 
 /** All server state flows through TanStack Query (spec §8). */
 export const queryKeys = {
@@ -96,6 +101,77 @@ export function useUpdatePlace(tripId: string) {
   return useMutation({
     mutationFn: ({ placeId, body }: { placeId: string; body: UpdatePlaceRequest }) =>
       api.updatePlace(tripId, placeId, body),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<PlaceResponse[]>(queryKeys.places(tripId), (current) =>
+        current?.map((place) => (place.id === updated.id ? updated : place)),
+      )
+    },
+  })
+}
+
+/**
+ * Toggling a like is optimistic: the vote flips immediately and rolls back if
+ * the server refuses. The status that comes back may differ from a naive guess
+ * — the server owns promotion to Confirmed — so the response replaces the row
+ * wholesale rather than being merged.
+ */
+export function useToggleLike(tripId: string, myMemberId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ placeId, liked }: { placeId: string; liked: boolean }) =>
+      liked ? api.unlikePlace(tripId, placeId) : api.likePlace(tripId, placeId),
+
+    onMutate: async ({ placeId, liked }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.places(tripId) })
+      const previous = queryClient.getQueryData<PlaceResponse[]>(queryKeys.places(tripId))
+
+      queryClient.setQueryData<PlaceResponse[]>(queryKeys.places(tripId), (current) =>
+        current?.map((place) =>
+          place.id === placeId
+            ? {
+                ...place,
+                // mirror of server rule: only the vote is predicted here. The
+                // resulting status is the server's call and arrives with the response.
+                likedByMemberIds: liked
+                  ? place.likedByMemberIds.filter((id) => id !== myMemberId)
+                  : [...place.likedByMemberIds, myMemberId],
+              }
+            : place,
+        ),
+      )
+
+      return { previous }
+    },
+
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.places(tripId), context.previous)
+      }
+    },
+
+    onSuccess: (updated) => {
+      queryClient.setQueryData<PlaceResponse[]>(queryKeys.places(tripId), (current) =>
+        current?.map((place) => (place.id === updated.id ? updated : place)),
+      )
+    },
+  })
+}
+
+export function useChangePlaceStatus(tripId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      placeId,
+      status,
+      skipReason,
+    }: {
+      placeId: string
+      status: PlaceStatus
+      skipReason?: string
+    }) => api.changePlaceStatus(tripId, placeId, status, skipReason),
+
     onSuccess: (updated) => {
       queryClient.setQueryData<PlaceResponse[]>(queryKeys.places(tripId), (current) =>
         current?.map((place) => (place.id === updated.id ? updated : place)),

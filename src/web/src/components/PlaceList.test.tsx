@@ -1,8 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { PlaceList } from './PlaceList'
-import type { PlaceResponse } from '../api/api-types'
+import type { MemberResponse, PlaceResponse } from '../api/api-types'
+
+const ME = 'member-1'
+const OTHER = 'member-2'
+
+const MEMBERS: MemberResponse[] = [
+  { id: ME, displayName: 'Quan', role: 'Owner', createdAt: '2026-03-01T00:00:00+00:00' },
+  { id: OTHER, displayName: 'Linh', role: 'Editor', createdAt: '2026-03-01T00:00:00+00:00' },
+]
 
 function place(overrides: Partial<PlaceResponse> = {}): PlaceResponse {
   return {
@@ -22,131 +30,182 @@ function place(overrides: Partial<PlaceResponse> = {}): PlaceResponse {
     likedByMemberIds: [],
     createdAt: '2026-03-01T00:00:00+00:00',
     updatedAt: '2026-03-01T00:00:00+00:00',
-    updatedByMemberId: 'm1',
+    updatedByMemberId: ME,
     ...overrides,
   }
 }
 
+function renderList(places: PlaceResponse[], overrides: Partial<Parameters<typeof PlaceList>[0]> = {}) {
+  const handlers = {
+    onSelect: vi.fn(),
+    onDelete: vi.fn(),
+    onToggleLike: vi.fn(),
+    onChangeStatus: vi.fn(),
+  }
+
+  render(
+    <PlaceList
+      places={places}
+      members={MEMBERS}
+      myMemberId={ME}
+      currency="VND"
+      currencyExponent={0}
+      selectedPlaceId={null}
+      deletingPlaceId={null}
+      busyPlaceId={null}
+      tripUnderway={false}
+      {...handlers}
+      {...overrides}
+    />,
+  )
+
+  return handlers
+}
+
 describe('PlaceList', () => {
   it('shows an empty state when there is nothing to plan yet', () => {
-    render(
-      <PlaceList
-        places={[]}
-        currency="VND"
-        currencyExponent={0}
-        selectedPlaceId={null}
-        deletingPlaceId={null}
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-      />,
-    )
+    renderList([])
 
     expect(screen.getByText(/chưa có địa điểm nào/i)).toBeInTheDocument()
   })
 
   it('renders cost using the trip currency exponent, not a hard-coded one', () => {
-    render(
-      <PlaceList
-        places={[place({ estimatedCost: 100_001 })]}
-        currency="VND"
-        currencyExponent={0}
-        selectedPlaceId={null}
-        deletingPlaceId={null}
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-      />,
-    )
+    renderList([place({ estimatedCost: 100_001 })])
 
-    // 100_001 VND minor units is ₫100.001 — a two-decimal reading would show 1.000,01.
+    // 100_001 VND minor units is ₫100.001 — a two-decimal reading shows 1.000,01.
     expect(screen.getByText(/100\.001/)).toBeInTheDocument()
   })
 
   it('renders a missing cost as a dash rather than as zero', () => {
-    render(
-      <PlaceList
-        places={[place({ estimatedCost: null })]}
-        currency="VND"
-        currencyExponent={0}
-        selectedPlaceId={null}
-        deletingPlaceId={null}
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-      />,
-    )
+    renderList([place({ estimatedCost: null })])
 
     expect(screen.getByText(/—/)).toBeInTheDocument()
   })
 
-  it('marks the selected place and reports selection changes', async () => {
-    const onSelect = vi.fn()
-    render(
-      <PlaceList
-        places={[place({ id: 'a', name: 'A' }), place({ id: 'b', name: 'B' })]}
-        currency="VND"
-        currencyExponent={0}
-        selectedPlaceId="a"
-        deletingPlaceId={null}
-        onSelect={onSelect}
-        onDelete={vi.fn()}
-      />,
+  it('groups places by how far through the decision they are', () => {
+    renderList([
+      place({ id: 'a', name: 'Agreed', status: 'Confirmed', likedByMemberIds: [ME, OTHER] }),
+      place({ id: 'b', name: 'Maybe', status: 'Shortlist', likedByMemberIds: [ME] }),
+      place({ id: 'c', name: 'Raw', status: 'Idea' }),
+    ])
+
+    expect(within(screen.getByLabelText('Đã chốt')).getByText('Agreed')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('Đang cân nhắc')).getByText('Maybe')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('Ý tưởng')).getByText('Raw')).toBeInTheDocument()
+  })
+
+  it('hides groups that have nothing in them', () => {
+    renderList([place({ status: 'Idea' })])
+
+    expect(screen.queryByLabelText('Đã chốt')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Đã đi')).not.toBeInTheDocument()
+  })
+
+  it('shows the vote tally against the number of members', () => {
+    renderList([place({ likedByMemberIds: [OTHER] })])
+
+    expect(screen.getByText('1/2')).toBeInTheDocument()
+  })
+
+  it('marks my own vote as pressed and reports a toggle off', async () => {
+    const handlers = renderList([place({ likedByMemberIds: [ME] })])
+
+    const button = screen.getByRole('button', { name: /bỏ thích/i })
+    expect(button).toHaveAttribute('aria-pressed', 'true')
+
+    await userEvent.click(button)
+    expect(handlers.onToggleLike).toHaveBeenCalledWith('p1', true)
+  })
+
+  it('reports a toggle on when I have not voted', async () => {
+    const handlers = renderList([place({ likedByMemberIds: [OTHER] })])
+
+    const button = screen.getByRole('button', { name: /^thích/i })
+    expect(button).toHaveAttribute('aria-pressed', 'false')
+
+    await userEvent.click(button)
+    expect(handlers.onToggleLike).toHaveBeenCalledWith('p1', false)
+  })
+
+  it('names who liked a place so a stalled vote is explainable', () => {
+    renderList([place({ likedByMemberIds: [OTHER] })])
+
+    expect(screen.getByRole('button', { name: /^thích/i })).toHaveAttribute(
+      'title',
+      'Thích bởi: Linh',
     )
+  })
+
+  it('offers only the transitions the state machine allows from Shortlist', () => {
+    renderList([place({ status: 'Shortlist', likedByMemberIds: [ME] })])
+
+    expect(screen.getByRole('button', { name: 'Chốt' })).toBeInTheDocument()
+    // Visiting is not reachable from Shortlist, nor before the trip starts.
+    expect(screen.queryByRole('button', { name: 'Đã đi' })).not.toBeInTheDocument()
+  })
+
+  it('does not offer visited or skipped until the trip is under way', () => {
+    renderList([place({ status: 'Confirmed', likedByMemberIds: [ME, OTHER] })])
+
+    expect(screen.getByRole('button', { name: 'Bỏ chốt' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Đã đi' })).not.toBeInTheDocument()
+  })
+
+  it('offers visited and skipped once the trip is under way', async () => {
+    const handlers = renderList([place({ status: 'Confirmed', likedByMemberIds: [ME, OTHER] })], {
+      tripUnderway: true,
+    })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Đã đi' }))
+    expect(handlers.onChangeStatus).toHaveBeenCalledWith('p1', 'Visited')
+  })
+
+  it('offers the correction path between visited and skipped', () => {
+    renderList([place({ status: 'Visited' })], { tripUnderway: true })
+
+    expect(screen.getByRole('button', { name: /sửa: bỏ qua/i })).toBeInTheDocument()
+  })
+
+  it('shows why a place was skipped', () => {
+    renderList([place({ status: 'Skipped', skipReason: 'Trời mưa to' })])
+
+    expect(screen.getByText(/trời mưa to/i)).toBeInTheDocument()
+  })
+
+  it('links out to Google Maps for photos and reviews', () => {
+    renderList([place()])
+
+    const link = screen.getByRole('link')
+    expect(link).toHaveAttribute('href', expect.stringContaining('20.8333,104.6667'))
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'))
+  })
+
+  it('disables the controls of the row currently mid-request', () => {
+    renderList([place({ id: 'a', name: 'A' }), place({ id: 'b', name: 'B' })], {
+      busyPlaceId: 'a',
+    })
+
+    expect(screen.getByRole('button', { name: /^thích A/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /^thích B/i })).toBeEnabled()
+  })
+
+  it('asks to delete the place whose button was pressed', async () => {
+    const handlers = renderList([place({ id: 'a', name: 'A' }), place({ id: 'b', name: 'B' })])
+
+    await userEvent.click(screen.getByLabelText('Xoá B'))
+    expect(handlers.onDelete).toHaveBeenCalledWith('b')
+    expect(handlers.onDelete).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks the selected place and reports selection changes', async () => {
+    const handlers = renderList([place({ id: 'a', name: 'A' }), place({ id: 'b', name: 'B' })], {
+      selectedPlaceId: 'a',
+    })
 
     expect(screen.getByTestId('place-a')).toHaveClass('selected')
     expect(screen.getByTestId('place-b')).not.toHaveClass('selected')
 
     await userEvent.click(screen.getByText('B'))
-    expect(onSelect).toHaveBeenCalledWith('b')
-  })
-
-  it('disables only the row currently being deleted', () => {
-    render(
-      <PlaceList
-        places={[place({ id: 'a', name: 'A' }), place({ id: 'b', name: 'B' })]}
-        currency="VND"
-        currencyExponent={0}
-        selectedPlaceId={null}
-        deletingPlaceId="a"
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-      />,
-    )
-
-    expect(screen.getByLabelText('Xoá A')).toBeDisabled()
-    expect(screen.getByLabelText('Xoá B')).toBeEnabled()
-  })
-
-  it('asks to delete the place whose button was pressed', async () => {
-    const onDelete = vi.fn()
-    render(
-      <PlaceList
-        places={[place({ id: 'a', name: 'A' }), place({ id: 'b', name: 'B' })]}
-        currency="VND"
-        currencyExponent={0}
-        selectedPlaceId={null}
-        deletingPlaceId={null}
-        onSelect={vi.fn()}
-        onDelete={onDelete}
-      />,
-    )
-
-    await userEvent.click(screen.getByLabelText('Xoá B'))
-    expect(onDelete).toHaveBeenCalledWith('b')
-    expect(onDelete).toHaveBeenCalledTimes(1)
-  })
-
-  it('shows the place status so a confirmed place is visibly different', () => {
-    render(
-      <PlaceList
-        places={[place({ status: 'Confirmed' })]}
-        currency="VND"
-        currencyExponent={0}
-        selectedPlaceId={null}
-        deletingPlaceId={null}
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-      />,
-    )
-
-    expect(screen.getByText('Confirmed')).toHaveClass('status-confirmed')
+    expect(handlers.onSelect).toHaveBeenCalledWith('b')
   })
 })

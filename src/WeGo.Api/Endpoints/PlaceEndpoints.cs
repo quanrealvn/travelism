@@ -87,6 +87,47 @@ public static class PlaceEndpoints
         })
         .WithName("UpdatePlace");
 
+        group.MapPost("/{placeId:guid}/like", async (
+            Guid tripId,
+            Guid placeId,
+            PlaceService places,
+            HttpContext http,
+            CancellationToken cancellationToken) =>
+        {
+            var caller = http.GetTripContext();
+            var result = await places.LikeAsync(tripId, placeId, caller.MemberId, cancellationToken);
+            return result.ToHttp(place => Results.Ok(place.ToResponse()));
+        })
+        .WithName("LikePlace");
+
+        group.MapDelete("/{placeId:guid}/like", async (
+            Guid tripId,
+            Guid placeId,
+            PlaceService places,
+            HttpContext http,
+            CancellationToken cancellationToken) =>
+        {
+            var caller = http.GetTripContext();
+            var result = await places.UnlikeAsync(tripId, placeId, caller.MemberId, cancellationToken);
+            return result.ToHttp(place => Results.Ok(place.ToResponse()));
+        })
+        .WithName("UnlikePlace");
+
+        group.MapPost("/{placeId:guid}/status", async (
+            Guid tripId,
+            Guid placeId,
+            ChangePlaceStatusRequest request,
+            PlaceService places,
+            HttpContext http,
+            CancellationToken cancellationToken) =>
+        {
+            var caller = http.GetTripContext();
+            var result = await places.ChangeStatusAsync(
+                tripId, placeId, caller.MemberId, request.Status, request.SkipReason, cancellationToken);
+            return result.ToHttp(place => Results.Ok(place.ToResponse()));
+        })
+        .WithName("ChangePlaceStatus");
+
         group.MapDelete("/{placeId:guid}", async (
             Guid tripId,
             Guid placeId,
