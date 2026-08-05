@@ -19,6 +19,10 @@ public sealed class WeGoDbContext(DbContextOptions<WeGoDbContext> options) : DbC
 
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
 
+    public DbSet<Expense> Expenses => Set<Expense>();
+
+    public DbSet<ExpenseShare> ExpenseShares => Set<ExpenseShare>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(WeGoDbContext).Assembly);

@@ -31,6 +31,7 @@ builder.Services.AddScoped<PlaceService>();
 builder.Services.AddScoped<GeocodingService>();
 builder.Services.AddScoped<ItineraryService>();
 builder.Services.AddScoped<TravelTimeService>();
+builder.Services.AddScoped<ExpenseService>();
 
 builder.Services.AddProblemDetails();
 
@@ -83,6 +84,7 @@ app.UseStaticFiles();
 app.MapTripEndpoints();
 app.MapPlaceEndpoints();
 app.MapItineraryEndpoints();
+app.MapExpenseEndpoints();
 
 // An unmatched path under the API surface must answer with the JSON error
 // contract; only genuinely non-API paths fall through to the SPA shell.

@@ -865,6 +865,140 @@ legend {
   font-size: 0.83rem;
 }
 
+/* Expenses */
+.money-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.expenses {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr) minmax(15rem, 20rem);
+  gap: 1rem;
+  align-items: start;
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 1rem;
+}
+
+@media (max-width: 68rem) {
+  .expenses {
+    grid-template-columns: 1fr;
+  }
+}
+
+.expenses h3 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+
+.balance-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  background: #fbfbf9;
+}
+
+.balance-total {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+}
+
+.balance-list,
+.settle-list,
+.expense-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.balance-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.net.positive {
+  color: #17563f;
+  font-weight: 600;
+}
+
+.net.negative {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.settle-list {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.settle-list li {
+  font-size: 0.85rem;
+  background: #eef4f2;
+  border-radius: var(--radius);
+  padding: 0.35rem 0.5rem;
+}
+
+.settle-none {
+  margin-top: 0.7rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.expense-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.expense-list li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.5rem;
+}
+
+.expense-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.expense-title {
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+
+.expense-meta {
+  font-size: 0.73rem;
+  color: var(--muted);
+}
+
+.expense-amount {
+  font-weight: 700;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.expense-form {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+}
+
 .empty-state.small {
   font-size: 0.78rem;
   padding: 0.6rem;

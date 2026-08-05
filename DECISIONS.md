@@ -283,6 +283,35 @@ following is **off** so every hop is re-checked rather than chased blindly.
 tests asserting no outbound call is made — including from an unauthenticated
 caller, who cannot reach the endpoint at all.
 
+### D34 — `SPEC_CONFLICT`: the Equal-split remainder is distributed per unit
+**Two spec rules contradict each other; this is the arbitration, and Quan may
+want to overrule it.**
+
+- §5.3: "distribute the rounding remainder (±1 per unit) **to the payer's
+  share** so that Σshares == Amount exactly."
+- §9: the property test must assert "**|share_i − share_j| ≤ 1**".
+
+For three or more members these cannot both hold. 101 ₫ split three ways gives
+a base of 33 and a remainder of 2; handing the whole remainder to the payer
+produces 35/33/33, a spread of 2, which §9 forbids. The property test failed on
+exactly this.
+
+Resolved in favour of §5.3's own parenthetical, "**±1 per unit**": the remainder
+is handed out one minor unit at a time, starting with the payer. Both rules then
+hold, and for the two-member case v1 actually targets the behaviour is
+unchanged — §7.6's worked example still gives the payer 50,001 and the other
+50,000.
+
+The alternative reading (payer absorbs everything, drop §9's bound for n ≥ 3) is
+equally defensible; it is just less fair and harder to explain to the person
+holding the receipt.
+
+### D35 — Only Equal splits are offered in the UI
+The API supports `Custom` fully — validated for exact sum, non-negative shares,
+and trip membership. The client only offers `Equal`, because a per-member share
+editor is a real piece of UI and the two-person case does not need one yet. The
+endpoint is not gated on this, so a custom split can be posted directly.
+
 ### D26 — `@testing-library/react` is pinned to v16 for a single `@testing-library/dom`
 RTL 14 depends on its own nested `@testing-library/dom@9`, while
 `user-event@14` resolves the hoisted `@testing-library/dom@10`. RTL installs the

@@ -29,6 +29,37 @@ public static class Mappers
             trip.UpdatedAt,
             trip.UpdatedByMemberId);
 
+    public static ExpenseResponse ToResponse(this Expense expense) =>
+        new(
+            expense.Id,
+            expense.TripId,
+            expense.Title,
+            expense.Amount,
+            expense.Currency,
+            expense.PaidByMemberId,
+            expense.Date,
+            expense.Category.ToString(),
+            expense.SplitType.ToString(),
+            expense.Shares
+                .OrderBy(s => s.MemberId)
+                .Select(s => new ExpenseShareResponse(s.MemberId, s.ShareAmount))
+                .ToList(),
+            expense.CreatedAt,
+            expense.UpdatedAt,
+            expense.UpdatedByMemberId);
+
+    public static BalanceResponse ToResponse(this WeGo.Api.Services.BalanceView view) =>
+        new(
+            view.Balances
+                .Select(b => new MemberBalanceResponse(b.MemberId, b.Paid, b.Owed, b.Net))
+                .ToList(),
+            view.Transfers
+                .Select(t => new TransferResponse(t.FromMemberId, t.ToMemberId, t.Amount))
+                .ToList(),
+            view.TotalSpent,
+            view.Currency,
+            view.CurrencyExponent);
+
     public static ItineraryItemResponse ToResponse(this ItineraryItem item) =>
         new(
             item.Id,

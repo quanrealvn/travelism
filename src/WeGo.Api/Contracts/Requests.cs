@@ -43,6 +43,18 @@ public sealed record CreateItineraryItemRequest(
     string? Note,
     long? ActualCost);
 
+public sealed record ExpenseShareRequest(Guid? MemberId, long? ShareAmount);
+
+public sealed record CreateExpenseRequest(
+    string? Title,
+    long? Amount,
+    string? Currency,
+    Guid? PaidByMemberId,
+    DateOnly? Date,
+    string? Category,
+    string? SplitType,
+    IReadOnlyList<ExpenseShareRequest>? Shares);
+
 /// <summary>
 /// Partial update of a scheduled item. <see cref="StartTime"/> uses
 /// <see cref="Patch{T}"/> so an explicit null can clear the time — "sometime

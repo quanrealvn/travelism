@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type {
+  CreateExpenseRequest,
   CreateItineraryItemRequest,
   CreatePlaceRequest,
   ItineraryItemResponse,
@@ -20,6 +21,49 @@ export const queryKeys = {
   itinerary: (tripId: string) => ['itinerary', tripId] as const,
   suggestions: (tripId: string, date: string) => ['suggestions', tripId, date] as const,
   feasibility: (tripId: string, date: string) => ['feasibility', tripId, date] as const,
+  expenses: (tripId: string) => ['expenses', tripId] as const,
+  balance: (tripId: string) => ['balance', tripId] as const,
+}
+
+export function useExpenses(tripId: string) {
+  return useQuery({
+    queryKey: queryKeys.expenses(tripId),
+    queryFn: () => api.listExpenses(tripId),
+  })
+}
+
+export function useBalance(tripId: string) {
+  return useQuery({
+    queryKey: queryKeys.balance(tripId),
+    queryFn: () => api.balance(tripId),
+  })
+}
+
+export function useCreateExpense(tripId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (body: CreateExpenseRequest) => api.createExpense(tripId, body),
+    onSuccess: () => {
+      // The balance is derived from every expense, so it is refetched rather
+      // than patched — recomputing settlement on the client would duplicate
+      // logic the server already owns.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.expenses(tripId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.balance(tripId) })
+    },
+  })
+}
+
+export function useDeleteExpense(tripId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (expenseId: string) => api.deleteExpense(tripId, expenseId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.expenses(tripId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.balance(tripId) })
+    },
+  })
 }
 
 /**

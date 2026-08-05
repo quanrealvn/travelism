@@ -105,6 +105,35 @@ public sealed record SuggestionResponse(
     string Category,
     long? EstimatedCost);
 
+public sealed record ExpenseShareResponse(Guid MemberId, long ShareAmount);
+
+public sealed record ExpenseResponse(
+    Guid Id,
+    Guid TripId,
+    string Title,
+    long Amount,
+    string Currency,
+    Guid PaidByMemberId,
+    DateOnly Date,
+    string Category,
+    string SplitType,
+    IReadOnlyList<ExpenseShareResponse> Shares,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    Guid UpdatedByMemberId);
+
+/// <summary>Per-member position. Net is positive when the trip owes them.</summary>
+public sealed record MemberBalanceResponse(Guid MemberId, long Paid, long Owed, long Net);
+
+public sealed record TransferResponse(Guid FromMemberId, Guid ToMemberId, long Amount);
+
+public sealed record BalanceResponse(
+    IReadOnlyList<MemberBalanceResponse> Balances,
+    IReadOnlyList<TransferResponse> Transfers,
+    long TotalSpent,
+    string Currency,
+    int CurrencyExponent);
+
 /// <summary>Who the caller is, for a client that has a cookie but no state.</summary>
 public sealed record SessionResponse(
     Guid TripId,

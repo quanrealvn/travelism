@@ -81,6 +81,71 @@ export interface ItineraryItemResponse {
   updatedByMemberId: string
 }
 
+export type ExpenseCategory = 'Transport' | 'Lodging' | 'Food' | 'Tickets' | 'Other'
+export type SplitType = 'Equal' | 'Custom'
+
+export interface ExpenseShareResponse {
+  memberId: string
+  /** Integer minor units. */
+  shareAmount: number
+}
+
+export interface ExpenseResponse {
+  id: string
+  tripId: string
+  title: string
+  amount: number
+  currency: string
+  paidByMemberId: string
+  date: IsoDate
+  category: ExpenseCategory
+  splitType: SplitType
+  shares: ExpenseShareResponse[]
+  createdAt: string
+  updatedAt: string
+  updatedByMemberId: string
+}
+
+export interface MemberBalanceResponse {
+  memberId: string
+  paid: number
+  owed: number
+  /** Positive: the trip owes them. Negative: they owe the trip. */
+  net: number
+}
+
+export interface TransferResponse {
+  fromMemberId: string
+  toMemberId: string
+  amount: number
+}
+
+export interface BalanceResponse {
+  balances: MemberBalanceResponse[]
+  transfers: TransferResponse[]
+  totalSpent: number
+  currency: string
+  currencyExponent: number
+}
+
+export interface CreateExpenseRequest {
+  title: string
+  amount: number
+  paidByMemberId: string
+  date: IsoDate
+  category: ExpenseCategory
+  splitType: SplitType
+  shares?: { memberId: string; shareAmount: number }[]
+}
+
+export const ALL_EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
+  'Transport',
+  'Lodging',
+  'Food',
+  'Tickets',
+  'Other',
+]
+
 export type FeasibilityLevel = 'error' | 'warning' | 'info'
 
 export type FeasibilityCode =

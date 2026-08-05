@@ -5,7 +5,11 @@ import {
   queryKeys,
   useChangePlaceStatus,
   useCreatePlace,
+  useBalance,
+  useCreateExpense,
+  useDeleteExpense,
   useDeletePlace,
+  useExpenses,
   useFeasibility,
   useItinerary,
   useMoveItem,
@@ -27,6 +31,7 @@ import { StartScreen } from './components/StartScreen'
 import { TripMap } from './components/TripMap'
 import type { LatLng } from './components/TripMap'
 import { ItineraryBoard } from './components/ItineraryBoard'
+import { ExpensePanel } from './components/ExpensePanel'
 import { SuggestionsPanel } from './components/SuggestionsPanel'
 import { tripDays } from './itinerary/tripDates'
 import { PlaceForm } from './components/PlaceForm'
@@ -89,7 +94,7 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   // The location being composed, shared by the map and the form so a click on
   // one shows up on the other.
   const [draftLocation, setDraftLocation] = useState<LatLng | null>(null)
-  const [view, setView] = useState<'wishlist' | 'itinerary'>('wishlist')
+  const [view, setView] = useState<'wishlist' | 'itinerary' | 'money'>('wishlist')
   const [selectedDate, setSelectedDate] = useState<IsoDate | null>(null)
 
   // Computed before the early returns below, because the suggestions query is a
@@ -98,6 +103,10 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   const activeDate = selectedDate ?? days[0] ?? null
   const suggestions = useSuggestions(tripId, view === 'itinerary' ? activeDate : null)
   const feasibility = useFeasibility(tripId, view === 'itinerary' ? activeDate : null)
+  const expenses = useExpenses(tripId)
+  const balance = useBalance(tripId)
+  const createExpense = useCreateExpense(tripId)
+  const deleteExpense = useDeleteExpense(tripId)
 
   if (trip.isLoading || places.isLoading || itinerary.isLoading) {
     return <p className="loading">Đang tải chuyến đi…</p>
@@ -257,12 +266,43 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
         >
           Lịch trình ({itineraryItems.length})
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'money'}
+          onClick={() => setView('money')}
+        >
+          Chi tiêu ({expenses.data?.length ?? 0})
+        </button>
       </nav>
 
       {actionError && (
         <p className="form-error" role="alert">
           {actionError}
         </p>
+      )}
+
+      {view === 'money' && (
+        <main className="money-body">
+          <ExpensePanel
+            expenses={expenses.data ?? []}
+            balance={balance.data}
+            members={currentTrip.members}
+            myMemberId={memberId}
+            currency={currentTrip.currency}
+            currencyExponent={currentTrip.currencyExponent}
+            tripDays={days}
+            pending={createExpense.isPending}
+            deletingId={deleteExpense.isPending ? deleteExpense.variables : null}
+            submitError={
+              createExpense.error instanceof ApiError
+                ? (createExpense.error.problem.detail ?? createExpense.error.message)
+                : null
+            }
+            onAdd={(body) => createExpense.mutate(body)}
+            onDelete={(expenseId) => deleteExpense.mutate(expenseId)}
+          />
+        </main>
       )}
 
       {view === 'itinerary' && (

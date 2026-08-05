@@ -1,7 +1,10 @@
 import type {
+  BalanceResponse,
+  CreateExpenseRequest,
   CreateItineraryItemRequest,
   CreatePlaceRequest,
   CreateTripRequest,
+  ExpenseResponse,
   FeasibilityResponse,
   GeocodeResultResponse,
   ItineraryItemResponse,
@@ -130,6 +133,19 @@ export const api = {
 
   deleteItineraryItem: (tripId: string, itemId: string) =>
     request<ItineraryItemResponse>(`/trips/${tripId}/itinerary/${itemId}`, { method: 'DELETE' }),
+
+  listExpenses: (tripId: string) => request<ExpenseResponse[]>(`/trips/${tripId}/expenses`),
+
+  createExpense: (tripId: string, body: CreateExpenseRequest) =>
+    request<ExpenseResponse>(`/trips/${tripId}/expenses`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  deleteExpense: (tripId: string, expenseId: string) =>
+    request<ExpenseResponse>(`/trips/${tripId}/expenses/${expenseId}`, { method: 'DELETE' }),
+
+  balance: (tripId: string) => request<BalanceResponse>(`/trips/${tripId}/balance`),
 
   feasibility: (tripId: string, date: string) =>
     request<FeasibilityResponse>(`/trips/${tripId}/itinerary/feasibility?date=${date}`),

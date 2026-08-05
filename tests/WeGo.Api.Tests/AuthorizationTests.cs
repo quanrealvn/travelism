@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using WeGo.Api.Tests.Infrastructure;
 using WeGo.Domain.Common;
@@ -49,6 +49,10 @@ public sealed class AuthorizationTests(WeGoAppFactory factory) : IClassFixture<W
         ("DELETE", "/trips/{tripId}/itinerary/{itemId}"),
         ("GET", "/trips/{tripId}/suggestions"),
         ("GET", "/trips/{tripId}/itinerary/feasibility"),
+        ("GET", "/trips/{tripId}/expenses"),
+        ("POST", "/trips/{tripId}/expenses"),
+        ("DELETE", "/trips/{tripId}/expenses/{expenseId}"),
+        ("GET", "/trips/{tripId}/balance"),
     ];
 
     [Theory]
@@ -67,7 +71,8 @@ public sealed class AuthorizationTests(WeGoAppFactory factory) : IClassFixture<W
         var url = template
             .Replace("{tripId}", victim.Trip.Id.ToString())
             .Replace("{placeId}", victimPlace.Id.ToString())
-            .Replace("{itemId}", Guid.NewGuid().ToString());
+            .Replace("{itemId}", Guid.NewGuid().ToString())
+            .Replace("{expenseId}", Guid.NewGuid().ToString());
 
         var response = await attacker.SendAsync(BuildRequest(method, url));
 
@@ -88,7 +93,8 @@ public sealed class AuthorizationTests(WeGoAppFactory factory) : IClassFixture<W
         var url = template
             .Replace("{tripId}", trip.Trip.Id.ToString())
             .Replace("{placeId}", place.Id.ToString())
-            .Replace("{itemId}", Guid.NewGuid().ToString());
+            .Replace("{itemId}", Guid.NewGuid().ToString())
+            .Replace("{expenseId}", Guid.NewGuid().ToString());
 
         var response = await anonymous.SendAsync(BuildRequest(method, url));
 
