@@ -221,6 +221,121 @@ legend {
  * column. Four time slots stacked cost 11rem of a phone screen to say what
  * fits comfortably on two lines.
  */
+/* ==========================================================================
+   Picker — tiles for choosing one of a small, named set
+   ========================================================================== */
+
+/*
+ * Replaces a <select> where the options have identity of their own. A native
+ * dropdown cannot carry a category's icon or its colour, so the one screen
+ * where you say what a place *is* was the one screen with none of the app's
+ * category language on it — and on a phone it opened a full-height wheel to
+ * choose between five things that would have fitted on two rows.
+ */
+.picker {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.picker legend {
+  margin-bottom: var(--s-2);
+  padding: 0;
+  font-size: var(--t-sm);
+  font-weight: var(--fw-medium);
+  color: var(--c-ink-2);
+}
+
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  gap: var(--s-2);
+}
+
+.picker-option {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  font-size: var(--t-sm);
+  font-weight: var(--fw-medium);
+  color: var(--c-ink-2);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition:
+    color var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+/* The input is the state, not the picture. Kept in the accessibility tree and
+   focusable, just not drawn. */
+.picker-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.picker-option:hover {
+  border-color: var(--option-colour, var(--c-brand));
+  background: var(--c-surface-sunken);
+}
+
+/*
+ * Selected takes the option's own colour rather than one global accent, so the
+ * choice reads as "this is the Food one" and not merely "this one". Tinted
+ * background plus a heavier weight, so it is never colour alone.
+ */
+.picker-option.is-selected {
+  color: var(--option-colour, var(--c-brand));
+  background: color-mix(in srgb, var(--option-colour, var(--c-brand)) 10%, white);
+  border-color: var(--option-colour, var(--c-brand));
+  font-weight: var(--fw-semibold);
+  box-shadow: inset 0 0 0 1px var(--option-colour, var(--c-brand));
+}
+
+.picker-option:focus-within {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+}
+
+.picker-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--option-colour, currentcolor);
+}
+
+.picker-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* A quiet note under a field, for a unit or an example. */
+.field-hint {
+  display: block;
+  margin-top: var(--s-1);
+  font-size: var(--t-2xs);
+  font-weight: var(--fw-regular);
+  color: var(--c-ink-2);
+}
+
+/* The one action on a form takes the whole width of it. */
+.form-submit {
+  width: 100%;
+  min-height: 3rem;
+  margin-top: var(--s-2);
+}
+
 fieldset.choice-set {
   display: flex;
   flex-wrap: wrap;
@@ -2836,7 +2951,8 @@ button .spinner {
  */
 .item-card {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  /* Four columns now: grip, category tile, body, controls. */
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--s-1) var(--s-2);
   padding: var(--s-2);
@@ -2845,23 +2961,78 @@ button .spinner {
   border-radius: var(--r-md);
 }
 
-.item-grip {
-  grid-column: 1;
-  grid-row: 1;
+/* The same tinted tile the wishlist and the map markers use, so one stop is
+   recognisable as the same kind of thing across all three views. */
+.item-category {
+  display: grid;
+  flex: 0 0 auto;
+  align-self: start;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  color: var(--tile-colour, var(--c-ink-2));
+  background: color-mix(in srgb, var(--tile-colour, var(--c-ink-2)) 12%, white);
+  border-radius: var(--r-sm);
 }
 
-.item-body {
+.item-category svg {
+  width: 1.0625rem;
+  height: 1.0625rem;
+}
+
+/*
+ * The gap between two stops, carrying how far apart they are.
+ *
+ * A row of its own rather than a line on either card: the distance belongs to
+ * the space between them, and putting it on a card would make it read as a
+ * property of that stop. Straight-line, so it says "cách" and never a duration.
+ */
+.day-leg {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-left: calc(var(--s-2) + 0.5rem);
+  font-size: var(--t-2xs);
+  color: var(--c-ink-3);
+}
+
+.day-leg-line {
+  width: 2px;
+  height: 1rem;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--c-line-strong) 0 3px,
+    transparent 3px 6px
+  );
+}
+
+/*
+ * Placement is explicit for every child, so adding one does not silently push
+ * the rest into a second row — which is exactly what happened when the category
+ * tile arrived and took the column the body had been using.
+ */
+.item-grip {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+.item-category {
   grid-column: 2;
   grid-row: 1;
 }
 
-.item-remove {
+.item-body {
   grid-column: 3;
   grid-row: 1;
 }
 
+.item-remove {
+  grid-column: 4;
+  grid-row: 1;
+}
+
 .item-time {
-  grid-column: 2 / -1;
+  grid-column: 3 / -1;
   grid-row: 2;
 }
 
@@ -3091,11 +3262,76 @@ button .spinner {
   border-radius: var(--r-md);
 }
 
+/*
+ * The forecast tints the whole chip.
+ *
+ * A row of grey cards with a different glyph on each made the weather something
+ * you had to read one at a time; colour makes the wet days findable without
+ * reading any of them. Every ink below is picked to clear AA on its own tint,
+ * and the label is always present — the colour is a second channel, never the
+ * only one.
+ */
+.day-chip.weather-clear {
+  color: #7c4a03;
+  background: linear-gradient(160deg, #fff6dc, #ffedc2);
+  border-color: #f4d38a;
+}
+
+.day-chip.weather-partly {
+  color: #6b5a17;
+  background: linear-gradient(160deg, #fdfaec, #f4f0dc);
+  border-color: #e3dcbe;
+}
+
+.day-chip.weather-cloudy {
+  color: #4a5160;
+  background: linear-gradient(160deg, #f5f7fa, #e8ecf2);
+  border-color: #d2d9e3;
+}
+
+.day-chip.weather-fog {
+  color: #4f5560;
+  background: linear-gradient(160deg, #f4f5f7, #e6e8ec);
+  border-color: #d6d9de;
+}
+
+.day-chip.weather-drizzle {
+  color: #0f5c86;
+  background: linear-gradient(160deg, #eaf6fd, #d8edfa);
+  border-color: #a9d7ef;
+}
+
+.day-chip.weather-rain {
+  color: #0b4f78;
+  background: linear-gradient(160deg, #e2f1fc, #c9e4f7);
+  border-color: #8fc9e9;
+}
+
+.day-chip.weather-snow {
+  color: #1b556b;
+  background: linear-gradient(160deg, #f0fbff, #dcf3fb);
+  border-color: #b6e2f0;
+}
+
+.day-chip.weather-storm {
+  color: #5b2a91;
+  background: linear-gradient(160deg, #f3ecfd, #e6d9fa);
+  border-color: #c9b0ef;
+}
+
+/* Selected wins over the forecast tint: which day you are editing matters more
+   than what the sky is doing, and the two must never be confusable. */
 .day-chip.selected {
   color: var(--c-brand);
   background: var(--c-brand-soft);
   border-color: var(--c-brand);
   font-weight: var(--fw-semibold);
+  box-shadow: inset 0 0 0 1px var(--c-brand);
+}
+
+.weather-icon {
+  font-size: 1.125rem;
+  line-height: 1.2;
 }
 
 .weather-date {
@@ -3508,23 +3744,14 @@ button .spinner {
     grid-row: 2;
   }
 
+  /* One column: the suggestions rail that used to hold the second one is
+     gone, and reserving 16rem for nothing left the days squeezed beside a
+     strip of empty page. */
   .itinerary-body {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 16rem;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-5);
     align-items: start;
-  }
-
-  .itinerary-body > .day-rail {
-    grid-column: 1 / -1;
-  }
-
-  .itinerary-body > .itinerary {
-    grid-column: 1;
-  }
-
-  .itinerary-body > .side-panel {
-    grid-column: 2;
   }
 }
 
@@ -3984,23 +4211,11 @@ button .spinner {
   }
 
   .itinerary-body {
-    grid-template-columns: minmax(0, 1fr) 19rem;
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
   }
 
-  /* The pool and the suggestions are the same idea — places you could add —
-     so they share one rail instead of bracketing the plan. */
-  .itinerary-body > .itinerary {
-    grid-column: 1;
-  }
-
-  .itinerary-body > .side-panel {
-    grid-column: 2;
-    grid-row: 2 / span 2;
-  }
-
   .itinerary-body > .day-rail {
-    grid-column: 1 / -1;
     margin-inline: 0;
     padding-inline: 0;
   }
@@ -4054,10 +4269,6 @@ button .spinner {
     grid-row: 2;
   }
 
-  .side-panel {
-    position: sticky;
-    top: calc(var(--sticky-top) + var(--s-4));
-  }
 }
 
 /* ==========================================================================

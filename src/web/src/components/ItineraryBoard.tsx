@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
+import type { CSSProperties } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -17,6 +18,8 @@ import type {
 } from '../api/api-types'
 import { formatDuration, formatMoney } from '../api/money'
 import { formatDayLabel, formatTime } from '../itinerary/tripDates'
+import { distanceKm, formatDistance } from '../itinerary/distance'
+import { categoryStyle } from '../map/placeMarkers'
 import { FeasibilityBadges } from './FeasibilityBadges'
 import { worstLevel } from '../itinerary/feasibilityText'
 import { IconClose, IconPlus } from './icons'
@@ -307,19 +310,38 @@ function DayColumn({
         <p className="day-empty">Kéo địa điểm vào đây</p>
       ) : (
         <ul className="day-items">
-          {items.map((item) => (
-            <ItemCard
-              key={item.id}
-              item={item}
-              currency={currency}
-              currencyExponent={currencyExponent}
-              busy={movingItemId === item.id}
-              unconfirmed={!confirmedPlaceIds.has(item.placeId)}
-              findings={findings.filter((f) => f.itineraryItemId === item.id)}
-              onRemove={() => onRemoveItem(item.id)}
-              onSetTime={onSetTime}
-            />
-          ))}
+          {items.map((item, index) => {
+            const previous = items[index - 1]
+            return (
+              <Fragment key={item.id}>
+                {/*
+                  How far this stop is from the one above it, in the order the
+                  day is actually visited. Between the cards rather than on
+                  them, because the number belongs to the gap and not to either
+                  end of it — and it is straight-line, so it is labelled as a
+                  separation rather than a journey.
+                */}
+                {previous && (
+                  <li className="day-leg" aria-hidden="true">
+                    <span className="day-leg-line" />
+                    <span className="day-leg-text">
+                      cách ~{formatDistance(distanceKm(previous, item))}
+                    </span>
+                  </li>
+                )}
+                <ItemCard
+                  item={item}
+                  currency={currency}
+                  currencyExponent={currencyExponent}
+                  busy={movingItemId === item.id}
+                  unconfirmed={!confirmedPlaceIds.has(item.placeId)}
+                  findings={findings.filter((f) => f.itineraryItemId === item.id)}
+                  onRemove={() => onRemoveItem(item.id)}
+                  onSetTime={onSetTime}
+                />
+              </Fragment>
+            )
+          })}
         </ul>
       )}
     </section>
@@ -363,6 +385,22 @@ function ItemCard({
     >
       <span className="item-grip" {...listeners} {...attributes} aria-label={`Kéo ${item.placeName}`}>
         ⠿
+      </span>
+
+      {/* The same coloured tile the wishlist and the map use, so a stop is
+          recognisable as "the food one" across all three views. */}
+      <span
+        className="item-category"
+        style={{ '--tile-colour': categoryStyle(item.placeCategory).color } as CSSProperties}
+        aria-hidden="true"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
+          <path
+            d={categoryStyle(item.placeCategory).path}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </span>
 
       <div className="item-body">

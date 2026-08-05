@@ -18,7 +18,6 @@ import {
   useRemoveItem,
   useScheduleItem,
   useSession,
-  useSuggestions,
   useToggleLike,
   useTrip,
   useActivity,
@@ -40,7 +39,6 @@ import { StartScreen } from './components/StartScreen'
 import type { LatLng } from './components/TripMap'
 import { AddExpenseForm, ExpensePanel } from './components/ExpensePanel'
 import { DayRail } from './components/DayRail'
-import { SuggestionsPanel } from './components/SuggestionsPanel'
 import { todayIso, tripDays } from './itinerary/tripDates'
 import { useTripSync } from './api/useTripSync'
 import { PlaceForm } from './components/PlaceForm'
@@ -411,11 +409,10 @@ function TripWorkspace({
     dayCount: number
   } | null>(null)
 
-  // Computed before the early returns below, because the suggestions query is a
-  // hook and hooks cannot be called conditionally.
+  // Computed before the early returns below, because these are hooks and hooks
+  // cannot be called conditionally.
   const days = trip.data ? tripDays(trip.data.startDate, trip.data.endDate) : []
   const activeDate = selectedDate ?? days[0] ?? null
-  const suggestions = useSuggestions(tripId, view === 'itinerary' ? activeDate : null)
   const feasibility = useFeasibility(tripId, view === 'itinerary' ? activeDate : null)
   // Only asked while the trip is empty, so this costs one geocode on a brand
   // new trip and nothing at all afterwards.
@@ -869,16 +866,6 @@ function TripWorkspace({
               />
             </Suspense>
 
-            <aside className="side-panel">
-              <SuggestionsPanel
-                date={activeDate}
-                groups={suggestions.data ?? []}
-                loading={suggestions.isFetching}
-                currency={currentTrip.currency}
-                currencyExponent={currentTrip.currencyExponent}
-                onAdd={handleSchedulePlace}
-              />
-            </aside>
           </div>
         )}
 

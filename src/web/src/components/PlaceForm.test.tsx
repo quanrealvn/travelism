@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { screen } from '@testing-library/react'
 import { PlaceForm } from './PlaceForm'
+import { hoursToMinutes } from '../places/duration'
 import { renderWithQuery } from '../test/renderWithQuery'
 import type { GeocodeResultResponse } from '../api/api-types'
 
@@ -173,11 +174,42 @@ describe('PlaceForm', () => {
     await user.click(await screen.findByText('Thác Dải Yếm'))
     // Morning is on by default; turning it off leaves none selected. The
     // checkbox is labelled in Vietnamese — "Morning" is a wire value.
-    await user.click(screen.getByLabelText('Sáng'))
+    //
+    // By role, not by label text: the option carries a decorative glyph beside
+    // the word, so its textContent is "🌅Sáng" while its *accessible* name is
+    // "Sáng". Asserting on the role is what proves the glyph is correctly
+    // hidden from assistive tech rather than merely looking hidden.
+    await user.click(screen.getByRole('checkbox', { name: 'Sáng' }))
 
     await user.click(submit())
 
     expect(onSubmit).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent(/ít nhất một buổi/i)
+  })
+})
+
+describe('hoursToMinutes', () => {
+  it('converts whole and fractional hours', () => {
+    expect(hoursToMinutes('2')).toBe(120)
+    expect(hoursToMinutes('1.5')).toBe(90)
+    expect(hoursToMinutes('0.25')).toBe(15)
+  })
+
+  it('accepts a comma, because that is how Vietnamese writes a decimal', () => {
+    expect(hoursToMinutes('1,5')).toBe(90)
+  })
+
+  it('rounds to whole minutes, since the API has no finer unit', () => {
+    expect(hoursToMinutes('0.333')).toBe(20)
+  })
+
+  it('refuses anything that is not a positive number', () => {
+    // Silently sending NaN or 0 would store a place with no duration at all,
+    // which the feasibility check then reasons about as if it were free.
+    expect(hoursToMinutes('')).toBeNaN()
+    expect(hoursToMinutes('0')).toBeNaN()
+    expect(hoursToMinutes('-2')).toBeNaN()
+    expect(hoursToMinutes('hai tiếng')).toBeNaN()
+    expect(hoursToMinutes('1.2.3')).toBeNaN()
   })
 })

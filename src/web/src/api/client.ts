@@ -14,7 +14,6 @@ import type {
   PlaceResponse,
   PlaceStatus,
   ProblemDetails,
-  SuggestionGroupResponse,
   SessionEnvelope,
   TripResponse,
   TripSessionResponse,
@@ -195,8 +194,6 @@ export const api = {
   feasibility: (tripId: string, date: string) =>
     request<FeasibilityResponse>(`/trips/${tripId}/itinerary/feasibility?date=${date}`),
 
-  suggestions: (tripId: string, date: string) =>
-    request<SuggestionGroupResponse[]>(`/trips/${tripId}/suggestions?date=${date}`),
 
   likePlace: (tripId: string, placeId: string) =>
     request<PlaceResponse>(`/trips/${tripId}/places/${placeId}/like`, { method: 'POST' }),

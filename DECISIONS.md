@@ -885,3 +885,60 @@ stayed false behind TLS termination so the session cookie shipped without
 shared one rate-limit partition and the per-IP limits protected nothing. The
 limits were the more serious of the two — they looked correct in code, in tests,
 and in the config, and were inert in production.
+
+### D75 — The category picker is tiles, not a dropdown
+
+A native `<select>` cannot carry an option's icon or its colour, so the one
+screen where you say what a place *is* was the only screen in the app with none
+of its category language on it — and on a phone it opened a full-height wheel to
+choose between five things that fit on two rows. Both pickers on the form are
+now tiles that take the option's own colour when selected, so the choice reads
+as "this is the Food one" rather than merely "this one".
+
+### D76 — Duration is asked in hours
+
+The API stores minutes and nobody plans in them: "hai tiếng ở thác" is how a
+duration gets decided. `hoursToMinutes` converts at the form edge and accepts a
+comma as the decimal mark, because Vietnamese keyboards and Vietnamese habit
+both produce "1,5" — rejecting that would refuse the most natural way to write
+an hour and a half. It returns NaN rather than 0 for junk, so a place can never
+be stored with no duration for the feasibility check to treat as free.
+
+"Giờ mở cửa" became "Giờ có mặt dự kiến" on the same form. The field was always
+free text, and what people wrote in it was when *they* meant to arrive.
+
+### D77 — Distance between stops is straight-line, and says so
+
+Each gap in a day carries how far apart its two stops are, in a row of its own
+between the cards — the number belongs to the space between them, not to either
+end. Computed on the client with Haversine: no request, no cache, instant.
+
+Deliberately not road distance, which the server already knows how to ask a
+routing service for and which feasibility uses. A number labelled "km" that is
+40% short of the real road would be worse than no number, so it is written
+"cách ~4,8 km" and never as a journey or a duration.
+
+### D78 — The forecast tints the whole day chip
+
+A row of grey cards with a different glyph on each made the weather something
+you read one at a time. Each condition maps to a stable slug the stylesheet
+colours on — amber for sun, blue for rain, violet for a storm — with every ink
+chosen to clear AA on its own tint. The label never goes away, so colour is a
+second channel rather than the only one, and "selected" outranks the forecast
+because which day you are editing matters more than what the sky is doing.
+
+### D79 — Local development is not rate limited
+
+The production limits exist to stop a stranger filling the disk. Applied to a
+machine running the app for one developer they only obstruct: the UX audit seeds
+three trips per run and was refused on its second run of the hour, which reads
+as a broken harness rather than a working limit. `appsettings.Development.json`
+raises them; the deployed machine runs Production and is unaffected.
+
+### D80 — The audit waits for tiles, not for a guess
+
+Leaflet re-measures only once its pane is visible and only then asks for the
+tiles covering the real size, so a fixed delay raced the tile server. Three runs
+of the same layout reported 1, 2 and 7 tiles — the signature of a race, not a
+defect. The audit now waits for the tile count itself, bounded, so a map that
+genuinely never loads is still caught.

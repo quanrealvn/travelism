@@ -40,13 +40,16 @@ export function DayRail({ weather, days, selectedDate, onSelectDate }: DayRailPr
       <ul aria-label="Ngày trong chuyến đi">
         {days.map((date) => {
           const day = byDate.get(date)
-          const { icon, label } = weatherText(day?.weatherCode ?? null)
+          const { icon, label, kind } = weatherText(day?.weatherCode ?? null)
 
           return (
             <li key={date}>
               <button
                 type="button"
-                className={date === selectedDate ? 'day-chip selected' : 'day-chip'}
+                // The forecast tints the whole chip. A row of grey cards with
+                // different glyphs on them made the weather something you had to
+                // read one by one; colour makes the wet days findable at a glance.
+                className={`day-chip weather-${kind}${date === selectedDate ? ' selected' : ''}`}
                 aria-pressed={date === selectedDate}
                 onClick={() => onSelectDate(date)}
                 data-testid={`weather-${date}`}

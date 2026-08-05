@@ -198,7 +198,31 @@ for (const vp of VIEWPORTS) {
       const mapTab = page.getByRole('button', { name: 'Bản đồ', exact: true })
       if (await mapTab.count()) {
         await mapTab.first().click()
-        await page.waitForTimeout(1500)
+        /*
+         * Wait for the tiles themselves, not for a guess at how long they take.
+         *
+         * Leaflet only re-measures once the pane is visible, and only then asks
+         * for the tiles that cover the real size — so a fixed delay raced the
+         * OSM tile server and reported a half-drawn map as a broken one. Three
+         * successive runs said 1, 2 and 7 tiles for the same layout, which is
+         * the signature of a race rather than a defect.
+         *
+         * Still bounded: if the tiles genuinely never arrive this falls through
+         * and the check below reports it, which is the case worth catching.
+         */
+        await page
+          .waitForFunction(
+            () => {
+              const map = document.querySelector('.leaflet-container')
+              if (!map) return false
+              const r = map.getBoundingClientRect()
+              const needed = Math.ceil(r.width / 256) * Math.ceil(r.height / 256)
+              return map.querySelectorAll('.leaflet-tile-loaded').length >= needed * 0.6
+            },
+            { timeout: 15000 },
+          )
+          .catch(() => undefined)
+        await page.waitForTimeout(600)
         await shoot(page, vp, 'map')
         await audit(page, `${vp.name}/map`)
         await page.getByRole('button', { name: 'Danh sách', exact: true }).first().click()
