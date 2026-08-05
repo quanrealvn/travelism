@@ -99,6 +99,15 @@ public static class Mappers
             place.EstimatedDurationMinutes,
             place.EstimatedCost,
             place.OpenHoursText,
+            place.Description,
+            place.References
+                .OrderBy(r => r.SortOrder)
+                .Select(r => new PlaceReferenceResponse(
+                    r.Id,
+                    r.Url,
+                    r.Label,
+                    string.IsNullOrWhiteSpace(r.Label) ? WebLink.DisplayNameFor(r.Url) : r.Label))
+                .ToList(),
             place.Status.ToString(),
             place.SkipReason,
             place.IsDeleted,

@@ -21,6 +21,8 @@ function place(overrides: Partial<PlaceResponse> = {}): PlaceResponse {
     estimatedDurationMinutes: 90,
     estimatedCost: 50_000,
     openHoursText: null,
+    description: null,
+    references: [],
     status: 'Confirmed',
     skipReason: null,
     isDeleted: false,

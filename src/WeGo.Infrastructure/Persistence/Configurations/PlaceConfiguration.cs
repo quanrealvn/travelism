@@ -14,6 +14,7 @@ public sealed class PlaceConfiguration : IEntityTypeConfiguration<Place>
         builder.Property(p => p.Name).IsRequired().HasMaxLength(PlaceDefaults.NameMaxLength);
         builder.Property(p => p.OpenHoursText).HasMaxLength(PlaceDefaults.OpenHoursTextMaxLength);
         builder.Property(p => p.SkipReason).HasMaxLength(PlaceDefaults.SkipReasonMaxLength);
+        builder.Property(p => p.Description).HasMaxLength(PlaceDefaults.DescriptionMaxLength);
 
         builder.Property(p => p.Category).HasConversion<string>().HasMaxLength(16).IsRequired();
         builder.Property(p => p.Status).HasConversion<string>().HasMaxLength(16).IsRequired();
@@ -29,7 +30,13 @@ public sealed class PlaceConfiguration : IEntityTypeConfiguration<Place>
             .HasForeignKey(l => l.PlaceId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(p => p.References)
+            .WithOne()
+            .HasForeignKey(r => r.PlaceId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.Navigation(p => p.Likes).UsePropertyAccessMode(PropertyAccessMode.Property);
+        builder.Navigation(p => p.References).UsePropertyAccessMode(PropertyAccessMode.Property);
 
         // Spec §6: soft-deleted places are excluded from every read by default.
         // Enforcing it as a model-level filter means a future endpoint cannot

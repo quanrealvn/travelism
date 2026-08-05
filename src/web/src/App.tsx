@@ -21,11 +21,13 @@ import {
   useToggleLike,
   useTrip,
   useActivity,
+  useUpdatePlace,
   useWeather,
 } from './api/hooks'
 import type {
   CreatePlaceRequest,
   IsoDate,
+  PlaceReferenceRequest,
   PlaceStatus,
   TripSessionResponse,
 } from './api/api-types'
@@ -89,6 +91,7 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   const deletePlace = useDeletePlace(tripId)
   const toggleLike = useToggleLike(tripId, memberId)
   const changeStatus = useChangePlaceStatus(tripId)
+  const updatePlace = useUpdatePlace(tripId)
   const itinerary = useItinerary(tripId)
   const scheduleItem = useScheduleItem(tripId)
   const moveItem = useMoveItem(tripId)
@@ -192,6 +195,26 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
             error instanceof ApiError && error.code === 'INVALID_STATUS_TRANSITION'
               ? error.message
               : 'Không đổi được trạng thái.',
+          )
+        },
+      },
+    )
+  }
+
+  function handleSaveDetail(
+    placeId: string,
+    description: string | null,
+    references: PlaceReferenceRequest[],
+  ) {
+    setActionError(null)
+    updatePlace.mutate(
+      { placeId, body: { description, references } },
+      {
+        onError: (error) => {
+          setActionError(
+            error instanceof ApiError
+              ? (Object.values(error.fieldErrors())[0] ?? error.message)
+              : 'Không lưu được mô tả.',
           )
         },
       },
@@ -405,13 +428,16 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
                 ? toggleLike.variables.placeId
                 : changeStatus.isPending
                   ? changeStatus.variables.placeId
-                  : null
+                  : updatePlace.isPending
+                    ? updatePlace.variables.placeId
+                    : null
             }
             tripUnderway={currentTrip.status !== 'Planning'}
             onSelect={setSelectedPlaceId}
             onDelete={handleDelete}
             onToggleLike={(placeId, liked) => toggleLike.mutate({ placeId, liked })}
             onChangeStatus={handleChangeStatus}
+            onSaveDetail={handleSaveDetail}
           />
 
           <PlaceForm

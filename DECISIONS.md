@@ -204,6 +204,31 @@ only in hue is unreadable for them. A legend sits in the corner.
 the moment it goes in one — names come from user input and from the geocoder.
 `escapeHtml` guards that boundary and is tested with an `<img onerror>` payload.
 
+### D39 — A place carries a description and reference links
+**Quan's addition; the spec's §3 Place has neither.** A wishlist that records
+only *where* a place is loses the reason it was saved. `Description` (≤2000
+chars) and up to 10 `PlaceReference` links cover that.
+
+Links are validated against a **scheme allowlist**, not a blocklist. They are
+rendered as anchors, so `javascript:` and `data:` URLs execute on click — and
+the set of dangerous schemes is open-ended while the set we want is exactly two.
+A rejected link fails the whole write rather than being silently dropped, so
+nobody believes they saved something they did not. Blank rows *are* dropped:
+an empty row in a form is somebody who changed their mind.
+
+References are **replaced wholesale** on PATCH rather than patched per link.
+Per-link patching would need stable ids on the client for no real gain, and the
+editor works on the list as a whole anyway. Omitting the field leaves them
+untouched, per the usual `Patch<T>` semantics (D22).
+
+### D40 — Reference rows are written through the DbSet, never the navigation collection
+Replacing links by mutating `place.References` throws
+`DbUpdateConcurrencyException`: EF's fixup both severs the relationship and
+cascade-deletes the orphan, issuing two DELETEs for one row, and the second
+affects nothing. `RemoveRange` on `db.PlaceReferences` plus `Add` for the new
+rows avoids the fixup entirely. The response is then re-read, because the
+tracked navigation still holds the rows that were just deleted.
+
 ### D27 — Leaflet's *default* marker images must be `import`ed, not built with `new URL(...)`
 *(Superseded in effect by D38, which replaced the default pins entirely — kept
 because the trap is worth remembering if an image-based icon ever returns.)*

@@ -27,6 +27,7 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
         return await query
             .AsNoTracking()
             .Include(p => p.Likes)
+            .Include(p => p.References)
             .OrderBy(p => p.CreatedAt)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -37,6 +38,7 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
         var place = await db.Places
             .AsNoTracking()
             .Include(p => p.Likes)
+            .Include(p => p.References)
             .FirstOrDefaultAsync(p => p.Id == placeId && p.TripId == tripId, cancellationToken)
             .ConfigureAwait(false);
 
@@ -57,7 +59,9 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
             request.TimeSlots,
             request.EstimatedDurationMinutes,
             request.EstimatedCost,
-            request.OpenHoursText);
+            request.OpenHoursText,
+            request.Description,
+            ToReferenceInputs(request.References));
 
         if (!validation.IsValid || draft is null)
         {
@@ -77,6 +81,7 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
             EstimatedDurationMinutes = draft.EstimatedDurationMinutes,
             EstimatedCost = draft.EstimatedCost,
             OpenHoursText = draft.OpenHoursText,
+            Description = draft.Description,
             // A new place starts as an unvetted Idea; only likes promote it
             // (spec §4). Recorded in DECISIONS.md — the spec does not name a
             // default explicitly.
@@ -86,6 +91,8 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
             UpdatedAt = now,
             UpdatedByMemberId = actingMemberId,
         };
+
+        ApplyReferences(place, draft.References);
 
         db.Places.Add(place);
         activityLog.Add(
@@ -109,6 +116,7 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
     {
         var place = await db.Places
             .Include(p => p.Likes)
+            .Include(p => p.References)
             .FirstOrDefaultAsync(p => p.Id == placeId && p.TripId == tripId, cancellationToken)
             .ConfigureAwait(false);
 
@@ -131,7 +139,14 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
                 ? request.EstimatedDurationMinutes.Value
                 : place.EstimatedDurationMinutes,
             request.EstimatedCost.IsSet ? request.EstimatedCost.Value : place.EstimatedCost,
-            request.OpenHoursText.IsSet ? request.OpenHoursText.Value : place.OpenHoursText);
+            request.OpenHoursText.IsSet ? request.OpenHoursText.Value : place.OpenHoursText,
+            request.Description.IsSet ? request.Description.Value : place.Description,
+            request.References.IsSet
+                ? ToReferenceInputs(request.References.Value)
+                : place.References
+                    .OrderBy(r => r.SortOrder)
+                    .Select(r => new ReferenceInput(r.Url, r.Label))
+                    .ToList());
 
         if (!validation.IsValid || draft is null)
         {
@@ -154,8 +169,34 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
         place.EstimatedDurationMinutes = draft.EstimatedDurationMinutes;
         place.EstimatedCost = draft.EstimatedCost;
         place.OpenHoursText = draft.OpenHoursText;
+        place.Description = draft.Description;
         place.UpdatedAt = clock.UtcNow;
         place.UpdatedByMemberId = actingMemberId;
+
+        if (request.References.IsSet)
+        {
+            // Replaced wholesale: the editor works on the list as a whole, and
+            // per-link patching would need stable ids on the client for no gain.
+            //
+            // Done through the DbSet rather than the navigation collection.
+            // Mutating a tracked collection makes EF's fixup both sever the
+            // relationship and cascade-delete the orphan, which issues two
+            // DELETEs for one row — the second affects nothing and throws
+            // DbUpdateConcurrencyException.
+            db.PlaceReferences.RemoveRange(place.References.ToList());
+
+            for (var i = 0; i < draft.References.Count; i++)
+            {
+                db.PlaceReferences.Add(new PlaceReference
+                {
+                    Id = Guid.NewGuid(),
+                    PlaceId = place.Id,
+                    Url = draft.References[i].Url,
+                    Label = draft.References[i].Label,
+                    SortOrder = i,
+                });
+            }
+        }
 
         activityLog.Add(
             tripId,
@@ -166,7 +207,16 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
             $"Updated place “{place.Name}”.");
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        return Result<Place>.Ok(place);
+
+        if (!request.References.IsSet)
+        {
+            return Result<Place>.Ok(place);
+        }
+
+        // The tracked navigation still holds the links that were just deleted,
+        // so the response is read fresh rather than reported from memory.
+        db.ChangeTracker.Clear();
+        return await GetAsync(tripId, placeId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -202,6 +252,7 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
     {
         var place = await db.Places
             .Include(p => p.Likes)
+            .Include(p => p.References)
             .FirstOrDefaultAsync(p => p.Id == placeId && p.TripId == tripId, cancellationToken)
             .ConfigureAwait(false);
 
@@ -302,6 +353,7 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
 
         var place = await db.Places
             .Include(p => p.Likes)
+            .Include(p => p.References)
             .FirstOrDefaultAsync(p => p.Id == placeId && p.TripId == tripId, cancellationToken)
             .ConfigureAwait(false);
 
@@ -380,6 +432,7 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
     {
         var place = await db.Places
             .Include(p => p.Likes)
+            .Include(p => p.References)
             .FirstOrDefaultAsync(p => p.Id == placeId && p.TripId == tripId, cancellationToken)
             .ConfigureAwait(false);
 
@@ -439,6 +492,26 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result<Place>.Ok(place);
+    }
+
+    private static IReadOnlyList<ReferenceInput> ToReferenceInputs(
+        IReadOnlyList<PlaceReferenceRequest>? references) =>
+        references?.Select(r => new ReferenceInput(r.Url, r.Label)).ToList() ?? [];
+
+    /// <summary>Writes validated links onto the place, numbered in order.</summary>
+    private static void ApplyReferences(Place place, IReadOnlyList<ReferenceDraft> references)
+    {
+        for (var i = 0; i < references.Count; i++)
+        {
+            place.References.Add(new PlaceReference
+            {
+                Id = Guid.NewGuid(),
+                PlaceId = place.Id,
+                Url = references[i].Url,
+                Label = references[i].Label,
+                SortOrder = i,
+            });
+        }
     }
 
     private async Task InvalidateTravelTimeCacheAsync(Guid placeId, CancellationToken cancellationToken)

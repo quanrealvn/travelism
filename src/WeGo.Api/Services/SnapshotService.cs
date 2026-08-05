@@ -37,6 +37,7 @@ public sealed class SnapshotService(WeGoDbContext db, ExpenseService expenses)
         var places = await db.Places
             .AsNoTracking()
             .Include(p => p.Likes)
+            .Include(p => p.References)
             .Where(p => p.TripId == tripId)
             .OrderBy(p => p.CreatedAt)
             .ToListAsync(cancellationToken)

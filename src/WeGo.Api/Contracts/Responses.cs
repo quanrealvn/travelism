@@ -31,6 +31,12 @@ public sealed record TripResponse(
     DateTimeOffset UpdatedAt,
     Guid UpdatedByMemberId);
 
+/// <param name="DisplayName">
+/// The label if there is one, otherwise the host — so a list of links never
+/// shows a row of 200-character URLs.
+/// </param>
+public sealed record PlaceReferenceResponse(Guid Id, string Url, string? Label, string DisplayName);
+
 public sealed record PlaceResponse(
     Guid Id,
     Guid TripId,
@@ -42,6 +48,8 @@ public sealed record PlaceResponse(
     int EstimatedDurationMinutes,
     long? EstimatedCost,
     string? OpenHoursText,
+    string? Description,
+    IReadOnlyList<PlaceReferenceResponse> References,
     string Status,
     string? SkipReason,
     bool IsDeleted,

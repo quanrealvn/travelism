@@ -24,6 +24,12 @@ public sealed class Place : Entity
 
     public string? OpenHoursText { get; set; }
 
+    /// <summary>Free text: why this place is worth going to.</summary>
+    public string? Description { get; set; }
+
+    /// <summary>Links backing up the description, in the order they were added.</summary>
+    public List<PlaceReference> References { get; } = [];
+
     public PlaceStatus Status { get; set; } = PlaceStatus.Idea;
 
     public string? SkipReason { get; set; }
@@ -38,6 +44,7 @@ public static class PlaceDefaults
 {
     public const int NameMaxLength = 120;
     public const int OpenHoursTextMaxLength = 200;
+    public const int DescriptionMaxLength = 2000;
     public const int SkipReasonMaxLength = 300;
     public const int MinDurationMinutes = 5;
     public const int MaxDurationMinutes = 1440;

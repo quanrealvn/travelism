@@ -24,6 +24,8 @@ function place(overrides: Partial<PlaceResponse> = {}): PlaceResponse {
     estimatedDurationMinutes: 90,
     estimatedCost: 50_000,
     openHoursText: null,
+    description: null,
+    references: [],
     status: 'Idea',
     skipReason: null,
     isDeleted: false,
@@ -41,6 +43,7 @@ function renderList(places: PlaceResponse[], overrides: Partial<Parameters<typeo
     onDelete: vi.fn(),
     onToggleLike: vi.fn(),
     onChangeStatus: vi.fn(),
+    onSaveDetail: vi.fn(),
   }
 
   render(

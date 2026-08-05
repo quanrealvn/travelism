@@ -41,6 +41,19 @@ export interface TripResponse {
   updatedByMemberId: string
 }
 
+export interface PlaceReferenceResponse {
+  id: string
+  url: string
+  label: string | null
+  /** The label if set, otherwise the host — never a raw 200-character URL. */
+  displayName: string
+}
+
+export interface PlaceReferenceRequest {
+  url: string
+  label?: string | null
+}
+
 export interface PlaceResponse {
   id: string
   tripId: string
@@ -52,6 +65,8 @@ export interface PlaceResponse {
   estimatedDurationMinutes: number
   estimatedCost: number | null
   openHoursText: string | null
+  description: string | null
+  references: PlaceReferenceResponse[]
   status: PlaceStatus
   skipReason: string | null
   isDeleted: boolean
@@ -278,6 +293,8 @@ export interface CreatePlaceRequest {
   estimatedDurationMinutes: number
   estimatedCost?: number | null
   openHoursText?: string | null
+  description?: string | null
+  references?: PlaceReferenceRequest[]
 }
 
 export type UpdatePlaceRequest = Partial<CreatePlaceRequest>

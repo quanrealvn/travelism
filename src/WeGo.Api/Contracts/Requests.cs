@@ -66,6 +66,9 @@ public sealed record UpdateItineraryItemRequest(
     Patch<string?> Note,
     Patch<long?> ActualCost);
 
+/// <summary>A reference link on a place. Label is optional; the host stands in.</summary>
+public sealed record PlaceReferenceRequest(string? Url, string? Label);
+
 public sealed record CreatePlaceRequest(
     string? Name,
     double? Lat,
@@ -74,8 +77,15 @@ public sealed record CreatePlaceRequest(
     string?[]? TimeSlots,
     int? EstimatedDurationMinutes,
     long? EstimatedCost,
-    string? OpenHoursText);
+    string? OpenHoursText,
+    string? Description,
+    IReadOnlyList<PlaceReferenceRequest>? References);
 
+/// <summary>
+/// Partial update. <see cref="References"/> replaces the whole list when sent —
+/// per-link patching would need stable ids on the client for no real gain, and
+/// the editor works on the list as a whole anyway.
+/// </summary>
 public sealed record UpdatePlaceRequest(
     Patch<string?> Name,
     Patch<double?> Lat,
@@ -84,4 +94,6 @@ public sealed record UpdatePlaceRequest(
     Patch<string?[]?> TimeSlots,
     Patch<int?> EstimatedDurationMinutes,
     Patch<long?> EstimatedCost,
-    Patch<string?> OpenHoursText);
+    Patch<string?> OpenHoursText,
+    Patch<string?> Description,
+    Patch<IReadOnlyList<PlaceReferenceRequest>?> References);

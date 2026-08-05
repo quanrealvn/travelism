@@ -13,6 +13,8 @@ public sealed class WeGoDbContext(DbContextOptions<WeGoDbContext> options) : DbC
 
     public DbSet<PlaceLike> PlaceLikes => Set<PlaceLike>();
 
+    public DbSet<PlaceReference> PlaceReferences => Set<PlaceReference>();
+
     public DbSet<ItineraryItem> ItineraryItems => Set<ItineraryItem>();
 
     public DbSet<TravelTimeCache> TravelTimeCaches => Set<TravelTimeCache>();

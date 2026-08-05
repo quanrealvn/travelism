@@ -1,5 +1,11 @@
-import type { MemberResponse, PlaceResponse, PlaceStatus } from '../api/api-types'
+import type {
+  MemberResponse,
+  PlaceReferenceRequest,
+  PlaceResponse,
+  PlaceStatus,
+} from '../api/api-types'
 import { formatDuration, formatMoney } from '../api/money'
+import { PlaceDetail } from './PlaceDetail'
 
 interface PlaceListProps {
   places: PlaceResponse[]
@@ -15,6 +21,11 @@ interface PlaceListProps {
   onDelete: (placeId: string) => void
   onToggleLike: (placeId: string, liked: boolean) => void
   onChangeStatus: (placeId: string, status: PlaceStatus) => void
+  onSaveDetail: (
+    placeId: string,
+    description: string | null,
+    references: PlaceReferenceRequest[],
+  ) => void
 }
 
 /**
@@ -87,6 +98,7 @@ function PlaceRow({
   onDelete,
   onToggleLike,
   onChangeStatus,
+  onSaveDetail,
 }: PlaceListProps & { place: PlaceResponse; memberCount: number }) {
   const likedByMe = place.likedByMemberIds.includes(myMemberId)
   const likeCount = place.likedByMemberIds.length
@@ -98,7 +110,7 @@ function PlaceRow({
 
   return (
     <li
-      className={place.id === selectedPlaceId ? 'place selected' : 'place'}
+      className={place.id === selectedPlaceId ? 'place has-detail selected' : 'place has-detail'}
       data-testid={`place-${place.id}`}
     >
       <button
@@ -155,6 +167,12 @@ function PlaceRow({
           {deletingPlaceId === place.id ? '…' : '✕'}
         </button>
       </div>
+
+      <PlaceDetail
+        place={place}
+        saving={busy}
+        onSave={(description, references) => onSaveDetail(place.id, description, references)}
+      />
     </li>
   )
 }

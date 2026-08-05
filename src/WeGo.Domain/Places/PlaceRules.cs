@@ -3,6 +3,9 @@ using WeGo.Domain.Entities;
 
 namespace WeGo.Domain.Places;
 
+/// <summary>A validated reference link, safe to store and to render as an anchor.</summary>
+public sealed record ReferenceDraft(string Url, string? Label);
+
 /// <summary>A fully validated set of place field values, safe to write to an entity.</summary>
 public sealed record PlaceDraft(
     string Name,
@@ -12,7 +15,12 @@ public sealed record PlaceDraft(
     TimeSlots TimeSlots,
     int EstimatedDurationMinutes,
     long? EstimatedCost,
-    string? OpenHoursText);
+    string? OpenHoursText,
+    string? Description,
+    IReadOnlyList<ReferenceDraft> References);
+
+/// <summary>A reference link as it arrives from the client, before validation.</summary>
+public sealed record ReferenceInput(string? Url, string? Label);
 
 /// <summary>Pure place validation (spec §3 field bounds + §6 coordinate rules).</summary>
 public static class PlaceRules
@@ -25,7 +33,9 @@ public static class PlaceRules
         IReadOnlyList<string?>? timeSlots,
         int? estimatedDurationMinutes,
         long? estimatedCost,
-        string? openHoursText)
+        string? openHoursText,
+        string? description = null,
+        IReadOnlyList<ReferenceInput>? references = null)
     {
         var result = new ValidationResult();
 
@@ -42,6 +52,11 @@ public static class PlaceRules
 
         var validOpenHours = StringInput.Optional(
             result, "openHoursText", openHoursText, PlaceDefaults.OpenHoursTextMaxLength);
+
+        var validDescription = StringInput.Optional(
+            result, "description", description, PlaceDefaults.DescriptionMaxLength);
+
+        var validReferences = ValidateReferences(result, references);
 
         if (!result.IsValid
             || validName is null
@@ -62,8 +77,66 @@ public static class PlaceRules
                 validSlots.Value,
                 validDuration.Value,
                 estimatedCost,
-                validOpenHours),
+                validOpenHours,
+                validDescription,
+                validReferences),
             result);
+    }
+
+    /// <summary>
+    /// Validates the reference links. Blank rows are dropped rather than
+    /// rejected — an empty row in a form is somebody who changed their mind,
+    /// not an error worth blocking a save for.
+    /// </summary>
+    private static IReadOnlyList<ReferenceDraft> ValidateReferences(
+        ValidationResult result,
+        IReadOnlyList<ReferenceInput>? references)
+    {
+        if (references is null || references.Count == 0)
+        {
+            return [];
+        }
+
+        var meaningful = references
+            .Where(r => StringInput.Normalize(r.Url) is not null)
+            .ToList();
+
+        if (meaningful.Count > WebLink.MaxPerPlace)
+        {
+            result.Add(
+                "references",
+                FieldErrorCodes.TooLong,
+                $"A place may have at most {WebLink.MaxPerPlace} links.");
+            return [];
+        }
+
+        var drafts = new List<ReferenceDraft>(meaningful.Count);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var reference in meaningful)
+        {
+            var url = StringInput.Normalize(reference.Url)!;
+
+            if (!WebLink.IsSafe(url))
+            {
+                result.Add(
+                    "references",
+                    FieldErrorCodes.Invalid,
+                    "Each link must be a full http:// or https:// address.");
+                continue;
+            }
+
+            // Saving the same source twice is clutter, not information.
+            if (!seen.Add(url))
+            {
+                continue;
+            }
+
+            var label = StringInput.Optional(result, "references", reference.Label, WebLink.MaxLabelLength);
+            drafts.Add(new ReferenceDraft(url, label));
+        }
+
+        return drafts;
     }
 
     private static (double Lat, double Lng)? ValidateCoordinates(
