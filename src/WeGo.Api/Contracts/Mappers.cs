@@ -1,4 +1,5 @@
 using WeGo.Domain.Entities;
+using WeGo.Domain.Itinerary;
 using WeGo.Domain.Money;
 using WeGo.Domain.Places;
 
@@ -27,6 +28,33 @@ public static class Mappers
             trip.CreatedAt,
             trip.UpdatedAt,
             trip.UpdatedByMemberId);
+
+    public static ItineraryItemResponse ToResponse(this ItineraryItem item) =>
+        new(
+            item.Id,
+            item.TripId,
+            item.PlaceId,
+            item.Place?.Name ?? string.Empty,
+            item.Place?.Category.ToString() ?? string.Empty,
+            item.Place?.EstimatedDurationMinutes ?? 0,
+            item.Place?.Lat ?? 0,
+            item.Place?.Lng ?? 0,
+            item.Date,
+            item.StartTime,
+            item.Note,
+            item.ActualCost,
+            item.Place?.EstimatedCost,
+            item.CreatedAt,
+            item.UpdatedAt,
+            item.UpdatedByMemberId);
+
+    public static SuggestionGroupResponse ToResponse(this SuggestionGroup group) =>
+        new(
+            group.Slot.ToString(),
+            group.Places
+                .Select(p => new SuggestionResponse(
+                    p.PlaceId, p.Name, p.Category.ToString(), p.EstimatedCost))
+                .ToList());
 
     public static PlaceResponse ToResponse(this Place place) =>
         new(

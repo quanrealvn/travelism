@@ -538,3 +538,274 @@ legend {
   color: var(--muted);
   margin-top: 4rem;
 }
+
+/* View tabs */
+.view-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.view-tabs button {
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+.view-tabs button[aria-selected='true'] {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* Itinerary board */
+.itinerary-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 64rem) {
+  .itinerary-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.itinerary {
+  display: grid;
+  grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr);
+  gap: 0.75rem;
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 0.75rem;
+}
+
+.itinerary-pool h3,
+.suggestions h3 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+
+.pool-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 30rem;
+  overflow-y: auto;
+}
+
+.pool-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.5rem;
+  cursor: grab;
+  background: var(--surface);
+  touch-action: none;
+}
+
+.pool-item.dragging {
+  opacity: 0.4;
+}
+
+.pool-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.pool-meta,
+.day-summary,
+.item-meta,
+.suggestion-meta {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.itinerary-days {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
+}
+
+.day-column {
+  flex: 0 0 14rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.5rem;
+  background: #fbfbf9;
+  min-height: 12rem;
+}
+
+.day-column.selected {
+  border-color: var(--accent);
+}
+
+.day-column.over {
+  background: #eef4f2;
+  border-color: var(--accent);
+}
+
+.day-column.would-duplicate {
+  background: #fdf0d5;
+  border-color: #e0b95a;
+}
+
+.day-column header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.day-heading {
+  background: none;
+  color: var(--ink);
+  padding: 0;
+  text-align: left;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.day-empty {
+  font-size: 0.76rem;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  margin: 0;
+}
+
+.day-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.item-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 0.3rem;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.35rem 0.4rem;
+}
+
+.item-card.dragging {
+  opacity: 0.4;
+}
+
+.item-card.busy {
+  opacity: 0.6;
+}
+
+.item-grip {
+  cursor: grab;
+  color: var(--muted);
+  font-size: 0.9rem;
+  touch-action: none;
+  user-select: none;
+}
+
+.item-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.item-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-note {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.item-time {
+  width: 5.4rem;
+  font-size: 0.74rem;
+  padding: 0.15rem 0.2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.item-remove {
+  background: none;
+  color: var(--danger);
+  padding: 0.1rem 0.3rem;
+}
+
+.drag-ghost {
+  background: var(--accent);
+  color: #fff;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Suggestions */
+.suggestion-group h4 {
+  font-size: 0.75rem;
+  margin: 0.6rem 0 0.3rem;
+  color: var(--accent);
+}
+
+.suggestion-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.suggestion-group button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  color: inherit;
+  font-weight: 400;
+  border: 1px solid var(--line);
+  padding: 0.35rem 0.5rem;
+}
+
+.suggestion-group button:hover {
+  background: #eef4f2;
+  border-color: var(--accent);
+}
+
+.suggestion-name {
+  font-weight: 600;
+  font-size: 0.83rem;
+}
+
+.empty-state.small {
+  font-size: 0.78rem;
+  padding: 0.6rem;
+}

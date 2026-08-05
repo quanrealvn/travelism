@@ -36,6 +36,24 @@ public sealed record ResolveLinkRequest(string? Url);
 /// <summary>An explicit place status change (spec §4). SkipReason applies only to Skipped.</summary>
 public sealed record ChangePlaceStatusRequest(string? Status, string? SkipReason);
 
+public sealed record CreateItineraryItemRequest(
+    Guid? PlaceId,
+    DateOnly? Date,
+    TimeOnly? StartTime,
+    string? Note,
+    long? ActualCost);
+
+/// <summary>
+/// Partial update of a scheduled item. <see cref="StartTime"/> uses
+/// <see cref="Patch{T}"/> so an explicit null can clear the time — "sometime
+/// that day" is a meaningful state, distinct from not mentioning the field.
+/// </summary>
+public sealed record UpdateItineraryItemRequest(
+    Patch<DateOnly?> Date,
+    Patch<TimeOnly?> StartTime,
+    Patch<string?> Note,
+    Patch<long?> ActualCost);
+
 public sealed record CreatePlaceRequest(
     string? Name,
     double? Lat,

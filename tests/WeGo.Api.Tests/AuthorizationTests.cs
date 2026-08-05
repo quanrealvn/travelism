@@ -43,6 +43,11 @@ public sealed class AuthorizationTests(WeGoAppFactory factory) : IClassFixture<W
         ("POST", "/trips/{tripId}/places/{placeId}/like"),
         ("DELETE", "/trips/{tripId}/places/{placeId}/like"),
         ("POST", "/trips/{tripId}/places/{placeId}/status"),
+        ("GET", "/trips/{tripId}/itinerary"),
+        ("POST", "/trips/{tripId}/itinerary"),
+        ("PATCH", "/trips/{tripId}/itinerary/{itemId}"),
+        ("DELETE", "/trips/{tripId}/itinerary/{itemId}"),
+        ("GET", "/trips/{tripId}/suggestions"),
     ];
 
     [Theory]
@@ -60,7 +65,8 @@ public sealed class AuthorizationTests(WeGoAppFactory factory) : IClassFixture<W
 
         var url = template
             .Replace("{tripId}", victim.Trip.Id.ToString())
-            .Replace("{placeId}", victimPlace.Id.ToString());
+            .Replace("{placeId}", victimPlace.Id.ToString())
+            .Replace("{itemId}", Guid.NewGuid().ToString());
 
         var response = await attacker.SendAsync(BuildRequest(method, url));
 
@@ -80,7 +86,8 @@ public sealed class AuthorizationTests(WeGoAppFactory factory) : IClassFixture<W
         var anonymous = factory.CreateApiClient();
         var url = template
             .Replace("{tripId}", trip.Trip.Id.ToString())
-            .Replace("{placeId}", place.Id.ToString());
+            .Replace("{placeId}", place.Id.ToString())
+            .Replace("{itemId}", Guid.NewGuid().ToString());
 
         var response = await anonymous.SendAsync(BuildRequest(method, url));
 

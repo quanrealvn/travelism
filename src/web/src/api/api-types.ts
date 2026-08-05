@@ -61,6 +61,53 @@ export interface PlaceResponse {
   updatedByMemberId: string
 }
 
+export interface ItineraryItemResponse {
+  id: string
+  tripId: string
+  placeId: string
+  placeName: string
+  placeCategory: PlaceCategory
+  estimatedDurationMinutes: number
+  lat: number
+  lng: number
+  date: IsoDate
+  /** `HH:mm:ss`, or null for "sometime that day". */
+  startTime: string | null
+  note: string | null
+  actualCost: number | null
+  estimatedCost: number | null
+  createdAt: string
+  updatedAt: string
+  updatedByMemberId: string
+}
+
+export interface SuggestionResponse {
+  placeId: string
+  name: string
+  category: PlaceCategory
+  estimatedCost: number | null
+}
+
+export interface SuggestionGroupResponse {
+  slot: TimeSlot
+  places: SuggestionResponse[]
+}
+
+export interface CreateItineraryItemRequest {
+  placeId: string
+  date: IsoDate
+  startTime?: string | null
+  note?: string | null
+  actualCost?: number | null
+}
+
+export interface UpdateItineraryItemRequest {
+  date?: IsoDate
+  startTime?: string | null
+  note?: string | null
+  actualCost?: number | null
+}
+
 /** A candidate location returned by the place-name search. */
 export interface GeocodeResultResponse {
   /** Short label, prefilled into the place name field. */

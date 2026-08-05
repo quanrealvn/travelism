@@ -1,13 +1,17 @@
 import type {
+  CreateItineraryItemRequest,
   CreatePlaceRequest,
   CreateTripRequest,
   GeocodeResultResponse,
+  ItineraryItemResponse,
   JoinTripRequest,
   PlaceResponse,
   PlaceStatus,
   ProblemDetails,
+  SuggestionGroupResponse,
   TripResponse,
   TripSessionResponse,
+  UpdateItineraryItemRequest,
   UpdatePlaceRequest,
 } from './api-types'
 
@@ -107,6 +111,27 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+
+  listItinerary: (tripId: string) =>
+    request<ItineraryItemResponse[]>(`/trips/${tripId}/itinerary`),
+
+  createItineraryItem: (tripId: string, body: CreateItineraryItemRequest) =>
+    request<ItineraryItemResponse>(`/trips/${tripId}/itinerary`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  updateItineraryItem: (tripId: string, itemId: string, body: UpdateItineraryItemRequest) =>
+    request<ItineraryItemResponse>(`/trips/${tripId}/itinerary/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  deleteItineraryItem: (tripId: string, itemId: string) =>
+    request<ItineraryItemResponse>(`/trips/${tripId}/itinerary/${itemId}`, { method: 'DELETE' }),
+
+  suggestions: (tripId: string, date: string) =>
+    request<SuggestionGroupResponse[]>(`/trips/${tripId}/suggestions?date=${date}`),
 
   likePlace: (tripId: string, placeId: string) =>
     request<PlaceResponse>(`/trips/${tripId}/places/${placeId}/like`, { method: 'POST' }),

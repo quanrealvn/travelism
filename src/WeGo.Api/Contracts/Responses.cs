@@ -68,6 +68,34 @@ public sealed record GeocodeResultResponse(
     string? Kind,
     double? DistanceKm);
 
+/// <summary>A place scheduled on a particular day of the trip.</summary>
+public sealed record ItineraryItemResponse(
+    Guid Id,
+    Guid TripId,
+    Guid PlaceId,
+    string PlaceName,
+    string PlaceCategory,
+    int EstimatedDurationMinutes,
+    double Lat,
+    double Lng,
+    DateOnly Date,
+    TimeOnly? StartTime,
+    string? Note,
+    long? ActualCost,
+    long? EstimatedCost,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    Guid UpdatedByMemberId);
+
+/// <summary>Suggestions for one time of day (spec §5.1).</summary>
+public sealed record SuggestionGroupResponse(string Slot, IReadOnlyList<SuggestionResponse> Places);
+
+public sealed record SuggestionResponse(
+    Guid PlaceId,
+    string Name,
+    string Category,
+    long? EstimatedCost);
+
 /// <summary>Who the caller is, for a client that has a cookie but no state.</summary>
 public sealed record SessionResponse(
     Guid TripId,

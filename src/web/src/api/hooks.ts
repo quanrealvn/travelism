@@ -1,9 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type {
+  CreateItineraryItemRequest,
   CreatePlaceRequest,
+  ItineraryItemResponse,
   PlaceResponse,
   PlaceStatus,
+  UpdateItineraryItemRequest,
   UpdatePlaceRequest,
 } from './api-types'
 
@@ -14,6 +17,104 @@ export const queryKeys = {
   places: (tripId: string) => ['places', tripId] as const,
   placeSearch: (tripId: string, query: string) => ['place-search', tripId, query] as const,
   placeLink: (tripId: string, url: string) => ['place-link', tripId, url] as const,
+  itinerary: (tripId: string) => ['itinerary', tripId] as const,
+  suggestions: (tripId: string, date: string) => ['suggestions', tripId, date] as const,
+}
+
+export function useItinerary(tripId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.itinerary(tripId ?? ''),
+    queryFn: () => api.listItinerary(tripId!),
+    enabled: Boolean(tripId),
+  })
+}
+
+export function useSuggestions(tripId: string, date: string | null) {
+  return useQuery({
+    queryKey: queryKeys.suggestions(tripId, date ?? ''),
+    queryFn: () => api.suggestions(tripId, date!),
+    enabled: Boolean(date),
+    staleTime: 30_000,
+  })
+}
+
+export function useScheduleItem(tripId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (body: CreateItineraryItemRequest) => api.createItineraryItem(tripId, body),
+    onSuccess: (created) => {
+      queryClient.setQueryData<ItineraryItemResponse[]>(queryKeys.itinerary(tripId), (current) =>
+        current ? [...current, created] : [created],
+      )
+      // Scheduling removes the place from that day's suggestions.
+      void queryClient.invalidateQueries({ queryKey: ['suggestions', tripId] })
+    },
+  })
+}
+
+/**
+ * Moving an item between days. Optimistic, because a drag that visibly snaps
+ * back after a round trip feels broken — and spec §7.15 requires the rollback
+ * when the server refuses the drop.
+ */
+export function useMoveItem(tripId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ itemId, body }: { itemId: string; body: UpdateItineraryItemRequest }) =>
+      api.updateItineraryItem(tripId, itemId, body),
+
+    onMutate: async ({ itemId, body }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.itinerary(tripId) })
+      const previous = queryClient.getQueryData<ItineraryItemResponse[]>(queryKeys.itinerary(tripId))
+
+      queryClient.setQueryData<ItineraryItemResponse[]>(queryKeys.itinerary(tripId), (current) =>
+        current?.map((item) =>
+          item.id === itemId
+            ? {
+                ...item,
+                date: body.date ?? item.date,
+                startTime: body.startTime === undefined ? item.startTime : body.startTime,
+              }
+            : item,
+        ),
+      )
+
+      return { previous }
+    },
+
+    onError: (_error, _variables, context) => {
+      // Spec §7.15: put the item back exactly where it was.
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.itinerary(tripId), context.previous)
+      }
+    },
+
+    onSuccess: (updated) => {
+      queryClient.setQueryData<ItineraryItemResponse[]>(queryKeys.itinerary(tripId), (current) =>
+        current?.map((item) => (item.id === updated.id ? updated : item)),
+      )
+    },
+
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['suggestions', tripId] })
+    },
+  })
+}
+
+export function useRemoveItem(tripId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (itemId: string) => api.deleteItineraryItem(tripId, itemId),
+    onSuccess: (removed) => {
+      queryClient.setQueryData<ItineraryItemResponse[]>(queryKeys.itinerary(tripId), (current) =>
+        current?.filter((item) => item.id !== removed.id),
+      )
+      void queryClient.invalidateQueries({ queryKey: ['suggestions', tripId] })
+    },
+  })
 }
 
 /**
