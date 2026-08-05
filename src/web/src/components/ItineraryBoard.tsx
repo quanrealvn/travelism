@@ -9,9 +9,16 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
-import type { IsoDate, ItineraryItemResponse, PlaceResponse } from '../api/api-types'
+import type {
+  FeasibilityFindingResponse,
+  IsoDate,
+  ItineraryItemResponse,
+  PlaceResponse,
+} from '../api/api-types'
 import { formatDuration, formatMoney } from '../api/money'
 import { formatDayLabel, formatTime } from '../itinerary/tripDates'
+import { FeasibilityBadges } from './FeasibilityBadges'
+import { worstLevel } from '../itinerary/feasibilityText'
 
 interface ItineraryBoardProps {
   days: IsoDate[]
@@ -20,6 +27,8 @@ interface ItineraryBoardProps {
   currency: string
   currencyExponent: number
   movingItemId: string | null
+  /** Findings for the selected day only — feasibility is a per-day question. */
+  findings: FeasibilityFindingResponse[]
   selectedDate: IsoDate | null
   onSelectDate: (date: IsoDate) => void
   onMoveItem: (itemId: string, toDate: IsoDate) => void
@@ -48,6 +57,7 @@ export function ItineraryBoard({
   currency,
   currencyExponent,
   movingItemId,
+  findings,
   selectedDate,
   onSelectDate,
   onMoveItem,
@@ -129,6 +139,9 @@ export function ItineraryBoard({
               currency={currency}
               currencyExponent={currencyExponent}
               movingItemId={movingItemId}
+              // Feasibility is fetched for the selected day, so other columns
+              // show no badges rather than stale ones from another day.
+              findings={selectedDate === date ? findings : []}
               selected={selectedDate === date}
               onSelect={() => onSelectDate(date)}
               onRemoveItem={onRemoveItem}
@@ -184,6 +197,7 @@ function DayColumn({
   currency,
   currencyExponent,
   movingItemId,
+  findings,
   selected,
   onSelect,
   onRemoveItem,
@@ -196,6 +210,7 @@ function DayColumn({
   currency: string
   currencyExponent: number
   movingItemId: string | null
+  findings: FeasibilityFindingResponse[]
   selected: boolean
   onSelect: () => void
   onRemoveItem: (itemId: string) => void
@@ -226,6 +241,8 @@ function DayColumn({
     0,
   )
 
+  const dayLevel = worstLevel(findings)
+
   return (
     <section ref={setNodeRef} className={className} data-testid={`day-${date}`}>
       <header>
@@ -234,6 +251,11 @@ function DayColumn({
         </button>
         <span className="day-summary">
           {items.length} điểm · {formatMoney(dayCost, currency, currencyExponent)}
+          {dayLevel && (
+            <span className={`day-verdict day-verdict-${dayLevel}`} data-testid={`verdict-${date}`}>
+              {dayLevel === 'error' ? 'không kịp' : dayLevel === 'warning' ? 'cần xem lại' : 'ổn'}
+            </span>
+          )}
         </span>
       </header>
 
@@ -248,6 +270,7 @@ function DayColumn({
               currency={currency}
               currencyExponent={currencyExponent}
               busy={movingItemId === item.id}
+              findings={findings.filter((f) => f.itineraryItemId === item.id)}
               onRemove={() => onRemoveItem(item.id)}
               onSetTime={onSetTime}
             />
@@ -263,6 +286,7 @@ function ItemCard({
   currency,
   currencyExponent,
   busy,
+  findings,
   onRemove,
   onSetTime,
 }: {
@@ -270,6 +294,7 @@ function ItemCard({
   currency: string
   currencyExponent: number
   busy: boolean
+  findings: FeasibilityFindingResponse[]
   onRemove: () => void
   onSetTime: (itemId: string, startTime: string | null) => void
 }) {
@@ -300,6 +325,7 @@ function ItemCard({
           {formatMoney(item.actualCost ?? item.estimatedCost, currency, currencyExponent)}
         </span>
         {item.note && <span className="item-note">{item.note}</span>}
+        <FeasibilityBadges findings={findings} />
       </div>
 
       <input

@@ -6,6 +6,7 @@ import {
   useChangePlaceStatus,
   useCreatePlace,
   useDeletePlace,
+  useFeasibility,
   useItinerary,
   useMoveItem,
   usePlaces,
@@ -96,6 +97,7 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   const days = trip.data ? tripDays(trip.data.startDate, trip.data.endDate) : []
   const activeDate = selectedDate ?? days[0] ?? null
   const suggestions = useSuggestions(tripId, view === 'itinerary' ? activeDate : null)
+  const feasibility = useFeasibility(tripId, view === 'itinerary' ? activeDate : null)
 
   if (trip.isLoading || places.isLoading || itinerary.isLoading) {
     return <p className="loading">Đang tải chuyến đi…</p>
@@ -115,6 +117,18 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   const me = currentTrip.members.find((member) => member.id === memberId)
 
   const confirmedPlaces = currentPlaces.filter((place) => place.status === 'Confirmed')
+
+  // The selected day's stops in visiting order, for the route line on the map.
+  // Untimed items go last, matching how the day itself reads.
+  const routePoints = itineraryItems
+    .filter((item) => item.date === activeDate)
+    .slice()
+    .sort((a, b) => {
+      if (a.startTime === null) return b.startTime === null ? 0 : 1
+      if (b.startTime === null) return -1
+      return a.startTime.localeCompare(b.startTime)
+    })
+    .map((item) => ({ lat: item.lat, lng: item.lng }))
 
   function handleSchedulePlace(placeId: string, date: IsoDate) {
     setActionError(null)
@@ -260,6 +274,7 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
             currency={currentTrip.currency}
             currencyExponent={currentTrip.currencyExponent}
             movingItemId={moveItem.isPending ? moveItem.variables.itemId : null}
+            findings={feasibility.data?.items ?? []}
             selectedDate={activeDate}
             onSelectDate={setSelectedDate}
             onMoveItem={handleMoveItem}
@@ -291,6 +306,7 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
             onSelectPlace={setSelectedPlaceId}
             draftLocation={draftLocation}
             onPickLocation={setDraftLocation}
+            routePoints={routePoints}
           />
         </section>
 

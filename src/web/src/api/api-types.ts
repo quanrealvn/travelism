@@ -81,6 +81,28 @@ export interface ItineraryItemResponse {
   updatedByMemberId: string
 }
 
+export type FeasibilityLevel = 'error' | 'warning' | 'info'
+
+export type FeasibilityCode =
+  | 'OVERLAP'
+  | 'INSUFFICIENT_TRAVEL_TIME'
+  | 'IDLE_GAP'
+  | 'TIMESLOT_MISMATCH'
+  | 'UNSCHEDULED_TIME'
+  | 'CROSSES_MIDNIGHT'
+
+export interface FeasibilityFindingResponse {
+  itineraryItemId: string
+  level: FeasibilityLevel
+  code: FeasibilityCode
+  /** Code-specific detail: gapMinutes, travelMinutes, source, and so on. */
+  data: Record<string, unknown>
+}
+
+export interface FeasibilityResponse {
+  items: FeasibilityFindingResponse[]
+}
+
 export interface SuggestionResponse {
   placeId: string
   name: string

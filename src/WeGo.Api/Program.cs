@@ -30,6 +30,7 @@ builder.Services.AddScoped<TripService>();
 builder.Services.AddScoped<PlaceService>();
 builder.Services.AddScoped<GeocodingService>();
 builder.Services.AddScoped<ItineraryService>();
+builder.Services.AddScoped<TravelTimeService>();
 
 builder.Services.AddProblemDetails();
 

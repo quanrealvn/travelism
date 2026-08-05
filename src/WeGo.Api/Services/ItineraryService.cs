@@ -11,8 +11,75 @@ using WeGo.Infrastructure.Persistence;
 
 namespace WeGo.Api.Services;
 
-public sealed class ItineraryService(WeGoDbContext db, IClock clock, ActivityLogWriter activityLog)
+public sealed class ItineraryService(
+    WeGoDbContext db,
+    IClock clock,
+    ActivityLogWriter activityLog,
+    TravelTimeService travelTimes)
 {
+    /// <summary>
+    /// Spec §5.2. A pure read: it never blocks a write, because a plan is
+    /// allowed to be wrong while you are still making it.
+    /// </summary>
+    public async Task<Result<IReadOnlyList<FeasibilityFinding>>> FeasibilityAsync(
+        Guid tripId,
+        DateOnly? date,
+        CancellationToken cancellationToken)
+    {
+        if (date is null)
+        {
+            var missing = new ValidationResult();
+            missing.Add("date", FieldErrorCodes.Required, "'date' is required (format YYYY-MM-DD).");
+            return Failure.Validation(missing);
+        }
+
+        var trip = await db.Trips
+            .AsNoTracking()
+            .FirstAsync(t => t.Id == tripId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!trip.ContainsDate(date.Value))
+        {
+            return DateOutOfRange(trip, date.Value);
+        }
+
+        var items = await db.ItineraryItems
+            .AsNoTracking()
+            .Where(i => i.TripId == tripId && i.Date == date.Value)
+            .Select(i => new FeasibilityItem(
+                i.Id,
+                i.PlaceId,
+                i.StartTime,
+                i.Place!.EstimatedDurationMinutes,
+                i.Place.TimeSlots,
+                i.CreatedAt))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // Spec §5.4: at most (n-1) lookups for a day, cache-first. The pairs are
+        // computed the same way the analyzer walks them.
+        var ordered = items
+            .Where(i => i.StartTime is not null)
+            .OrderBy(i => i.StartTime!.Value)
+            .ThenBy(i => i.CreatedAt)
+            .ThenBy(i => i.ItemId)
+            .ToList();
+
+        var pairs = new List<(Guid From, Guid To)>();
+        for (var i = 0; i + 1 < ordered.Count; i++)
+        {
+            pairs.Add((ordered[i].PlaceId, ordered[i + 1].PlaceId));
+        }
+
+        var legs = await travelTimes.GetLegsAsync(tripId, pairs, cancellationToken).ConfigureAwait(false);
+
+        var findings = Feasibility.Analyze(
+            items,
+            (from, to) => legs.TryGetValue((from, to), out var leg) ? leg : null);
+
+        return Result<IReadOnlyList<FeasibilityFinding>>.Ok(findings);
+    }
+
     public async Task<IReadOnlyList<ItineraryItem>> ListAsync(
         Guid tripId,
         DateOnly? date,

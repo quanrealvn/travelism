@@ -64,6 +64,24 @@ public static class ItineraryEndpoints
         })
         .WithName("DeleteItineraryItem");
 
+        group.MapGet("/itinerary/feasibility", async (
+            Guid tripId,
+            DateOnly? date,
+            ItineraryService itinerary,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await itinerary.FeasibilityAsync(tripId, date, cancellationToken);
+            return result.ToHttp(findings => Results.Ok(new FeasibilityResponse(
+                findings
+                    .Select(f => new FeasibilityFindingResponse(
+                        f.ItineraryItemId,
+                        f.Level.ToString().ToLowerInvariant(),
+                        f.Code,
+                        f.Data))
+                    .ToList())));
+        })
+        .WithName("GetFeasibility");
+
         group.MapGet("/suggestions", async (
             Guid tripId,
             DateOnly? date,

@@ -87,6 +87,15 @@ public sealed record ItineraryItemResponse(
     DateTimeOffset UpdatedAt,
     Guid UpdatedByMemberId);
 
+/// <summary>One thing wrong (or worth knowing) about a day's plan (spec §5.2).</summary>
+public sealed record FeasibilityFindingResponse(
+    Guid ItineraryItemId,
+    string Level,
+    string Code,
+    IReadOnlyDictionary<string, object?> Data);
+
+public sealed record FeasibilityResponse(IReadOnlyList<FeasibilityFindingResponse> Items);
+
 /// <summary>Suggestions for one time of day (spec §5.1).</summary>
 public sealed record SuggestionGroupResponse(string Slot, IReadOnlyList<SuggestionResponse> Places);
 

@@ -1,5 +1,13 @@
 import { useEffect, useMemo } from 'react'
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import {
+  MapContainer,
+  Marker,
+  Polyline,
+  Popup,
+  TileLayer,
+  useMap,
+  useMapEvents,
+} from 'react-leaflet'
 import L from 'leaflet'
 import markerIconUrl from 'leaflet/dist/images/marker-icon.png'
 import markerIconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
@@ -56,6 +64,12 @@ interface TripMapProps {
   draftLocation?: LatLng | null
   /** Clicking the map picks a location — the escape hatch when search cannot find a place. */
   onPickLocation?: (location: LatLng) => void
+  /**
+   * The selected day's stops in visiting order. Drawn as a straight-line route:
+   * it shows the shape and the back-tracking of a day, and is deliberately not
+   * presented as road geometry, which we do not fetch.
+   */
+  routePoints?: LatLng[]
 }
 
 export function TripMap({
@@ -66,6 +80,7 @@ export function TripMap({
   onSelectPlace,
   draftLocation,
   onPickLocation,
+  routePoints,
 }: TripMapProps) {
   const center = useMemo<[number, number]>(() => {
     if (places.length === 0) {
@@ -95,6 +110,13 @@ export function TripMap({
 
       <FitToPlaces places={places} />
       {onPickLocation && <ClickToPick onPick={onPickLocation} />}
+
+      {routePoints && routePoints.length > 1 && (
+        <Polyline
+          positions={routePoints.map((point) => [point.lat, point.lng] as [number, number])}
+          pathOptions={{ color: '#1f6f5c', weight: 3, opacity: 0.8, dashArray: '6 6' }}
+        />
+      )}
 
       {draftLocation && (
         <Marker position={[draftLocation.lat, draftLocation.lng]} icon={draftIcon}>

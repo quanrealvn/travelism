@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WeGo.Domain.Abstractions;
 using WeGo.Infrastructure.Geocoding;
 using WeGo.Infrastructure.Persistence;
+using WeGo.Infrastructure.Routing;
 
 namespace WeGo.Infrastructure;
 
@@ -28,6 +29,26 @@ public static class InfrastructureServiceCollectionExtensions
         });
 
         services.AddWeGoGeocoding(configuration);
+        services.AddWeGoRouting(configuration);
+
+        return services;
+    }
+
+    private static IServiceCollection AddWeGoRouting(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var options = new OsrmOptions();
+        configuration.GetSection(OsrmOptions.SectionName).Bind(options);
+        services.AddSingleton(options);
+
+        services.AddHttpClient<IRouteProvider, OsrmRouteProvider>(client =>
+        {
+            client.BaseAddress = new Uri(options.BaseAddress);
+            // Spec §5.4: 3 seconds. A routing service that is slow is, for
+            // planning purposes, a routing service that is down.
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+        });
 
         return services;
     }

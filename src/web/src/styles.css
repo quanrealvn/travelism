@@ -756,6 +756,66 @@ legend {
   padding: 0.1rem 0.3rem;
 }
 
+/* Feasibility */
+.feasibility-badges {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  line-height: 1.4;
+}
+
+.badge-error {
+  background: #fde8e6;
+  color: #8c1d18;
+}
+
+.badge-warning {
+  background: #fdf0d5;
+  color: #7a5a12;
+}
+
+.badge-info {
+  background: #eaf1f6;
+  color: #2c5670;
+}
+
+.day-verdict {
+  margin-left: 0.35rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  padding: 0.02rem 0.35rem;
+}
+
+.day-verdict-error {
+  background: #fde8e6;
+  color: #8c1d18;
+}
+
+.day-verdict-warning {
+  background: #fdf0d5;
+  color: #7a5a12;
+}
+
+.day-verdict-info {
+  background: #eaf1f6;
+  color: #2c5670;
+}
+
 .drag-ghost {
   background: var(--accent);
   color: #fff;

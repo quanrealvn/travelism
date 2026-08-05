@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using WeGo.Infrastructure.Geocoding;
 using WeGo.Infrastructure.Persistence;
+using WeGo.Infrastructure.Routing;
 
 namespace WeGo.Api.Tests.Infrastructure;
 
@@ -39,6 +40,9 @@ public class WeGoAppFactory : WebApplicationFactory<Program>
     /// <summary>Stands in for following a shortened map link.</summary>
     public StubLinkExpander LinkExpander { get; } = new();
 
+    /// <summary>Stands in for OSRM.</summary>
+    public StubRouteProvider Routes { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -59,6 +63,9 @@ public class WeGoAppFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<ILinkExpander>();
             services.AddSingleton<ILinkExpander>(LinkExpander);
+
+            services.RemoveAll<IRouteProvider>();
+            services.AddSingleton<IRouteProvider>(Routes);
         });
     }
 

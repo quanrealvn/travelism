@@ -19,6 +19,24 @@ export const queryKeys = {
   placeLink: (tripId: string, url: string) => ['place-link', tripId, url] as const,
   itinerary: (tripId: string) => ['itinerary', tripId] as const,
   suggestions: (tripId: string, date: string) => ['suggestions', tripId, date] as const,
+  feasibility: (tripId: string, date: string) => ['feasibility', tripId, date] as const,
+}
+
+/**
+ * Feasibility for one day. Re-runs whenever the itinerary changes, because
+ * moving a single item can make — or break — the rest of the day.
+ */
+export function useFeasibility(tripId: string, date: string | null) {
+  return useQuery({
+    queryKey: queryKeys.feasibility(tripId, date ?? ''),
+    queryFn: () => api.feasibility(tripId, date!),
+    enabled: Boolean(date),
+    // Short: the first read may hit the routing service, later ones are cached
+    // server-side, and a stale verdict on a plan being edited is worse than a
+    // refetch.
+    staleTime: 5_000,
+    retry: false,
+  })
 }
 
 export function useItinerary(tripId: string | undefined) {
@@ -49,6 +67,9 @@ export function useScheduleItem(tripId: string) {
       )
       // Scheduling removes the place from that day's suggestions.
       void queryClient.invalidateQueries({ queryKey: ['suggestions', tripId] })
+      // One move can make — or break — the rest of the day, so the whole day
+      // is re-checked rather than just the item that moved.
+      void queryClient.invalidateQueries({ queryKey: ['feasibility', tripId] })
     },
   })
 }
@@ -99,6 +120,9 @@ export function useMoveItem(tripId: string) {
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['suggestions', tripId] })
+      // One move can make — or break — the rest of the day, so the whole day
+      // is re-checked rather than just the item that moved.
+      void queryClient.invalidateQueries({ queryKey: ['feasibility', tripId] })
     },
   })
 }
@@ -113,6 +137,9 @@ export function useRemoveItem(tripId: string) {
         current?.filter((item) => item.id !== removed.id),
       )
       void queryClient.invalidateQueries({ queryKey: ['suggestions', tripId] })
+      // One move can make — or break — the rest of the day, so the whole day
+      // is re-checked rather than just the item that moved.
+      void queryClient.invalidateQueries({ queryKey: ['feasibility', tripId] })
     },
   })
 }

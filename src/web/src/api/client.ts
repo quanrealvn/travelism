@@ -2,6 +2,7 @@ import type {
   CreateItineraryItemRequest,
   CreatePlaceRequest,
   CreateTripRequest,
+  FeasibilityResponse,
   GeocodeResultResponse,
   ItineraryItemResponse,
   JoinTripRequest,
@@ -129,6 +130,9 @@ export const api = {
 
   deleteItineraryItem: (tripId: string, itemId: string) =>
     request<ItineraryItemResponse>(`/trips/${tripId}/itinerary/${itemId}`, { method: 'DELETE' }),
+
+  feasibility: (tripId: string, date: string) =>
+    request<FeasibilityResponse>(`/trips/${tripId}/itinerary/feasibility?date=${date}`),
 
   suggestions: (tripId: string, date: string) =>
     request<SuggestionGroupResponse[]>(`/trips/${tripId}/suggestions?date=${date}`),
