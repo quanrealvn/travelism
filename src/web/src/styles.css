@@ -1,5 +1,5 @@
 /*
- * WeGo — stylesheet.
+ * Travelism — stylesheet.
  *
  * Mobile-first throughout: the base rules describe a phone, and the two
  * breakpoints below only add what a bigger screen can afford. A trip is
@@ -348,14 +348,14 @@ button:disabled {
 button[type='submit'],
 .button-primary {
   color: var(--c-brand-ink);
-  background: var(--c-brand);
-  border-color: var(--c-brand);
+  background: var(--g-brand);
+  border-color: transparent;
 }
 
 button[type='submit']:hover:not(:disabled),
 .button-primary:hover:not(:disabled) {
-  background: var(--c-brand-hover);
-  border-color: var(--c-brand-hover);
+  background: var(--g-brand-hover);
+  border-color: transparent;
 }
 
 /* A button that reads as text but still occupies a full touch target. */
@@ -653,6 +653,9 @@ button[type='submit']:hover:not(:disabled),
 .trip-title-button {
   display: flex;
   align-items: center;
+  /* Buttons centre their content, and this one is a heading: a short trip name
+     was sitting in the middle of the card with the pencil beside it. */
+  justify-content: flex-start;
   gap: var(--s-2);
   width: 100%;
   min-width: 0;
@@ -1031,7 +1034,7 @@ button[type='submit']:hover:not(:disabled),
   flex-direction: row;
   gap: var(--s-2);
   color: var(--c-brand-ink);
-  background: var(--c-brand);
+  background: var(--g-brand);
   font-weight: var(--fw-semibold);
   font-size: var(--t-sm);
   box-shadow: var(--e-accent);
@@ -1039,7 +1042,7 @@ button[type='submit']:hover:not(:disabled),
 
 .tabbar-item[aria-selected='true']:hover:not(:disabled) {
   color: var(--c-brand-ink);
-  background: var(--c-brand-hover);
+  background: var(--g-brand-hover);
 }
 
 /*
@@ -1128,7 +1131,7 @@ button[type='submit']:hover:not(:disabled),
   min-height: 3.5rem;
   padding: 0 var(--s-5);
   color: var(--c-brand-ink);
-  background: var(--c-brand);
+  background: var(--g-brand);
   border: none;
   border-radius: var(--r-full);
   font-weight: var(--fw-semibold);
@@ -1136,7 +1139,7 @@ button[type='submit']:hover:not(:disabled),
 }
 
 .fab:hover:not(:disabled) {
-  background: var(--c-brand-hover);
+  background: var(--g-brand-hover);
 }
 
 .fab svg {
@@ -1347,11 +1350,16 @@ button[type='submit']:hover:not(:disabled),
 
 .sync {
   display: inline-flex;
+  /* Never squeezed and never broken across lines: "Ngoại tuyến" was wrapping
+     to two lines inside the trip card and taking the destination's width with
+     it. */
+  flex: 0 0 auto;
   align-items: center;
   gap: var(--s-1);
   font-size: var(--t-2xs);
   font-weight: var(--fw-medium);
   color: var(--c-ink-2);
+  white-space: nowrap;
 }
 
 .sync::before {
@@ -1648,9 +1656,25 @@ button .spinner {
   position: relative;
 }
 
+/*
+ * The map is a card like everything else on the page, at every width — it used
+ * to get its border and radius only from 1024px up, so on a phone it was a
+ * full-bleed rectangle of tiles butted against the wash.
+ */
 .trip-map {
   height: var(--map-h, calc(100dvh - 15rem));
+  overflow: hidden;
   background: var(--c-surface-sunken);
+  /* Tinted with the accent rather than neutral: the map is the largest object
+     on the page and a grey hairline made it read as an embed. Two pixels, not
+     one — against busy tiles a hairline disappears wherever a road happens to
+     run under it. The glow is the brand at 18%: enough to belong, not enough
+     to look selected. */
+  border: 2px solid var(--c-brand-border);
+  border-radius: var(--r-lg);
+  box-shadow:
+    0 1px 2px rgb(109 58 237 / 8%),
+    0 8px 28px rgb(109 58 237 / 18%);
 }
 
 .leaflet-container {
@@ -1670,14 +1694,32 @@ button .spinner {
   height: var(--tap);
   font-size: var(--t-xl);
   line-height: var(--tap);
-  color: var(--c-ink);
+  color: var(--c-ink-2);
+  background: rgb(255 255 255 / 92%);
+  backdrop-filter: blur(12px) saturate(160%);
+}
+
+.trip-map .leaflet-bar a:hover {
+  color: var(--c-brand);
+  background: var(--c-tile);
+}
+
+.trip-map .leaflet-bar a:first-child {
+  border-bottom: 1px solid var(--c-line);
 }
 
 .leaflet-bar {
-  border: none;
+  border: 1px solid var(--c-line);
   border-radius: var(--r-md);
   box-shadow: var(--e-2);
   overflow: hidden;
+}
+
+/* Leaflet's own notice, quietened to the app's own smallest voice. */
+.leaflet-control-attribution {
+  padding: 2px var(--s-2);
+  background: rgb(255 255 255 / 82%);
+  border-radius: var(--r-full) var(--r-full) 0 0;
 }
 
 .leaflet-popup-content-wrapper {
@@ -1783,18 +1825,63 @@ button .spinner {
  * the attribution's. Cornering all three keeps the middle of the map — the
  * part with the places on it — clear.
  */
-.map-legend {
+/*
+ * The map's own furniture, stacked in the top-right corner and right-aligned
+ * so the cluster grows leftward into empty tiles rather than downward over the
+ * pins. Above Leaflet's controls (800) so nothing of ours can be swallowed.
+ */
+.map-overlay {
   position: absolute;
   right: var(--s-3);
   top: var(--s-3);
-  z-index: 500;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--s-2);
+  max-width: calc(100% - 4.5rem);
+  /* The corner is furniture; the tiles under it still pan and zoom. */
+  pointer-events: none;
+}
+
+.map-overlay > * {
+  pointer-events: auto;
+}
+
+.map-action {
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  font-size: var(--t-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--c-brand);
+  background: rgb(255 255 255 / 92%);
+  backdrop-filter: blur(12px) saturate(160%);
+  border: 1px solid var(--c-brand-border);
+  border-radius: var(--r-full);
+  box-shadow: var(--e-2);
+}
+
+.map-action:hover:not(:disabled) {
+  color: var(--c-brand-ink);
+  background: var(--g-brand);
+  border-color: transparent;
+}
+
+.map-action svg {
+  width: 0.9375rem;
+  height: 0.9375rem;
+}
+
+.map-legend {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--s-1) var(--s-3);
-  max-width: calc(100% - 4rem);
   padding: var(--s-2) var(--s-3);
-  background: rgb(255 255 255 / 94%);
+  background: rgb(255 255 255 / 92%);
+  backdrop-filter: blur(12px) saturate(160%);
+  border: 1px solid var(--c-line);
   border-radius: var(--r-md);
   box-shadow: var(--e-2);
 }
@@ -1805,12 +1892,15 @@ button .spinner {
   gap: var(--s-1);
   font-size: var(--t-2xs);
   color: var(--c-ink-2);
+  white-space: nowrap;
 }
 
 .legend-swatch {
   width: 0.625rem;
   height: 0.625rem;
   border-radius: var(--r-full);
+  /* A ring, so a pale swatch is still a disc against the frosted panel. */
+  box-shadow: 0 0 0 1px rgb(23 23 31 / 12%);
 }
 
 /* ==========================================================================
@@ -3522,7 +3612,7 @@ button .spinner {
     width: 1.75rem;
     height: 1.75rem;
     color: var(--c-brand-ink);
-    background: linear-gradient(135deg, var(--c-brand), #b83fd9);
+    background: var(--g-brand);
     border-radius: var(--r-sm);
   }
 
@@ -3573,8 +3663,30 @@ button .spinner {
     text-underline-offset: 2px;
   }
 
+  /*
+   * In the rail the card is only 13rem wide inside its padding, so the two
+   * facts on this line cannot share it. Live is a bare dot and stays inline;
+   * anything else carries a word and takes a row of its own underneath, where
+   * it is not competing with the destination for the same 13rem.
+   */
   .topbar-sub {
+    flex-wrap: wrap;
     font-size: var(--t-2xs);
+  }
+
+  .topbar-sub .sync-connecting,
+  .topbar-sub .sync-offline {
+    order: 2;
+    flex-basis: 100%;
+  }
+
+  /* Two lines rather than a truncated one: where the trip is going is half of
+     what tells you which trip this is. */
+  .topbar-sub-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
   }
 
   .tabbar {
@@ -3636,10 +3748,11 @@ button .spinner {
     border-color: transparent;
   }
 
+  /* Same restraint as the sections above: deepen, never fill. */
   .nav-action:hover:not(:disabled) .nav-action-icon {
-    color: var(--c-brand-ink);
-    background: var(--c-brand);
-    border-color: var(--c-brand);
+    color: var(--c-brand);
+    background: var(--c-tile);
+    border-color: var(--c-brand-bright);
   }
 
   .nav-action svg {
@@ -3742,19 +3855,26 @@ button .spinner {
     height: 1rem;
   }
 
-  /* The whole row lifts onto a card, and the tile fills. Colour and elevation
-     only — a transform here would nudge the label and make the column jitter
-     as the pointer runs down it. */
+  /*
+   * Hover deepens the tile; only the current row fills it.
+   *
+   * Hover used to fill it solid violet, which is exactly how the selected row
+   * is drawn — so moving the pointer down the rail made every row look
+   * selected in turn and you could not tell where you actually were. A hover
+   * state has to be visibly *less* than the state it sits next to.
+   *
+   * Colour only, no transform: nudging the row would make the label jitter as
+   * the pointer runs down the column.
+   */
   .tabbar-item:hover:not(:disabled) {
     color: var(--c-ink);
-    background: var(--c-surface);
-    box-shadow: var(--e-2);
+    background: var(--c-surface-sunken);
   }
 
   .tabbar-item:hover:not(:disabled) .tabbar-icon {
-    color: var(--c-brand-ink);
-    background: var(--c-brand);
-    border-color: var(--c-brand);
+    color: var(--c-brand);
+    background: var(--c-tile);
+    border-color: var(--c-brand-bright);
   }
 
   /*
@@ -3831,7 +3951,9 @@ button .spinner {
   .wishlist-view {
     display: grid;
     grid-template-columns: minmax(0, 1.15fr) minmax(23rem, 0.85fr);
-    gap: var(--s-6);
+    /* Wider than the app's usual --s-6: the map's glow spreads ~28px past its
+       own border, so at that gap the list looked stuck to it. */
+    gap: var(--s-10);
     align-items: start;
   }
 

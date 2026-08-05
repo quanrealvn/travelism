@@ -52,7 +52,7 @@ export function StartScreen({ onReady }: StartScreenProps) {
 
   return (
     <div className="start-screen">
-      <h1>WeGo</h1>
+      <h1>Travelism</h1>
       <p className="tagline">Lên kế hoạch chuyến đi cùng nhau.</p>
 
       <div className="tabs" role="tablist">

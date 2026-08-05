@@ -106,6 +106,14 @@
   --c-brand: #6d3aed;
   --c-brand-hover: #5b2bd4;
   --c-brand-ink: #ffffff;
+
+  /* The magenta end of the primary gradient. Both stops are chosen to clear
+     4.5:1 against white on their own — 6.0:1 at the violet end and 5.05:1 at
+     this one — because the audit skips gradients rather than guess which pixel
+     a letter is sitting on, so nothing else will catch it if they do not. */
+  --c-brand-magenta: #b52ccb;
+  --g-brand: linear-gradient(100deg, var(--c-brand), var(--c-brand-magenta));
+  --g-brand-hover: linear-gradient(100deg, var(--c-brand-hover), #a021b6);
   --c-brand-soft: #f0ebfe;
   --c-brand-border: #cdbcfb;
   /* For a tinted surface where the deep accent would go muddy. */

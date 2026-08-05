@@ -28,6 +28,16 @@ function svgProps(className?: string) {
   }
 }
 
+/** Frame everything: a crosshair over the whole set. */
+export function IconTarget({ className }: IconProps) {
+  return (
+    <svg {...svgProps(className)}>
+      <circle cx="12" cy="12" r="6.5" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+    </svg>
+  )
+}
+
 /** The app's own mark: a compass needle. */
 export function IconCompass({ className }: IconProps) {
   return (

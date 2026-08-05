@@ -1,4 +1,4 @@
-# WeGo — collaborative trip planner
+# Travelism — collaborative trip planner
 
 A shared wishlist on a map, a drag-and-drop day itinerary, travel-time
 feasibility checks, expense settlement and per-day weather — for two people now,
@@ -162,7 +162,7 @@ Every error is RFC 7807 with a stable `code`:
 | `Database:EnableWal` | `true` | WAL, so readers do not block the writer |
 | `Auth:SigningKey` | *(empty)* | Base64 HMAC key — **set this in production** |
 | `RateLimits:JoinPerMinute` | `10` | Join attempts per IP per minute |
-| `Geocoding:UserAgent` | `WeGo-TripPlanner/0.1 …` | Nominatim requires an identifying UA — **put a real contact in it before deploying** |
+| `Geocoding:UserAgent` | `Travelism-TripPlanner/0.1 …` | Nominatim requires an identifying UA — **put a real contact in it before deploying** |
 | `Geocoding:MinIntervalMs` | `1000` | Minimum gap between upstream lookups |
 | `Geocoding:CacheMinutes` | `30` | How long identical searches are reused |
 

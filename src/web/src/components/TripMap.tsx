@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AttributionControl,
   MapContainer,
@@ -17,6 +17,7 @@ import 'leaflet/dist/leaflet.css'
 import type { PlaceResponse } from '../api/api-types'
 import { formatDuration, formatMoney } from '../api/money'
 import { allCategoryStyles, categoryStyle, LABEL_ZOOM, markerHtml } from '../map/placeMarkers'
+import { IconTarget } from './icons'
 
 /**
  * Each place gets its own icon, because the label is part of it.
@@ -189,8 +190,56 @@ export function TripMap({
 
       {/* A key for nothing is noise; the legend only means something once
           there is at least one pin to read it against. */}
-      {places.length > 0 && <MapLegend places={places} />}
+      {places.length > 0 && (
+        <div className="map-overlay">
+          <FitAll places={places} />
+          <MapLegend places={places} />
+        </div>
+      )}
     </MapContainer>
+  )
+}
+
+/**
+ * Back to the whole trip.
+ *
+ * Panning and zooming are one-way without this: the map framed everything on
+ * arrival and then had no way back, so losing your place meant reloading or
+ * hunting for the pins by hand. Only offered when there is more than one place,
+ * because framing a single pin is what the map is already doing.
+ */
+function FitAll({ places }: { places: PlaceResponse[] }) {
+  const map = useMap()
+  const button = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    // Leaflet listens for clicks natively on the container, and React's
+    // synthetic stopPropagation does not reach it — so without this, pressing
+    // the button also dropped a draft pin wherever it happens to sit.
+    if (button.current) {
+      L.DomEvent.disableClickPropagation(button.current)
+    }
+  }, [])
+
+  if (places.length < 2) {
+    return null
+  }
+
+  return (
+    <button
+      ref={button}
+      type="button"
+      className="map-action"
+      onClick={() => {
+        const bounds = L.latLngBounds(
+          places.map((place) => [place.lat, place.lng] as [number, number]),
+        )
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
+      }}
+    >
+      <IconTarget />
+      Xem toàn bộ
+    </button>
   )
 }
 

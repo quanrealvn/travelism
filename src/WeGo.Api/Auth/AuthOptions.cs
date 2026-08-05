@@ -11,7 +11,7 @@ public sealed class AuthOptions
     /// </summary>
     public string SigningKey { get; set; } = string.Empty;
 
-    public string CookieName { get; set; } = "wego_session";
+    public string CookieName { get; set; } = "travelism_session";
 
     public int CookieDays { get; set; } = 90;
 }

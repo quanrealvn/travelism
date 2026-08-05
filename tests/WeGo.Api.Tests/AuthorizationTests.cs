@@ -209,7 +209,7 @@ public sealed class AuthorizationTests(WeGoAppFactory factory) : IClassFixture<W
         // A structurally plausible token for the victim trip, signed with nothing.
         forged.DefaultRequestHeaders.Add(
             "Cookie",
-            $"wego_session={Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{trip.Trip.Id:N}:{trip.Session.MemberId:N}"))}.AAAA");
+            $"travelism_session={Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{trip.Trip.Id:N}:{trip.Session.MemberId:N}"))}.AAAA");
 
         var response = await forged.GetAsync($"/trips/{trip.Trip.Id}");
 

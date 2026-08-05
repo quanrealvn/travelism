@@ -37,7 +37,7 @@ public sealed class TripEndpointTests(WeGoAppFactory factory) : IClassFixture<We
         created.Session.Role.Should().Be(nameof(MemberRole.Owner));
 
         var cookie = response.Headers.GetValues("Set-Cookie").Single();
-        cookie.Should().Contain("wego_session=")
+        cookie.Should().Contain("travelism_session=")
             .And.ContainEquivalentOf("httponly")
             .And.ContainEquivalentOf("samesite=lax");
     }

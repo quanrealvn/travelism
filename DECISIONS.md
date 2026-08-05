@@ -788,3 +788,40 @@ a horizontal scrollbar under it as soon as the switcher's menu was wider than
 the column. The rail's content is a fixed handful of rows that always fit, so it
 does not scroll at all — and every label in it now truncates rather than pushing
 the column wider than itself.
+
+### D68 — The product is Travelism
+
+Renamed everywhere the name is the product: the wordmark, the page title, the
+web manifest, the icon's label, the npm package, the session cookie, the SQLite
+file, the geocoder's User-Agent, and the top of the README.
+
+The .NET assemblies, namespaces and directories are still `WeGo.*`, and every
+path reference in the docs and scripts still points at them. That rename is 142
+files of pure mechanics with nothing user-visible at the end of it, so it is
+worth doing on its own rather than buried in a UI pass.
+
+### D69 — A hover state has to be visibly less than the state beside it
+
+Hovering a section in the rail filled its icon tile solid violet — which is
+exactly how the *current* section is drawn. Running the pointer down the column
+made each row look selected in turn, and while the pointer was anywhere in the
+rail there was no way to tell where you actually were.
+
+Hover deepens the tile now — stronger border, slightly heavier tint — and only
+the current row fills it. The rule generalises: when a hover state borrows the
+selected state's treatment, it does not read as "you could go here", it reads as
+"you are here", and the real answer is destroyed.
+
+### D70 — The map is furniture, so it is framed like furniture
+
+A 2px accent border and a violet glow, at every width rather than only from
+1024px up — below that it was full-bleed tiles butted against the wash and read
+as an embed rather than part of the page. Two pixels and not one because a
+hairline disappears wherever a road happens to run under it.
+
+The corner cluster is new: "Xem toàn bộ" reframes the whole trip. Panning and
+zooming were one-way before it — the map framed everything on arrival and then
+had no way back, so losing your place meant reloading. Leaflet listens for
+clicks natively on the container and React's `stopPropagation` does not reach
+it, so the button needs `L.DomEvent.disableClickPropagation` or pressing it also
+drops a draft pin underneath itself.

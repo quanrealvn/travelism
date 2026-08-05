@@ -196,7 +196,7 @@ public sealed class RealtimeTests(WeGoAppFactory factory) : IClassFixture<WeGoAp
     {
         var (_, trip, _) = await ArrangeAsync("HubAnon");
 
-        await using var hub = ConnectHub(trip.Trip.Id, "wego_session=nonsense");
+        await using var hub = ConnectHub(trip.Trip.Id, "travelism_session=nonsense");
 
         await AssertRefusedAsync(hub);
     }

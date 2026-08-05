@@ -125,7 +125,7 @@ function describeItineraryError(error: unknown): string {
  * screen, not a fact about the trip, and two people sharing a plan should not
  * move each other around.
  */
-const ACTIVE_TRIP_KEY = 'wego.activeTripId'
+const ACTIVE_TRIP_KEY = 'travelism.activeTripId'
 
 function readActiveTripId(): string | null {
   try {
@@ -617,7 +617,7 @@ function TripWorkspace({
           <span className="brand-mark" aria-hidden="true">
             <IconCompass />
           </span>
-          <span className="brand-word">WeGo</span>
+          <span className="brand-word">Travelism</span>
         </div>
 
         <div className="topbar-main">
