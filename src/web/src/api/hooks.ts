@@ -14,6 +14,7 @@ import type {
 /** All server state flows through TanStack Query (spec §8). */
 export const queryKeys = {
   session: ['session'] as const,
+  myTrips: ['my-trips'] as const,
   trip: (tripId: string) => ['trip', tripId] as const,
   places: (tripId: string) => ['places', tripId] as const,
   placeSearch: (tripId: string, query: string) => ['place-search', tripId, query] as const,
@@ -255,6 +256,30 @@ export function useSession() {
     queryKey: queryKeys.session,
     queryFn: api.getSession,
     retry: false,
+  })
+}
+
+/** Every trip this browser holds, for the switcher and the home screen. */
+export function useMyTrips(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.myTrips,
+    queryFn: api.myTrips,
+    enabled,
+    retry: false,
+  })
+}
+
+export function useForgetTrip() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (tripId: string) => api.forgetTrip(tripId),
+    onSuccess: () => {
+      // Both change: the trip leaves the list, and it leaves the cookie the
+      // session is derived from.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.myTrips })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.session })
+    },
   })
 }
 

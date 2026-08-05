@@ -115,6 +115,15 @@ export function IconCopy({ className }: IconProps) {
   )
 }
 
+/** Points at more of the same kind of thing — the trip switcher. */
+export function IconChevron({ className }: IconProps) {
+  return (
+    <svg {...svgProps(className)}>
+      <path d="m8 10 4 4 4-4" />
+    </svg>
+  )
+}
+
 export function IconPencil({ className }: IconProps) {
   return (
     <svg {...svgProps(className)}>

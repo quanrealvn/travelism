@@ -54,15 +54,24 @@ cd src/web
 npm run lint && npm run typecheck && npm run test
 ```
 
+And against a real browser, which is the only thing that catches a tab bar
+sitting on top of the header or a map that loaded one tile:
+
+```bash
+cd src/web && npm run build           # serves from src/WeGo.Api/wwwroot
+dotnet run --project src/WeGo.Api     # in another shell
+cd src/web && npm run ux -- ./ux      # screenshots + audit; non-zero on failure
+```
+
 Current state:
 
 | Suite                | Result |
 | -------------------- | ------ |
-| Domain unit tests    | 432 passing |
-| API integration tests | 290 passing |
-| Frontend (Vitest)    | 119 passing |
-| Domain line coverage | 97.59% (gate 90%) |
-| Api line coverage    | 95.69% (gate 70%) |
+| Domain unit tests    | 465 passing |
+| API integration tests | 321 passing |
+| Frontend (Vitest)    | 194 passing |
+| Domain line coverage | 97.77% (gate 90%) |
+| Api line coverage    | 95.80% (gate 70%) |
 
 ### Adding a place
 
@@ -99,11 +108,18 @@ Public:
 
 | Method | Route | Notes |
 | ------ | ----- | ----- |
-| `POST` | `/trips` | Creates trip + owner, sets the session cookie |
+| `POST` | `/trips` | Creates trip + owner; **adds** it to the session cookie |
 | `POST` | `/trips/join` | `{inviteCode, displayName}`; rate limited to 10/min per IP |
-| `GET`  | `/session` | Who the current cookie belongs to |
+| `GET`  | `/session` | Every membership the cookie holds, most recent first |
+| `GET`  | `/trips/mine` | Summaries of those trips, for the switcher |
+| `DELETE` | `/session/trips/{tripId}` | Forgets a trip on this device — not a deletion |
 
-Trip-scoped — all require a session cookie whose `tripId` matches the route:
+A browser plans more than one trip, so the cookie holds a **set** of
+memberships (up to 20) rather than one. A single-membership payload is the
+one-element case of the same format, so cookies issued before this still work.
+
+Trip-scoped — all require a session cookie that holds a membership for the trip
+in the route:
 
 | Method | Route |
 | ------ | ----- |

@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import type { TripResponse } from '../api/api-types'
+import type { ActivityResponse, TripResponse } from '../api/api-types'
 import { formatMoney } from '../api/money'
 import { formatDateLabel } from '../itinerary/tripDates'
+import { ActivityFeed } from './ActivityFeed'
 import { Sheet } from './Sheet'
 import { IconCheck, IconCopy } from './icons'
 
@@ -9,6 +10,12 @@ interface TripSheetProps {
   trip: TripResponse
   myMemberId: string
   syncStatus: 'live' | 'connecting' | 'offline'
+  /**
+   * The change log. It lives here rather than in a tab of its own: it is a
+   * reference you consult when something surprised you, not a destination.
+   */
+  activity: ActivityResponse[]
+  activityLoading: boolean
   onClose: () => void
 }
 
@@ -26,7 +33,14 @@ const SYNC_TEXT = {
  * screen to display facts nobody rereads. Behind a tap it stays one gesture
  * away without taxing every other screen.
  */
-export function TripSheet({ trip, myMemberId, syncStatus, onClose }: TripSheetProps) {
+export function TripSheet({
+  trip,
+  myMemberId,
+  syncStatus,
+  activity,
+  activityLoading,
+  onClose,
+}: TripSheetProps) {
   const [copied, setCopied] = useState(false)
 
   async function copyInvite() {
@@ -105,6 +119,9 @@ export function TripSheet({ trip, myMemberId, syncStatus, onClose }: TripSheetPr
           </li>
         ))}
       </ul>
+
+      <h3 className="section-title">Hoạt động gần đây</h3>
+      <ActivityFeed entries={activity} members={trip.members} loading={activityLoading} />
     </Sheet>
   )
 }

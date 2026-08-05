@@ -58,6 +58,20 @@ public sealed class AuthorizationTests(WeGoAppFactory factory) : IClassFixture<W
         ("GET", "/trips/{tripId}/activity"),
     ];
 
+    /// <summary>
+    /// Routes that name a trip but are not trip-scoped, each with the reason it
+    /// is exempt. Kept as an explicit allowlist rather than by loosening the
+    /// pattern match: a future endpoint that takes a trip id and forgets to
+    /// authorise it must still fail the coverage test below.
+    /// </summary>
+    private static readonly (string Method, string Template, string Why)[] NotTripScopedRoutes =
+    [
+        ("DELETE", "/session/trips/{tripId}",
+            "Edits the caller's own cookie. It cannot read or change anything on "
+            + "the trip, answers 204 whether or not the caller holds it, and so "
+            + "reveals nothing — the anonymous case is still covered below."),
+    ];
+
     [Theory]
     [MemberData(nameof(TripScopedRoutes))]
     public async Task Member_of_another_trip_is_refused_on_every_trip_scoped_route(
@@ -124,11 +138,41 @@ public sealed class AuthorizationTests(WeGoAppFactory factory) : IClassFixture<W
 
         var covered = RouteTable
             .Select(r => (r.Method, Template: Normalize(r.Template)))
+            .Concat(NotTripScopedRoutes.Select(r => (r.Method, Template: Normalize(r.Template))))
             .ToHashSet();
 
         registered.Should().OnlyContain(
             r => covered.Contains(r),
-            "every trip-scoped route must appear in the IDOR route table");
+            "every route naming a trip must be in the IDOR route table, or "
+            + "explicitly exempted with a reason");
+    }
+
+    [Theory]
+    [MemberData(nameof(NotTripScopedRouteData))]
+    public async Task Anonymous_caller_is_refused_even_on_the_exempt_routes(
+        string method,
+        string template)
+    {
+        // Exempt from IDOR does not mean exempt from authentication: these still
+        // read the cookie, and without one there is nothing to act on.
+        var anonymous = factory.CreateApiClient();
+        var url = template.Replace("{tripId}", Guid.NewGuid().ToString());
+
+        var response = await anonymous.SendAsync(BuildRequest(method, url));
+
+        await response.ShouldBeAsync(HttpStatusCode.Unauthorized);
+        (await response.ReadProblemAsync()).Code.Should().Be(ErrorCodes.Unauthenticated);
+    }
+
+    public static TheoryData<string, string> NotTripScopedRouteData()
+    {
+        var data = new TheoryData<string, string>();
+        foreach (var (method, template, _) in NotTripScopedRoutes)
+        {
+            data.Add(method, template);
+        }
+
+        return data;
     }
 
     private static string Normalize(string template) => template

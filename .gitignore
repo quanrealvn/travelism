@@ -40,3 +40,6 @@ appsettings.Local.json
 Thumbs.db
 .DS_Store
 desktop.ini
+
+# UX audit screenshots (npm run ux)
+src/web/ux/

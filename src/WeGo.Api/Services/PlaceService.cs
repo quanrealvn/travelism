@@ -101,7 +101,7 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
             ActivityAction.PlaceCreated,
             nameof(Place),
             place.Id,
-            $"Added place “{place.Name}”.");
+            $"đã thêm “{place.Name}” vào wishlist.");
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result<Place>.Ok(place);
@@ -204,7 +204,7 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
             ActivityAction.PlaceUpdated,
             nameof(Place),
             place.Id,
-            $"Updated place “{place.Name}”.");
+            $"đã sửa “{place.Name}”.");
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -300,7 +300,7 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
             liked ? ActivityAction.PlaceLiked : ActivityAction.PlaceUnliked,
             nameof(Place),
             place.Id,
-            liked ? $"Liked “{place.Name}”." : $"Removed like from “{place.Name}”.");
+            liked ? $"đã thích “{place.Name}”." : $"đã bỏ thích “{place.Name}”.");
 
         if (place.Status != previousStatus)
         {
@@ -310,7 +310,7 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
                 ActivityAction.PlaceStatusChanged,
                 nameof(Place),
                 place.Id,
-                $"“{place.Name}” moved from {previousStatus} to {place.Status}.");
+                $"đã chuyển “{place.Name}” từ {StatusLabel(previousStatus)} sang {StatusLabel(place.Status)}.");
         }
 
         try
@@ -410,8 +410,8 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
             nameof(Place),
             place.Id,
             forced
-                ? $"Force-confirmed “{place.Name}” without waiting for everyone."
-                : $"“{place.Name}” moved from {previousStatus} to {place.Status}.");
+                ? $"đã chốt thẳng “{place.Name}” mà không đợi cả nhóm."
+                : $"đã chuyển “{place.Name}” từ {StatusLabel(previousStatus)} sang {StatusLabel(place.Status)}.");
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result<Place>.Ok(place);
@@ -526,4 +526,23 @@ public sealed class PlaceService(WeGoDbContext db, IClock clock, ActivityLogWrit
             db.TravelTimeCaches.RemoveRange(rows);
         }
     }
+
+    /// <summary>
+    /// The Vietnamese name of a status, for the activity log.
+    /// <para>
+    /// The log stores a finished sentence rather than a template, so this is
+    /// the one place a status becomes words on the server. Falls back to the
+    /// enum name rather than to a blank, so a status added later reads oddly
+    /// instead of disappearing.
+    /// </para>
+    /// </summary>
+    private static string StatusLabel(PlaceStatus status) => status switch
+    {
+        PlaceStatus.Idea => "ý tưởng",
+        PlaceStatus.Shortlist => "đang cân nhắc",
+        PlaceStatus.Confirmed => "đã chốt",
+        PlaceStatus.Visited => "đã đi",
+        PlaceStatus.Skipped => "đã bỏ qua",
+        _ => status.ToString(),
+    };
 }

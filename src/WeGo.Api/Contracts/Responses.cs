@@ -31,6 +31,26 @@ public sealed record TripResponse(
     DateTimeOffset UpdatedAt,
     Guid UpdatedByMemberId);
 
+/// <summary>
+/// One row in the trip switcher. Deliberately smaller than <see cref="TripResponse"/>:
+/// a browser may hold twenty of these, and the invite code in particular has no
+/// business being sent for a trip nobody has opened.
+/// </summary>
+/// <param name="PlaceCount">Places on the wishlist, so a trip reads as started or empty.</param>
+public sealed record TripSummaryResponse(
+    Guid Id,
+    string Name,
+    string Destination,
+    DateOnly StartDate,
+    DateOnly EndDate,
+    string Currency,
+    int CurrencyExponent,
+    long? BudgetAmount,
+    string Status,
+    int MemberCount,
+    int PlaceCount,
+    DateTimeOffset UpdatedAt);
+
 /// <param name="DisplayName">
 /// The label if there is one, otherwise the host — so a list of links never
 /// shows a row of 200-character URLs.

@@ -21,6 +21,8 @@ import {
   useToggleLike,
   useTrip,
   useActivity,
+  useForgetTrip,
+  useMyTrips,
   useUpdatePlace,
   useWeather,
 } from './api/hooks'
@@ -37,36 +39,41 @@ import type { LatLng } from './components/TripMap'
 import { ItineraryBoard } from './components/ItineraryBoard'
 import { AddExpenseForm, ExpensePanel } from './components/ExpensePanel'
 import { DayRail } from './components/DayRail'
-import { ActivityFeed } from './components/ActivityFeed'
 import { SuggestionsPanel } from './components/SuggestionsPanel'
-import { tripDays } from './itinerary/tripDates'
+import { todayIso, tripDays } from './itinerary/tripDates'
 import { useTripSync } from './api/useTripSync'
 import { PlaceForm } from './components/PlaceForm'
 import { PlaceList } from './components/PlaceList'
 import { Sheet } from './components/Sheet'
 import { TripSheet } from './components/TripSheet'
+import { TripList } from './components/TripList'
 import { Spinner } from './components/Spinner'
+import { useNarrowScreen } from './hooks/useNarrowScreen'
+import { mostRelevantTrip } from './trips/defaultTrip'
 import {
   IconCalendar,
+  IconChevron,
+  IconClose,
   IconInfo,
   IconPin,
   IconPlus,
-  IconPulse,
   IconWallet,
 } from './components/icons'
 
-type View = 'wishlist' | 'itinerary' | 'money' | 'activity'
+type View = 'wishlist' | 'itinerary' | 'money'
 
 /**
- * The four things a trip is: where you might go, when you are going, what it
- * costs, and what everyone has been doing. In that order, because that is the
- * order they are decided in.
+ * The three things a trip is: where you might go, when you are going, and what
+ * it costs. In that order, because that is the order they are decided in.
+ *
+ * "What everyone has been doing" used to be a fourth tab. It is a log, not a
+ * destination — nobody opens an app to read one — so it moved into the trip
+ * sheet, where it sits beside the other facts about the trip.
  */
 const TABS: { id: View; label: string; Icon: (props: { className?: string }) => JSX.Element }[] = [
   { id: 'wishlist', label: 'Wishlist', Icon: IconPin },
   { id: 'itinerary', label: 'Lịch trình', Icon: IconCalendar },
   { id: 'money', label: 'Chi tiêu', Icon: IconWallet },
-  { id: 'activity', label: 'Hoạt động', Icon: IconPulse },
 ]
 
 const SYNC_TITLE = {
@@ -91,16 +98,64 @@ function describeItineraryError(error: unknown): string {
   }
 }
 
+/**
+ * Which trip this browser last had open.
+ *
+ * Kept on the device rather than on the server: it is a preference of this
+ * screen, not a fact about the trip, and two people sharing a plan should not
+ * move each other around.
+ */
+const ACTIVE_TRIP_KEY = 'wego.activeTripId'
+
+function readActiveTripId(): string | null {
+  try {
+    return window.localStorage.getItem(ACTIVE_TRIP_KEY)
+  } catch {
+    // Private mode and blocked storage both throw. The app opens on the most
+    // recent trip instead, which is the same thing a first visit does.
+    return null
+  }
+}
+
+function writeActiveTripId(tripId: string | null): void {
+  try {
+    if (tripId === null) {
+      window.localStorage.removeItem(ACTIVE_TRIP_KEY)
+    } else {
+      window.localStorage.setItem(ACTIVE_TRIP_KEY, tripId)
+    }
+  } catch {
+    // Nothing to recover: losing the preference costs one tap next time.
+  }
+}
+
 export function App() {
   const queryClient = useQueryClient()
   const session = useSession()
+  const [activeTripId, setActiveTripId] = useState<string | null>(readActiveTripId)
+  const [showTrips, setShowTrips] = useState(false)
+
+  // Only needed when there is a choice to make: which trip to open by default
+  // is a question about dates, and one trip answers it by itself.
+  const holdsSeveral = (session.data?.memberships?.length ?? 0) > 1
+  const trips = useMyTrips(holdsSeveral)
 
   function handleReady(created: TripSessionResponse) {
     queryClient.setQueryData(queryKeys.session, {
       tripId: created.trip.id,
       memberId: created.session.memberId,
+      memberships: [{ tripId: created.trip.id, memberId: created.session.memberId }],
     })
     queryClient.setQueryData(queryKeys.trip(created.trip.id), created.trip)
+    void queryClient.invalidateQueries({ queryKey: queryKeys.session })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.myTrips })
+    selectTrip(created.trip.id)
+  }
+
+  function selectTrip(tripId: string | null) {
+    writeActiveTripId(tripId)
+    setActiveTripId(tripId)
+    setShowTrips(false)
   }
 
   if (session.isLoading) {
@@ -111,10 +166,131 @@ export function App() {
     return <StartScreen onReady={handleReady} />
   }
 
-  return <TripWorkspace tripId={session.data.tripId} memberId={session.data.memberId} />
+  const memberships = session.data.memberships ?? []
+
+  if (memberships.length === 0) {
+    return <StartScreen onReady={handleReady} />
+  }
+
+  // The remembered trip only counts if the browser still holds it — the cookie
+  // is the authority, and a trip forgotten on another tab must not resurrect.
+  const remembered = memberships.find((m) => m.tripId === activeTripId)
+
+  // Waiting rather than opening the wrong trip and correcting: a workspace that
+  // swaps out from under somebody a second after it appears is worse than a
+  // spinner, and this only happens on a cold start with several trips.
+  if (!remembered && holdsSeveral && trips.isLoading) {
+    return <Spinner block label="Đang tải chuyến đi…" />
+  }
+
+  const preferred = remembered
+    ? remembered.tripId
+    : (mostRelevantTrip(trips.data ?? [], todayIso()) ?? memberships[0]!.tripId)
+
+  const current = memberships.find((m) => m.tripId === preferred) ?? memberships[0]!
+
+  if (showTrips) {
+    return (
+      <TripsScreen
+        activeTripId={current.tripId}
+        onOpen={selectTrip}
+        onReady={handleReady}
+        onClose={() => setShowTrips(false)}
+      />
+    )
+  }
+
+  return (
+    <TripWorkspace
+      // Remounts on a trip change, so no view state — selected place, open day,
+      // draft location — survives into a different trip.
+      key={current.tripId}
+      tripId={current.tripId}
+      memberId={current.memberId}
+      tripCount={memberships.length}
+      onBrowseTrips={() => setShowTrips(true)}
+    />
+  )
 }
 
-function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string }) {
+
+/**
+ * The trips this browser holds, and the way to start another.
+ *
+ * Its own screen rather than a dropdown: on a phone a list of trips with dates
+ * and countdowns does not fit in a menu, and this is also where a returning
+ * traveller lands when they want last year's plan rather than next week's.
+ */
+function TripsScreen({
+  activeTripId,
+  onOpen,
+  onReady,
+  onClose,
+}: {
+  activeTripId: string
+  onOpen: (tripId: string) => void
+  onReady: (created: TripSessionResponse) => void
+  onClose: () => void
+}) {
+  const trips = useMyTrips()
+  const forget = useForgetTrip()
+  const [adding, setAdding] = useState(false)
+
+  return (
+    <div className="app">
+      <header className="topbar">
+        <div className="topbar-main">
+          <h1 className="topbar-title">Chuyến đi của bạn</h1>
+          <p className="topbar-sub">{trips.data?.length ?? 0} chuyến trên thiết bị này</p>
+        </div>
+        <div className="topbar-actions">
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Đóng">
+            <IconClose />
+          </button>
+        </div>
+      </header>
+
+      <main className="content content-plain">
+        {trips.isLoading ? (
+          <Spinner block label="Đang tải chuyến đi…" />
+        ) : (
+          <TripList
+            trips={trips.data ?? []}
+            today={todayIso()}
+            activeTripId={activeTripId}
+            forgettingId={forget.isPending ? forget.variables : null}
+            onOpen={onOpen}
+            onForget={(tripId) => forget.mutate(tripId)}
+            onNew={() => setAdding(true)}
+          />
+        )}
+      </main>
+
+      {adding && (
+        <Sheet title="Chuyến đi mới" onClose={() => setAdding(false)}>
+          <StartScreen
+            onReady={(created) => {
+              setAdding(false)
+              onReady(created)
+            }}
+          />
+        </Sheet>
+      )}
+    </div>
+  )
+}
+
+function TripWorkspace({
+  tripId,
+  memberId,
+  tripCount,
+  onBrowseTrips,
+}: {
+  tripId: string
+  memberId: string
+  tripCount: number
+  onBrowseTrips: () => void
+}) {
   const trip = useTrip(tripId)
   const places = usePlaces(tripId)
   const createPlace = useCreatePlace(tripId)
@@ -137,6 +313,7 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   // Below 1024px the map and the list share the screen one at a time; above it
   // they sit side by side and this is ignored.
   const [pane, setPane] = useState<'list' | 'map'>('list')
+  const narrow = useNarrowScreen()
   const [sheet, setSheet] = useState<'trip' | 'add-place' | 'add-expense' | null>(null)
 
   // Computed before the early returns below, because the suggestions query is a
@@ -151,7 +328,9 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
   const deleteExpense = useDeleteExpense(tripId)
   const syncStatus = useTripSync(tripId, memberId)
   const weather = useWeather(tripId)
-  const activity = useActivity(tripId, view === 'activity')
+  // Only fetched when the trip sheet is actually open: the log is a reference,
+  // not something anybody watches, and it is the largest response in the app.
+  const activity = useActivity(tripId, sheet === 'trip')
 
   if (trip.isLoading || places.isLoading || itinerary.isLoading) {
     return <Spinner block label="Đang tải chuyến đi…" />
@@ -205,6 +384,20 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
       { itemId, body: { startTime } },
       { onError: (error) => setActionError(describeItineraryError(error)) },
     )
+  }
+
+  /**
+   * Picking a place from the list takes the map to it.
+   *
+   * On a narrow screen the map and the list are separate panes, so selecting
+   * has to bring the map into view first — otherwise the only feedback is a
+   * pin recolouring on a pane nobody is looking at, and the tap reads as dead.
+   */
+  function handleSelectPlace(placeId: string) {
+    setSelectedPlaceId(placeId)
+    if (narrow) {
+      setPane('map')
+    }
   }
 
   function handleCreate(body: CreatePlaceRequest) {
@@ -293,21 +486,34 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
     wishlist: currentPlaces.length,
     itinerary: itineraryItems.length,
     money: expenses.data?.length ?? 0,
-    activity: null,
   }
 
   return (
     <div className="app">
       <header className="topbar">
-        <div className="topbar-main">
-          <h1 className="topbar-title">{currentTrip.name}</h1>
-          <p className="topbar-sub">
-            <span className={`sync sync-${syncStatus}`} title={SYNC_TITLE[syncStatus]}>
-              <span className="visually-hidden">{SYNC_TITLE[syncStatus]}</span>
+        {/*
+          The trip name is the switcher. A browser holding one trip has nothing
+          to switch to, so the chevron only appears once there is.
+        */}
+        <button
+          type="button"
+          className="topbar-trip"
+          onClick={onBrowseTrips}
+          aria-label={`Chuyến đi ${currentTrip.name}. Xem tất cả chuyến đi`}
+        >
+          <span className="topbar-main">
+            <span className="topbar-title">
+              {currentTrip.name}
+              {tripCount > 1 && <IconChevron className="topbar-switch" />}
             </span>
-            {currentTrip.destination} · {days.length} ngày
-          </p>
-        </div>
+            <span className="topbar-sub">
+              <span className={`sync sync-${syncStatus}`} title={SYNC_TITLE[syncStatus]}>
+                <span className="visually-hidden">{SYNC_TITLE[syncStatus]}</span>
+              </span>
+              {currentTrip.destination} · {days.length} ngày
+            </span>
+          </span>
+        </button>
 
         <div className="topbar-actions">
           <button
@@ -385,6 +591,23 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
               </section>
 
               <section className="list-panel">
+                {/*
+                  The floating button is hidden from 1024px up, where a thumb
+                  is not what is reaching for it — so the wide layout needs its
+                  own way in, or there is no way to add a place at all.
+                */}
+                <div className="panel-head">
+                  <h2 className="section-title">Wishlist ({currentPlaces.length})</h2>
+                  <button
+                    type="button"
+                    className="button-primary panel-head-action"
+                    onClick={() => setSheet('add-place')}
+                  >
+                    <IconPlus />
+                    Thêm địa điểm
+                  </button>
+                </div>
+
                 <PlaceList
                   places={currentPlaces}
                   members={currentTrip.members}
@@ -392,6 +615,7 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
                   currency={currentTrip.currency}
                   currencyExponent={currentTrip.currencyExponent}
                   selectedPlaceId={selectedPlaceId}
+                  showsOnMap={narrow}
                   deletingPlaceId={deletePlace.isPending ? deletePlace.variables.placeId : null}
                   busyPlaceId={
                     toggleLike.isPending
@@ -403,7 +627,7 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
                           : null
                   }
                   tripUnderway={currentTrip.status !== 'Planning'}
-                  onSelect={setSelectedPlaceId}
+                  onSelect={handleSelectPlace}
                   onDelete={handleDelete}
                   onToggleLike={(placeId, liked) => toggleLike.mutate({ placeId, liked })}
                   onChangeStatus={handleChangeStatus}
@@ -454,6 +678,18 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
 
         {view === 'money' && (
           <div className="money-body">
+            <div className="panel-head">
+              <h2 className="section-title">Chi tiêu</h2>
+              <button
+                type="button"
+                className="button-primary panel-head-action"
+                onClick={() => setSheet('add-expense')}
+              >
+                <IconPlus />
+                Thêm khoản chi
+              </button>
+            </div>
+
             <ExpensePanel
               expenses={expenses.data ?? []}
               balance={balance.data}
@@ -467,16 +703,6 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
           </div>
         )}
 
-        {view === 'activity' && (
-          <section className="side-panel">
-            <h2 className="section-title">Hoạt động</h2>
-            <ActivityFeed
-              entries={activity.data ?? []}
-              members={currentTrip.members}
-              loading={activity.isLoading}
-            />
-          </section>
-        )}
       </main>
 
       {view === 'wishlist' && (
@@ -498,6 +724,8 @@ function TripWorkspace({ tripId, memberId }: { tripId: string; memberId: string 
           trip={currentTrip}
           myMemberId={memberId}
           syncStatus={syncStatus}
+          activity={activity.data ?? []}
+          activityLoading={activity.isLoading}
           onClose={() => setSheet(null)}
         />
       )}

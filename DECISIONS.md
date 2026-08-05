@@ -487,3 +487,116 @@ one. It renders whenever the trip has days; the forecast decorates it.
 The name changed with the responsibility. A component called `WeatherStrip`
 that must render without weather is a lie, and the test asserting it rendered
 nothing was encoding the old contract, not protecting the new one.
+
+### D47 — The session holds a set of trips, not one
+A browser plans more than one trip: last October's and next month's. The cookie
+carried a single `tripId:memberId`, so creating a second trip silently signed
+the browser out of the first — the plan was still on the server, but nothing on
+the device could reach it again.
+
+The payload is now a comma-separated list of the same pairs, most recently used
+first, capped at 20 so the cookie stays near 2KB. A single-membership payload is
+the one-element case of the same format, so cookies issued before this change
+still verify and still work; no migration.
+
+The guarantees are unchanged and were re-tested as a set rather than as one:
+the route's trip must be one the cookie holds, and the member row backing that
+claim is re-read on every request. `/trips/mine` filters by the same rule, so
+being removed from a trip takes it out of the switcher rather than leaving a row
+that 403s.
+
+`DELETE /session/trips/{id}` forgets a trip on one device. It is not leaving the
+trip and not deleting it — the invite code still works and nobody else is
+affected — and the UI says so on the control itself, because "Bỏ" next to a trip
+somebody planned for months has to be unambiguous.
+
+That endpoint names a trip but is not trip-scoped, so it is exempt from the IDOR
+sweep by an explicit allowlist entry with its reason, rather than by loosening
+the pattern that finds trip-scoped routes. A future endpoint taking a trip id
+and forgetting to authorise it still fails that test.
+
+### D48 — Which trip to open is a question about dates
+The cookie orders memberships by when they were added, which is exactly the
+wrong order for "which trip should this open". Adding last year's trip to keep
+its wishlist would land you in it every time.
+
+`mostRelevantTrip` picks the one underway (the one ending soonest, if two
+overlap), else the next one starting, else the most recent one that has been.
+A trip is still "upcoming" on its final day: you are on a trip on the morning it
+ends. The device remembers the last trip opened, and that wins over the
+calculation — but only while the cookie still holds it.
+
+### D49 — Dark chrome, light canvas, one vivid accent
+Following the structure of the Fly.io dashboard, which is what was asked for,
+rather than any sampled value from it: the frame recedes to near-black, the
+canvas stays light, and saturation is spent on the few things that carry
+meaning.
+
+The accent exists in two weights because one cannot serve both surfaces: the
+deep violet clears 6:1 on white for text and buttons, and disappears on the dark
+frame, where the bright one is used instead. Status colours reach the cards
+they describe, so a card is identifiable as confirmed or merely an idea without
+reading back up to its heading.
+
+`.group-count` uses ink on the group's tint rather than the group's own colour:
+coloured-on-tinted measured as low as 4.36:1 at 12px.
+
+### D50 — The activity log is a reference, not a destination
+It was a fourth tab. Nobody opens an app to read a log, and it was competing for
+thumb space with the three things a trip actually is. It moved into the trip
+sheet beside the other facts about the trip, and is now only fetched when that
+sheet is open — it is the largest response the app makes.
+
+### D51 — Selecting a place takes the map to it
+Selecting used to only recolour a pin, which is invisible when the pin is
+off-screen, so tapping a place in the list appeared to do nothing. The map now
+flies to it — and below 1024px, where the list and the map are separate panes,
+selecting brings the map into view first.
+
+Framing the trip and flying to one place became one component. As separate
+effects they fought: selecting flew the map, and then the resize that revealed
+the pane refitted it to every place and undid the fly.
+
+Both guard against a zero-sized map. Leaflet inside a `display: none` pane
+measures zero, every derived coordinate is NaN, and `flyTo` throws "Invalid
+LatLng object" — which took the whole render down until the audit caught it.
+
+### D52 — The UX audit is a committed script
+`npm run ux` drives the built app in a real browser across three viewports and
+every surface, sheets included, and exits non-zero on a finding. It has now
+caught, across two rounds, defects that neither review nor the unit suite did:
+
+- a tab bar pinned to the header instead of the viewport, swallowing clicks on
+  the button underneath it (`backdrop-filter` makes an ancestor the containing
+  block for `position: fixed`)
+- every `<input>` with no `type` attribute rendering unstyled at 28px
+- map pins with no fill, beside a legend naming five colours
+- a map painting one tile into the corner of a blank box
+- OpenStreetMap's attribution permanently under the floating action button
+- the floating button hidden from 1024px up, leaving **no way to add a place or
+  an expense at all** on a desktop
+- an SVG with no intrinsic size stretching a button into a 400px purple square
+- `flyTo` throwing on a zero-sized map and taking the render with it
+
+Three of its own findings were false and were fixed in the harness rather than
+the app: `color-mix()` resolves to `color(srgb …)` with 0–1 channels that read
+as near-black; a gradient cannot be sampled from `backgroundColor` at all; and a
+floating button covering a list item is the cost of the pattern, not a defect —
+so occlusion is only reported when nothing containing the element scrolls, which
+includes a sheet's own body and not just the page.
+
+### D53 — The activity log speaks Vietnamese too
+The log stores a finished sentence at write time rather than a template, so its
+wording is decided on the server. Those sentences were English — "Added expense
+…", "Liked …" — sitting inside an otherwise Vietnamese app, in the one place
+that reports what your travelling companions just did.
+
+They are Vietnamese now, and each begins with the verb rather than the actor,
+because the feed already prints the name above the line: the old strings that
+embedded it read "Quân / Quân created trip …". Statuses inside those sentences
+go through a `StatusLabel` on the server — the mirror of `labels.ts` on the
+client, and the only place the server turns an enum into words.
+
+Entries written before this stay as they were. Rewriting stored history to make
+old rows match a new wording would be editing a log, which is the one thing a
+log must not do.

@@ -193,7 +193,7 @@ public sealed class ItineraryService(
             ActivityAction.ItineraryItemCreated,
             nameof(ItineraryItem),
             item.Id,
-            $"Scheduled “{place.Name}” on {date:yyyy-MM-dd}.");
+            $"đã xếp “{place.Name}” vào ngày {date:dd/MM}.");
 
         try
         {
@@ -295,8 +295,8 @@ public sealed class ItineraryService(
             nameof(ItineraryItem),
             item.Id,
             movedFrom == item.Date
-                ? $"Updated “{item.Place?.Name}” on {item.Date:yyyy-MM-dd}."
-                : $"Moved “{item.Place?.Name}” from {movedFrom:yyyy-MM-dd} to {item.Date:yyyy-MM-dd}.");
+                ? $"đã sửa “{item.Place?.Name}” ngày {item.Date:dd/MM}."
+                : $"đã chuyển “{item.Place?.Name}” từ {movedFrom:dd/MM} sang {item.Date:dd/MM}.");
 
         try
         {
@@ -335,7 +335,7 @@ public sealed class ItineraryService(
             ActivityAction.ItineraryItemDeleted,
             nameof(ItineraryItem),
             item.Id,
-            $"Removed “{item.Place?.Name}” from {item.Date:yyyy-MM-dd}.");
+            $"đã bỏ “{item.Place?.Name}” khỏi ngày {item.Date:dd/MM}.");
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result<ItineraryItem>.Ok(item);

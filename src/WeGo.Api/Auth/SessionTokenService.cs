@@ -4,18 +4,96 @@ using System.Text;
 
 namespace WeGo.Api.Auth;
 
-/// <summary>The identity a request carries: which member, on which trip.</summary>
-public readonly record struct SessionToken(Guid TripId, Guid MemberId);
+/// <summary>One membership the browser holds: which member, on which trip.</summary>
+public readonly record struct TripMembership(Guid TripId, Guid MemberId);
+
+/// <summary>
+/// Every trip this browser belongs to, most recently used first.
+/// </summary>
+/// <remarks>
+/// A browser plans more than one trip — last summer's and next month's — so the
+/// session is a set of memberships rather than a single one. It is still only a
+/// claim of identity: authority comes from re-reading the member row on every
+/// trip-scoped request, so a membership listed here that has since been removed
+/// grants nothing.
+/// </remarks>
+public sealed record SessionToken(IReadOnlyList<TripMembership> Memberships)
+{
+    public SessionToken(Guid tripId, Guid memberId)
+        : this([new TripMembership(tripId, memberId)])
+    {
+    }
+
+    /// <summary>The member this browser is on the given trip, if it is on it at all.</summary>
+    public bool TryFind(Guid tripId, out Guid memberId)
+    {
+        foreach (var membership in Memberships)
+        {
+            if (membership.TripId == tripId)
+            {
+                memberId = membership.MemberId;
+                return true;
+            }
+        }
+
+        memberId = default;
+        return false;
+    }
+
+    /// <summary>
+    /// The same session with <paramref name="membership"/> at the front.
+    /// <para>
+    /// Re-joining a trip already held replaces the old entry rather than adding
+    /// a second: a browser has exactly one identity per trip, and two entries
+    /// would make which one wins depend on ordering.
+    /// </para>
+    /// </summary>
+    public SessionToken With(TripMembership membership)
+    {
+        var next = new List<TripMembership>(Memberships.Count + 1) { membership };
+        foreach (var existing in Memberships)
+        {
+            if (existing.TripId != membership.TripId)
+            {
+                next.Add(existing);
+            }
+        }
+
+        if (next.Count > SessionTokenService.MaxMemberships)
+        {
+            next.RemoveRange(
+                SessionTokenService.MaxMemberships,
+                next.Count - SessionTokenService.MaxMemberships);
+        }
+
+        return new SessionToken(next);
+    }
+
+    /// <summary>The same session without the given trip — "forget this on this device".</summary>
+    public SessionToken Without(Guid tripId) =>
+        new([.. Memberships.Where(m => m.TripId != tripId)]);
+}
 
 /// <summary>
 /// Issues and verifies the signed cookie payload from spec §5.7.
-/// Format: <c>base64url(tripId:memberId) . base64url(HMACSHA256(payload))</c>.
+/// Format: <c>base64url(tripId:memberId[,tripId:memberId…]) . base64url(HMACSHA256(payload))</c>.
+/// A single-membership payload is the one-element case of the same format, so
+/// cookies issued before the session became a list still verify and still work.
 /// The token is a bearer of identity only — it never grants authority by itself.
 /// Membership is re-checked against the database on every trip-scoped request,
 /// so revoking a member takes effect immediately rather than at cookie expiry.
 /// </summary>
 public sealed class SessionTokenService
 {
+    /// <summary>
+    /// Browsers drop cookies over roughly 4KB. Each membership costs 66 bytes of
+    /// payload, which base64 inflates by a third, so this bound keeps the whole
+    /// cookie near 2KB however many trips somebody accumulates. Past this, the
+    /// least recently used trip falls off the device — the trip itself is
+    /// untouched and rejoining with the invite code restores it.
+    /// </summary>
+    public const int MaxMemberships = 20;
+
     private readonly byte[] _key;
 
     public SessionTokenService(byte[] signingKey)
@@ -31,7 +109,10 @@ public sealed class SessionTokenService
 
     public string Issue(SessionToken token)
     {
-        var payload = Encoding.UTF8.GetBytes($"{token.TripId:N}:{token.MemberId:N}");
+        ArgumentNullException.ThrowIfNull(token);
+
+        var payload = Encoding.UTF8.GetBytes(
+            string.Join(',', token.Memberships.Select(m => $"{m.TripId:N}:{m.MemberId:N}")));
         var signature = HMACSHA256.HashData(_key, payload);
         return $"{Base64Url(payload)}.{Base64Url(signature)}";
     }
@@ -42,7 +123,7 @@ public sealed class SessionTokenService
     /// </summary>
     public bool TryValidate(string? value, out SessionToken token)
     {
-        token = default;
+        token = new SessionToken([]);
 
         if (string.IsNullOrEmpty(value))
         {
@@ -71,19 +152,36 @@ public sealed class SessionTokenService
         }
 
         var text = Encoding.UTF8.GetString(payload);
-        var colon = text.IndexOf(':');
-        if (colon <= 0)
+        var entries = text.Split(',', StringSplitOptions.RemoveEmptyEntries);
+
+        // A signed payload cannot exceed the cap unless this service issued an
+        // over-long one, so this is a guard against our own future bugs rather
+        // than against the caller.
+        if (entries.Length is 0 or > MaxMemberships)
         {
             return false;
         }
 
-        if (!Guid.TryParseExact(text[..colon], "N", out var tripId)
-            || !Guid.TryParseExact(text[(colon + 1)..], "N", out var memberId))
+        var memberships = new List<TripMembership>(entries.Length);
+        var seen = new HashSet<Guid>(entries.Length);
+
+        foreach (var entry in entries)
         {
-            return false;
+            var colon = entry.IndexOf(':');
+            if (colon <= 0
+                || !Guid.TryParseExact(entry[..colon], "N", out var tripId)
+                || !Guid.TryParseExact(entry[(colon + 1)..], "N", out var memberId)
+                // A duplicated trip would make the resolved member depend on
+                // scan order. Refuse the whole token rather than pick one.
+                || !seen.Add(tripId))
+            {
+                return false;
+            }
+
+            memberships.Add(new TripMembership(tripId, memberId));
         }
 
-        token = new SessionToken(tripId, memberId);
+        token = new SessionToken(memberships);
         return true;
     }
 

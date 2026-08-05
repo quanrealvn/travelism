@@ -150,7 +150,7 @@ public sealed class ExpenseService(WeGoDbContext db, IClock clock, ActivityLogWr
             ActivityAction.ExpenseCreated,
             nameof(Expense),
             expense.Id,
-            $"Added expense “{expense.Title}”.");
+            $"đã thêm khoản chi “{expense.Title}”.");
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result<Expense>.Ok(expense);
@@ -180,7 +180,7 @@ public sealed class ExpenseService(WeGoDbContext db, IClock clock, ActivityLogWr
             ActivityAction.ExpenseDeleted,
             nameof(Expense),
             expense.Id,
-            $"Deleted expense “{expense.Title}”.");
+            $"đã xoá khoản chi “{expense.Title}”.");
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result<Expense>.Ok(expense);

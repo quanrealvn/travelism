@@ -14,8 +14,10 @@ import type {
   PlaceStatus,
   ProblemDetails,
   SuggestionGroupResponse,
+  SessionEnvelope,
   TripResponse,
   TripSessionResponse,
+  TripSummaryResponse,
   UpdateItineraryItemRequest,
   UpdatePlaceRequest,
   WeatherResponse,
@@ -87,7 +89,17 @@ export const api = {
   joinTrip: (body: JoinTripRequest) =>
     request<TripSessionResponse>('/trips/join', { method: 'POST', body: JSON.stringify(body) }),
 
-  getSession: () => request<{ tripId: string; memberId: string }>('/session'),
+  getSession: () => request<SessionEnvelope>('/session'),
+
+  /** Every trip this browser holds, for the switcher. */
+  myTrips: () => request<TripSummaryResponse[]>('/trips/mine'),
+
+  /**
+   * Removes a trip from this device. Not a deletion and not leaving the trip —
+   * the invite code still works, and everyone else is unaffected.
+   */
+  forgetTrip: (tripId: string) =>
+    request<void>(`/session/trips/${tripId}`, { method: 'DELETE' }),
 
   getTrip: (tripId: string) => request<TripResponse>(`/trips/${tripId}`),
 

@@ -7,10 +7,11 @@ namespace WeGo.Api.Auth;
 /// <summary>
 /// The authorisation gate for every trip-scoped route (spec §5.7).
 /// <para>
-/// Two independent checks, both required. First the cookie's tripId must equal
-/// the tripId in the route — a valid session for trip A can never address trip
-/// B. Then the member must still exist on that trip, re-read from the database
-/// on every request, so the cookie alone is never sufficient proof.
+/// Two independent checks, both required. First the route's tripId must be one
+/// the cookie actually holds a membership for — a session that lists trips A
+/// and B can never address trip C. Then that member must still exist on that
+/// trip, re-read from the database on every request, so the cookie alone is
+/// never sufficient proof.
 /// </para>
 /// <para>
 /// Trip existence is never probed separately: a member row can only exist for a
@@ -43,7 +44,7 @@ public sealed class TripMemberFilter : IEndpointFilter
                 "Sign in by creating or joining a trip before calling this endpoint."));
         }
 
-        if (token.TripId != routeTripId)
+        if (!token.TryFind(routeTripId, out var claimedMemberId))
         {
             return Problems.From(Failure.Forbidden());
         }
@@ -51,7 +52,7 @@ public sealed class TripMemberFilter : IEndpointFilter
         var db = http.RequestServices.GetRequiredService<WeGoDbContext>();
         var member = await db.Members
             .AsNoTracking()
-            .FirstOrDefaultAsync(m => m.Id == token.MemberId && m.TripId == routeTripId)
+            .FirstOrDefaultAsync(m => m.Id == claimedMemberId && m.TripId == routeTripId)
             .ConfigureAwait(false);
 
         if (member is null)

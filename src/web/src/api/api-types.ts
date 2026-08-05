@@ -41,6 +41,42 @@ export interface TripResponse {
   updatedByMemberId: string
 }
 
+/**
+ * One row in the trip switcher. Smaller than {@link TripResponse} on purpose:
+ * a browser may hold twenty, and the invite code is not sent for a trip nobody
+ * has opened.
+ */
+export interface TripSummaryResponse {
+  id: string
+  name: string
+  destination: string
+  startDate: IsoDate
+  endDate: IsoDate
+  currency: string
+  currencyExponent: number
+  budgetAmount: number | null
+  status: TripStatus
+  memberCount: number
+  placeCount: number
+  updatedAt: string
+}
+
+export interface TripMembership {
+  tripId: string
+  memberId: string
+}
+
+/**
+ * Who this browser is. `tripId` is the most recently created or joined trip —
+ * the one to open when nothing else has been chosen — and `memberships` is
+ * every trip it holds.
+ */
+export interface SessionEnvelope {
+  tripId: string
+  memberId: string
+  memberships: TripMembership[]
+}
+
 export interface PlaceReferenceResponse {
   id: string
   url: string

@@ -115,7 +115,7 @@ export function TripMap({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      <FitToPlaces places={places} />
+      <MapFocus places={places} selectedPlaceId={selectedPlaceId ?? null} />
       {onPickLocation && <ClickToPick onPick={onPickLocation} />}
 
       {routePoints && routePoints.length > 1 && (
@@ -189,48 +189,75 @@ function ClickToPick({ onPick }: { onPick: (location: LatLng) => void }) {
   return null
 }
 
-/** Keeps every place in view as the wishlist grows. */
+
 /**
- * Keeps the map filling its container and framing the trip.
+ * Decides what the map is looking at, and keeps it sized to its container.
+ *
+ * One component rather than two, because these are the same decision. Framing
+ * the whole trip and flying to one place are alternatives, and as separate
+ * effects they fought: selecting a place flew the map, and then the resize
+ * that revealed the pane refitted it to every place and undid the fly.
  *
  * Leaflet measures its container once, at construction, and never notices it
- * changing. Below 1024px the map shares the wishlist tab with the list and
- * only one is shown at a time, so the map is built inside a `display: none`
- * parent, measures zero, and — when finally revealed — paints a single tile
- * into the corner of a blank area, framed to a viewport that does not exist.
- * A window resize and a phone rotating do the same thing.
- *
- * Sizing and framing are handled together because they answer to the same
- * event: re-measuring without re-framing leaves the map correctly sized on the
- * wrong part of the world.
+ * changing. Below 1024px the map shares the wishlist tab with the list, so it
+ * is built inside a `display: none` parent, measures zero, and — when finally
+ * revealed — paints a single tile into the corner of a blank area, framed to a
+ * viewport that does not exist. A window resize and a phone rotating do the
+ * same thing, so a ResizeObserver re-runs the whole decision rather than only
+ * the measurement.
  */
-function FitToPlaces({ places }: { places: PlaceResponse[] }) {
+function MapFocus({
+  places,
+  selectedPlaceId,
+}: {
+  places: PlaceResponse[]
+  selectedPlaceId: string | null
+}) {
   const map = useMap()
 
   useEffect(() => {
-    function fit() {
-      if (places.length === 0) {
+    function focus() {
+      // A zero-sized map produces NaN for every derived coordinate, and both
+      // flyTo and fitBounds throw "Invalid LatLng object" on it, taking the
+      // render down with them. Nothing to do until the pane is on screen.
+      const size = map.getSize()
+      if (size.x === 0 || size.y === 0) {
         return
       }
 
-      const bounds = L.latLngBounds(
-        places.map((place) => [place.lat, place.lng] as [number, number]),
-      )
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
+      const selected = places.find((place) => place.id === selectedPlaceId)
+      if (selected) {
+        const target = L.latLng(selected.lat, selected.lng)
+
+        // pad() shrinks the bounds, so a pin hard against the edge — half of
+        // it behind the legend or the tab bar — still counts as out of view.
+        // Not moving for something already in front of you matters: the pan is
+        // the feedback, and an unnecessary one is only disorientation.
+        if (!map.getBounds().pad(-0.15).contains(target)) {
+          map.flyTo(target, Math.max(map.getZoom(), 14), { duration: 0.6 })
+        }
+        return
+      }
+
+      if (places.length > 0) {
+        const bounds = L.latLngBounds(
+          places.map((place) => [place.lat, place.lng] as [number, number]),
+        )
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
+      }
     }
 
-    fit()
+    focus()
 
-    const container = map.getContainer()
     const observer = new ResizeObserver(() => {
       // No animation: this is a correction, not a movement the user made.
       map.invalidateSize({ animate: false })
-      fit()
+      focus()
     })
 
-    observer.observe(container)
+    observer.observe(map.getContainer())
     return () => observer.disconnect()
-  }, [map, places])
+  }, [map, places, selectedPlaceId])
 
   return null
 }

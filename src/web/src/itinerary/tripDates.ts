@@ -47,6 +47,21 @@ export function formatDayLabel(date: IsoDate): string {
   return `${weekday} · ${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}`
 }
 
+/**
+ * Today, as the traveller's own device reckons it.
+ *
+ * Deliberately the local date and not UTC: "is this trip over?" is a question
+ * about the calendar the person is standing in, and in Vietnam (UTC+7) a UTC
+ * answer is wrong for the first seven hours of every day.
+ */
+export function todayIso(): IsoDate {
+  const now = new Date()
+  const year = now.getFullYear().toString().padStart(4, '0')
+  const month = (now.getMonth() + 1).toString().padStart(2, '0')
+  const day = now.getDate().toString().padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 /** "10/08/2026" — the unambiguous form, for reading rather than scanning. */
 export function formatDateLabel(date: IsoDate): string {
   const [year, month, day] = splitIso(date)

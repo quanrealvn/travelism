@@ -29,17 +29,18 @@ public sealed class TripHub(
         // connection down *after* the client's StartAsync has already returned
         // successfully, so a refused client would believe it was subscribed and
         // sit waiting for events that never come. Throwing fails the start.
+        Guid claimedMemberId = default;
         if (http is null
             || tripId is null
             || !tokens.TryValidate(SessionCookie.Read(http, authOptions), out var token)
-            || token.TripId != tripId)
+            || !token.TryFind(tripId.Value, out claimedMemberId))
         {
             throw new HubException("Not authorised for this trip.");
         }
 
         var isMember = await db.Members
             .AsNoTracking()
-            .AnyAsync(m => m.Id == token.MemberId && m.TripId == tripId.Value)
+            .AnyAsync(m => m.Id == claimedMemberId && m.TripId == tripId.Value)
             .ConfigureAwait(false);
 
         if (!isMember)

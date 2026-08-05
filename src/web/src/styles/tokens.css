@@ -3,9 +3,14 @@
  *
  * The product is a travel planner used on a phone, often outdoors, often
  * one-handed, often by two people looking at the same screen. Every choice
- * below follows from that: generous type, high contrast, warm neutrals that do
- * not glare in sunlight, and touch targets sized for a thumb rather than a
- * mouse.
+ * below follows from that: generous type, high contrast, and touch targets
+ * sized for a thumb rather than a mouse.
+ *
+ * The colour scheme follows the Fly.io dashboard's structure — dark chrome,
+ * one vivid accent, a light working canvas — rather than any sampled value
+ * from it. Chrome recedes, the canvas is calm, and saturation is spent on the
+ * few things that carry meaning: which category a place is, how settled it is,
+ * and who owes whom.
  */
 
 :root {
@@ -16,6 +21,7 @@
    */
   --font-sans:
     'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', 'Roboto Mono', monospace;
 
   /* Nothing below 12px exists in the scale — sunlight and 40-year-old eyes
      are the design constraint, not screen real estate. */
@@ -26,6 +32,7 @@
   --t-lg: 1.0625rem;   /* 17 — card titles */
   --t-xl: 1.3125rem;   /* 21 — section titles */
   --t-2xl: 1.5rem;     /* 24 — trip name */
+  --t-3xl: 2rem;       /* 32 — the one number on the balance card */
 
   --lh-tight: 1.2;
   --lh-snug: 1.35;
@@ -50,40 +57,69 @@
   --s-10: 2.5rem;
   --s-12: 3rem;
 
-  /* ---- Colour -----------------------------------------------------------
-   * Warm sand and jade: the highlands palette of the first real trip, and
-   * kinder than pure white on a phone held up outdoors.
+  /* ---- Canvas -----------------------------------------------------------
+   * Near-neutral with the faintest violet cast, so the accent looks related to
+   * the page rather than dropped onto it.
    */
-  --c-bg: #fbf8f3;
+  --c-bg: #f7f7fb;
   --c-surface: #ffffff;
-  --c-surface-sunken: #f4efe7;
-  --c-line: #e6dfd3;
-  --c-line-strong: #d3c9b8;
+  --c-surface-sunken: #f0f0f6;
+  --c-line: #e4e4ed;
+  --c-line-strong: #cdcddb;
 
   /* Contrast ratios are against --c-surface and were measured, not guessed:
-   * an earlier --c-ink-3 was picked by eye at a claimed 4.6:1 and actually
-   * measured 3.71:1, which fails AA for body text. */
-  --c-ink: #1b2422;        /* 14.9:1 */
-  --c-ink-2: #56615e;      /* 6.6:1  — supporting text */
-  --c-ink-3: #6a7472;      /* 4.9:1  — the lightest text allowed anywhere */
+   * an earlier ink was picked by eye at a claimed 4.6:1 and actually measured
+   * 3.71:1, which fails AA for body text. */
+  --c-ink: #1a1a24;        /* 16.1:1 */
+  --c-ink-2: #55556a;      /* 7.2:1  — supporting text */
+  --c-ink-3: #6b6b82;      /* 5.2:1  — the lightest text allowed anywhere */
 
-  --c-brand: #0e6b55;
-  --c-brand-hover: #0b5644;
+  /* ---- Chrome -----------------------------------------------------------
+   * The frame the app lives in: top bar, tab bar, trip switcher. Dark, so the
+   * eye goes to the content and the accent has somewhere to glow.
+   */
+  --c-frame: #17171f;
+  --c-frame-raised: #21212c;
+  --c-frame-line: #31313f;
+  --c-frame-ink: #f5f5f8;      /* 15.6:1 on --c-frame */
+  --c-frame-ink-2: #a3a3b8;    /*  6.9:1 — inactive nav */
+
+  /* ---- Accent -----------------------------------------------------------
+   * One violet, in two weights: the deep one carries text and fills buttons on
+   * the light canvas (6.0:1 either way), the bright one is only ever used on
+   * the dark chrome, where the deep one would disappear.
+   */
+  --c-brand: #6d3aed;
+  --c-brand-hover: #5b2bd4;
   --c-brand-ink: #ffffff;
-  --c-brand-soft: #e2efeb;
-  --c-brand-border: #b9d8d0;
+  --c-brand-soft: #f0ebfe;
+  --c-brand-border: #cdbcfb;
+  --c-brand-bright: #a78bfa;   /* 7.4:1 on --c-frame */
 
-  --c-warm: #c2603f;       /* terracotta — the "decide" action */
-  --c-warm-soft: #fbeae3;
+  /* ---- Meaning ----------------------------------------------------------
+   * Saturated, and spent only where the colour is the information. Each has a
+   * tint for backgrounds; the solid version always clears 4.5:1 on white.
+   */
+  --c-rose: #be123c;
+  --c-rose-soft: #ffe8ec;
+  --c-emerald: #047857;
+  --c-emerald-soft: #dcfaef;
+  --c-amber: #a1620a;
+  --c-amber-soft: #fdf0d5;
+  --c-sky: #0369a1;
+  --c-sky-soft: #e0f2fe;
+  --c-violet: #6d28d9;
+  --c-violet-soft: #f0e9ff;
+  --c-slate: #52525f;
+  --c-slate-soft: #eeeef3;
 
-  --c-amber: #97650a;
-  --c-amber-soft: #fdf2dc;
-
-  --c-danger: #a92e25;
-  --c-danger-soft: #fbeae8;
-
-  --c-info: #2b5f7d;
-  --c-info-soft: #e8f0f5;
+  /* Roles, so a component names what it means rather than which crayon. */
+  --c-danger: var(--c-rose);
+  --c-danger-soft: var(--c-rose-soft);
+  --c-warm: #b83f1e;           /* the "I want this" heart — 5.1:1 on white */
+  --c-warm-soft: #ffece4;
+  --c-info: var(--c-sky);
+  --c-info-soft: var(--c-sky-soft);
 
   /* ---- Shape ------------------------------------------------------------ */
   --r-sm: 0.5rem;
@@ -92,11 +128,11 @@
   --r-xl: 1.25rem;
   --r-full: 999px;
 
-  /* Warm-tinted rather than grey: a neutral shadow over sand reads as dirt. */
-  --e-1: 0 1px 2px rgb(60 45 25 / 6%);
-  --e-2: 0 2px 8px rgb(60 45 25 / 8%);
-  --e-3: 0 8px 24px rgb(60 45 25 / 12%);
-  --e-lift: 0 -2px 12px rgb(60 45 25 / 8%);
+  --e-1: 0 1px 2px rgb(23 23 31 / 6%);
+  --e-2: 0 2px 8px rgb(23 23 31 / 8%);
+  --e-3: 0 8px 24px rgb(23 23 31 / 14%);
+  --e-lift: 0 -2px 12px rgb(23 23 31 / 10%);
+  --e-accent: 0 4px 14px rgb(109 58 237 / 30%);
 
   /* ---- Touch ------------------------------------------------------------
    * 44px is the smallest target most adults hit reliably first time. Nothing

@@ -17,6 +17,12 @@ interface PlaceListProps {
   currency: string
   currencyExponent: number
   selectedPlaceId: string | null
+  /**
+   * True when picking a place will swap the list out for the map. The card then
+   * says so, because a tap that replaces the whole screen should not be a
+   * surprise.
+   */
+  showsOnMap: boolean
   deletingPlaceId: string | null
   busyPlaceId: string | null
   tripUnderway: boolean
@@ -94,6 +100,7 @@ function PlaceRow({
   currency,
   currencyExponent,
   selectedPlaceId,
+  showsOnMap,
   deletingPlaceId,
   busyPlaceId,
   tripUnderway,
@@ -132,7 +139,12 @@ function PlaceRow({
         </span>
       </button>
 
-      <button type="button" className="place-main" onClick={() => onSelect(place.id)}>
+      <button
+        type="button"
+        className="place-main"
+        onClick={() => onSelect(place.id)}
+        aria-label={showsOnMap ? `Xem ${place.name} trên bản đồ` : undefined}
+      >
         <span className="place-name">{place.name}</span>
         <span className="place-meta">
           {placeCategoryLabel(place.category)} · {formatDuration(place.estimatedDurationMinutes)} ·{' '}

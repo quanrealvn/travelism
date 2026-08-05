@@ -305,6 +305,17 @@ button {
     transform var(--dur-fast) var(--ease);
 }
 
+/*
+ * An icon in a button is a fixed-size ornament, never a flex item that grows.
+ * Without this an SVG with no intrinsic size stretched to fill the button —
+ * the "new trip" button rendered as a 400px purple square with a giant plus.
+ */
+button svg {
+  flex: 0 0 auto;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
 button:hover:not(:disabled) {
   background: var(--c-surface-sunken);
 }
@@ -375,6 +386,11 @@ button[type='submit']:hover:not(:disabled),
   min-height: 100dvh;
 }
 
+/*
+ * Dark chrome, light canvas. The frame is the one part of the screen that is
+ * always present and never the thing being looked at, so it recedes and lets
+ * the accent — and the places — carry the colour.
+ */
 .topbar {
   position: sticky;
   top: 0;
@@ -385,9 +401,19 @@ button[type='submit']:hover:not(:disabled),
   min-height: var(--header-h);
   padding: var(--s-2) var(--s-4);
   padding-top: max(var(--s-2), env(safe-area-inset-top));
-  background: color-mix(in srgb, var(--c-bg) 88%, transparent);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--c-line);
+  color: var(--c-frame-ink);
+  background: var(--c-frame);
+}
+
+.topbar .icon-button {
+  color: var(--c-frame-ink-2);
+  background: none;
+  border-color: var(--c-frame-line);
+}
+
+.topbar .icon-button:hover:not(:disabled) {
+  color: var(--c-frame-ink);
+  background: var(--c-frame-raised);
 }
 
 .topbar-main {
@@ -396,8 +422,12 @@ button[type='submit']:hover:not(:disabled),
 }
 
 .topbar-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
   font-size: var(--t-lg);
   font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
   /* The trip name is the anchor; truncating beats wrapping the bar to two rows. */
   overflow: hidden;
   text-overflow: ellipsis;
@@ -409,7 +439,7 @@ button[type='submit']:hover:not(:disabled),
   align-items: center;
   gap: var(--s-2);
   font-size: var(--t-xs);
-  color: var(--c-ink-2);
+  color: var(--c-frame-ink-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -431,6 +461,168 @@ button[type='submit']:hover:not(:disabled),
   padding-bottom: calc(var(--nav-h) + var(--s-8) + env(safe-area-inset-bottom));
 }
 
+/* The whole trip block is the switcher, so it behaves as one control. */
+.topbar-trip {
+  flex: 1;
+  /* Buttons centre their content; a title bar reads from the left. */
+  justify-content: flex-start;
+  gap: 0;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--s-1) var(--s-2);
+  margin-left: calc(-1 * var(--s-2));
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+}
+
+.topbar-trip:hover:not(:disabled) {
+  background: var(--c-frame-raised);
+}
+
+.topbar-switch {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  color: var(--c-frame-ink-2);
+}
+
+/* Content with no tab bar under it — the trips screen. */
+.content-plain {
+  padding-bottom: calc(var(--s-10) + env(safe-area-inset-bottom));
+}
+
+/* ==========================================================================
+   Trips screen
+   ========================================================================== */
+
+.trip-list {
+  display: grid;
+  gap: var(--s-6);
+}
+
+.trip-cards {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.trip-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--s-2);
+  padding: var(--s-1);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-1);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.trip-card:hover {
+  border-color: var(--c-brand-border);
+  box-shadow: var(--e-2);
+}
+
+.trip-card.active {
+  border-color: var(--c-brand);
+  box-shadow: 0 0 0 3px var(--c-brand-soft);
+}
+
+/* A finished trip is a record, not a plan: present, but not competing with
+   what is still ahead. */
+.trip-card.past .trip-card-name {
+  color: var(--c-ink-2);
+}
+
+.trip-card.past .trip-card-countdown {
+  color: var(--c-ink-3);
+  background: var(--c-surface-sunken);
+}
+
+.trip-card-open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-1);
+  min-width: 0;
+  padding: var(--s-3);
+  text-align: left;
+  background: none;
+  border: none;
+}
+
+.trip-card-open:hover:not(:disabled) {
+  background: none;
+}
+
+.trip-card-name {
+  font-size: var(--t-lg);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+  color: var(--c-ink);
+  text-wrap: pretty;
+}
+
+.trip-card-where,
+.trip-card-when,
+.trip-card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1) var(--s-2);
+  font-size: var(--t-xs);
+  font-weight: var(--fw-regular);
+  color: var(--c-ink-2);
+}
+
+.trip-card-where svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: 0 0 auto;
+}
+
+.trip-card-countdown {
+  padding: 0 var(--s-2);
+  font-weight: var(--fw-semibold);
+  line-height: 1.25rem;
+  color: var(--c-brand);
+  background: var(--c-brand-soft);
+  border-radius: var(--r-full);
+}
+
+.trip-card-stats {
+  color: var(--c-ink-3);
+}
+
+.trip-card-forget {
+  align-self: start;
+  width: var(--tap);
+  min-width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  color: var(--c-ink-3);
+  background: none;
+  border: none;
+}
+
+.trip-card-forget:hover:not(:disabled) {
+  color: var(--c-danger);
+  background: var(--c-danger-soft);
+}
+
+.trip-card-forget svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.trip-list-new {
+  width: 100%;
+}
+
 /* ==========================================================================
    Tab bar — the primary navigation, in the thumb zone
    ========================================================================== */
@@ -445,9 +637,8 @@ button[type='submit']:hover:not(:disabled),
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
   padding-bottom: env(safe-area-inset-bottom);
-  background: color-mix(in srgb, var(--c-surface) 92%, transparent);
-  backdrop-filter: blur(12px);
-  border-top: 1px solid var(--c-line);
+  background: var(--c-frame);
+  border-top: 1px solid var(--c-frame-line);
   box-shadow: var(--e-lift);
 }
 
@@ -457,9 +648,9 @@ button[type='submit']:hover:not(:disabled),
   gap: 2px;
   min-height: var(--nav-h);
   padding: var(--s-2) var(--s-1);
-  /* Not --c-ink-3: an unselected tab is still a destination somebody has to be
-     able to read, so it stays at supporting-text contrast. */
-  color: var(--c-ink-2);
+  /* Not the faintest ink available: an unselected tab is still a destination
+     somebody has to be able to read. */
+  color: var(--c-frame-ink-2);
   background: none;
   border: none;
   border-radius: 0;
@@ -469,12 +660,27 @@ button[type='submit']:hover:not(:disabled),
 
 .tabbar-item:hover:not(:disabled) {
   background: none;
-  color: var(--c-ink);
+  color: var(--c-frame-ink);
 }
 
+/* The bright violet, not the deep one: on near-black the deep accent reads as
+   a dark smudge. */
 .tabbar-item[aria-selected='true'] {
-  color: var(--c-brand);
+  color: var(--c-brand-bright);
   font-weight: var(--fw-semibold);
+}
+
+/* A lit bar over the active tab, so position is not carried by colour alone. */
+.tabbar-item[aria-selected='true']::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2rem;
+  height: 2px;
+  transform: translateX(-50%);
+  background: var(--c-brand-bright);
+  border-radius: 0 0 var(--r-full) var(--r-full);
 }
 
 .tabbar-icon {
@@ -505,14 +711,15 @@ button[type='submit']:hover:not(:disabled),
   font-size: var(--t-2xs);
   font-weight: var(--fw-semibold);
   line-height: 1.125rem;
-  color: var(--c-brand-ink);
-  background: var(--c-brand);
-  border: 2px solid var(--c-bg);
+  color: var(--c-frame);
+  background: var(--c-brand-bright);
+  border: 2px solid var(--c-frame);
   border-radius: var(--r-full);
 }
 
 .tabbar-item[aria-selected='false'] .tabbar-count {
-  background: var(--c-ink-3);
+  color: var(--c-frame-ink);
+  background: var(--c-frame-line);
 }
 
 /* ==========================================================================
@@ -792,6 +999,33 @@ button[type='submit']:hover:not(:disabled),
   color: var(--c-ink-2);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+/*
+ * A section heading with its own action. Below 1024px the floating button does
+ * this job and the heading is redundant with the tab label, so the whole row
+ * stays out of the way until the wide layout needs it.
+ */
+.panel-head {
+  display: none;
+}
+
+.panel-head .section-title {
+  margin-bottom: 0;
+}
+
+@media (min-width: 64rem) {
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-4);
+    margin-bottom: var(--s-4);
+  }
+
+  .money-body > .panel-head {
+    max-width: 52rem;
+  }
 }
 
 .empty-state {
@@ -1157,30 +1391,53 @@ button .spinner {
   border-radius: var(--r-full);
 }
 
+/*
+ * One colour per state, carried by the bar, the count chip and the card's own
+ * left edge. Agreement is the thing this screen is about, so it is the thing
+ * that gets the colour.
+ */
 .group-confirmed {
-  --group-colour: var(--c-brand);
+  --group-colour: var(--c-emerald);
+  --group-soft: var(--c-emerald-soft);
 }
 .group-shortlist {
   --group-colour: var(--c-amber);
+  --group-soft: var(--c-amber-soft);
 }
 .group-idea {
-  --group-colour: var(--c-ink-3);
+  --group-colour: var(--c-slate);
+  --group-soft: var(--c-slate-soft);
 }
 .group-visited {
-  --group-colour: var(--c-info);
+  --group-colour: var(--c-sky);
+  --group-soft: var(--c-sky-soft);
 }
 .group-skipped {
-  --group-colour: var(--c-danger);
+  --group-colour: var(--c-rose);
+  --group-soft: var(--c-rose-soft);
 }
 
+.group-title::before {
+  background: var(--group-colour, var(--c-slate));
+}
+
+/* Ink on the tint rather than the group's own colour on it: at 12px the
+   coloured-on-tinted pairs measured as low as 4.36:1. The tint still carries
+   the group, and the number stays readable. */
 .group-count {
   padding: 0 var(--s-2);
   font-size: var(--t-2xs);
   font-weight: var(--fw-semibold);
   line-height: 1.25rem;
-  color: var(--c-ink-2);
-  background: var(--c-surface-sunken);
+  color: var(--c-ink);
+  background: var(--group-soft, var(--c-surface-sunken));
   border-radius: var(--r-full);
+}
+
+/* The group's colour reaches the cards under it, so a card is identifiable as
+   confirmed or merely an idea without reading back up to the heading. */
+.wishlist-group .place {
+  border-left: 3px solid var(--group-colour, var(--c-line));
 }
 
 .group-hint {
@@ -2045,11 +2302,26 @@ button .spinner {
  * watching, so it gets the strongest surface in the app.
  */
 .balance-card {
-  padding: var(--s-4);
+  position: relative;
+  overflow: hidden;
+  padding: var(--s-5) var(--s-4);
   color: var(--c-brand-ink);
-  background: linear-gradient(135deg, var(--c-brand), #0a4f40);
+  background: linear-gradient(135deg, #7c48f5, #4c1fb8 55%, #2e1173);
   border-radius: var(--r-lg);
-  box-shadow: var(--e-2);
+  box-shadow: var(--e-accent);
+}
+
+/* A soft highlight in the corner, so the card reads as a surface with a light
+   on it rather than as a flat rectangle of purple. */
+.balance-card::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -10%;
+  width: 60%;
+  height: 140%;
+  background: radial-gradient(closest-side, rgb(255 255 255 / 18%), transparent);
+  pointer-events: none;
 }
 
 .balance-card h3 {
@@ -2067,11 +2339,12 @@ button .spinner {
 
 .balance-total strong {
   display: block;
-  font-size: var(--t-2xl);
+  font-size: var(--t-3xl);
   font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
   color: #fff;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 
 .balance-card .search-hint {
@@ -2104,11 +2377,11 @@ button .spinner {
 }
 
 .net.positive {
-  color: #9fe6c9;
+  color: #7ff0c4;
 }
 
 .net.negative {
-  color: #ffc4a8;
+  color: #ffb59a;
 }
 
 .settle-list {
@@ -2316,7 +2589,8 @@ button .spinner {
     flex: 0 1 auto;
   }
 
-  /* The thumb no longer rules: navigation becomes a bar under the title. */
+  /* The thumb no longer rules: navigation becomes a bar under the title,
+     still on the dark frame so the chrome reads as one piece. */
   .tabbar {
     position: sticky;
     top: var(--header-h);
@@ -2324,9 +2598,13 @@ button .spinner {
     display: flex;
     gap: var(--s-1);
     padding: var(--s-2) var(--s-8);
-    border-top: none;
-    border-bottom: 1px solid var(--c-line);
+    border-top: 1px solid var(--c-frame-line);
+    border-bottom: none;
     box-shadow: none;
+  }
+
+  .tabbar-item[aria-selected='true']::before {
+    display: none;
   }
 
   .tabbar-item {
@@ -2339,11 +2617,11 @@ button .spinner {
   }
 
   .tabbar-item:hover:not(:disabled) {
-    background: var(--c-surface-sunken);
+    background: var(--c-frame-raised);
   }
 
   .tabbar-item[aria-selected='true'] {
-    background: var(--c-brand-soft);
+    background: color-mix(in srgb, var(--c-brand-bright) 18%, transparent);
   }
 
   .tabbar-icon {
@@ -2353,14 +2631,14 @@ button .spinner {
 
   .tabbar-count {
     position: static;
-    color: inherit;
-    background: color-mix(in srgb, currentcolor 14%, transparent);
+    color: var(--c-frame);
+    background: var(--c-brand-bright);
     border: none;
   }
 
   .tabbar-item[aria-selected='false'] .tabbar-count {
-    color: var(--c-ink-2);
-    background: var(--c-surface-sunken);
+    color: var(--c-frame-ink);
+    background: var(--c-frame-line);
   }
 
   .fab {
@@ -2421,11 +2699,10 @@ button .spinner {
     top: calc(var(--sticky-top) + var(--s-4));
   }
 
+  /* One column, capped: a balance and a list of what was spent are read down,
+     and stretching them across 1440px only makes the eye travel further. */
   .money-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 21rem;
-    gap: var(--s-6);
-    align-items: start;
+    max-width: 52rem;
   }
 
   .side-panel {

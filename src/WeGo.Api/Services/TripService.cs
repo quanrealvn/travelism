@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using WeGo.Api.Auth;
 using WeGo.Api.Common;
 using WeGo.Api.Contracts;
 using WeGo.Api.Errors;
@@ -7,6 +8,7 @@ using WeGo.Domain.Abstractions;
 using WeGo.Domain.Common;
 using WeGo.Domain.Entities;
 using WeGo.Domain.Members;
+using WeGo.Domain.Money;
 using WeGo.Domain.Trips;
 using WeGo.Infrastructure.Persistence;
 
@@ -94,7 +96,7 @@ public sealed class TripService(WeGoDbContext db, IClock clock, ActivityLogWrite
                 ActivityAction.TripCreated,
                 nameof(Trip),
                 tripId,
-                $"{validOwnerName} created trip “{trip.Name}”.");
+                $"đã tạo chuyến đi “{trip.Name}”.");
 
             try
             {
@@ -186,7 +188,7 @@ public sealed class TripService(WeGoDbContext db, IClock clock, ActivityLogWrite
             ActivityAction.MemberJoined,
             nameof(Member),
             member.Id,
-            $"{member.DisplayName} joined the trip.");
+            $"đã tham gia chuyến đi.");
 
         try
         {
@@ -206,6 +208,95 @@ public sealed class TripService(WeGoDbContext db, IClock clock, ActivityLogWrite
         // place. Nothing to do here — that is exactly the absence of a demotion
         // pass, and PlaceStateMachineTests pins the behaviour.
         return Result<TripWithSession>.Ok(new TripWithSession(trip, member, members));
+    }
+
+    /// <summary>
+    /// Summaries for the trips a browser claims, newest departure first.
+    /// </summary>
+    /// <remarks>
+    /// The claimed memberships are the filter, not the answer: a trip is only
+    /// returned when the member row backing the claim still exists, so being
+    /// removed from a trip takes it out of the switcher on the next load. The
+    /// query is by trip id set rather than per trip, so a browser holding
+    /// twenty trips still costs one round trip.
+    /// </remarks>
+    public async Task<IReadOnlyList<TripSummaryResponse>> ListAsync(
+        IReadOnlyList<TripMembership> memberships,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(memberships);
+
+        if (memberships.Count == 0)
+        {
+            return [];
+        }
+
+        var claimedMemberIds = memberships.Select(m => m.MemberId).ToList();
+
+        var live = await db.Members
+            .AsNoTracking()
+            .Where(m => claimedMemberIds.Contains(m.Id))
+            .Select(m => new { m.Id, m.TripId })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // A claim only counts when the member row is on the trip it claims:
+        // pairing member from trip A with trip B must not resolve to anything.
+        var verifiedTripIds = memberships
+            .Where(claim => live.Any(m => m.Id == claim.MemberId && m.TripId == claim.TripId))
+            .Select(claim => claim.TripId)
+            .ToList();
+
+        if (verifiedTripIds.Count == 0)
+        {
+            return [];
+        }
+
+        // Projected raw and mapped in memory: the currency exponent comes from a
+        // domain lookup that has no SQL translation, and forcing one would mean
+        // duplicating the currency table in the database.
+        var rows = await db.Trips
+            .AsNoTracking()
+            .Where(t => verifiedTripIds.Contains(t.Id))
+            .Select(t => new
+            {
+                t.Id,
+                t.Name,
+                t.Destination,
+                t.StartDate,
+                t.EndDate,
+                t.Currency,
+                t.BudgetAmount,
+                t.Status,
+                t.UpdatedAt,
+                MemberCount = db.Members.Count(m => m.TripId == t.Id),
+                PlaceCount = db.Places.Count(p => p.TripId == t.Id && !p.IsDeleted),
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // Ordered here rather than in SQL: the trip list is at most twenty rows,
+        // and sorting in the database would order by the stored string form of
+        // the date, which is only coincidentally the same order.
+        return
+        [
+            .. rows
+                .OrderByDescending(t => t.StartDate)
+                .ThenBy(t => t.Name, StringComparer.Ordinal)
+                .Select(t => new TripSummaryResponse(
+                    t.Id,
+                    t.Name,
+                    t.Destination,
+                    t.StartDate,
+                    t.EndDate,
+                    t.Currency,
+                    CurrencyInfo.GetExponent(t.Currency),
+                    t.BudgetAmount,
+                    t.Status.ToString(),
+                    t.MemberCount,
+                    t.PlaceCount,
+                    t.UpdatedAt)),
+        ];
     }
 
     public async Task<Result<TripWithMembers>> GetAsync(Guid tripId, CancellationToken cancellationToken)
@@ -304,7 +395,7 @@ public sealed class TripService(WeGoDbContext db, IClock clock, ActivityLogWrite
             ActivityAction.TripUpdated,
             nameof(Trip),
             tripId,
-            $"Trip “{trip.Name}” was updated.");
+            $"đã cập nhật chuyến đi “{trip.Name}”.");
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

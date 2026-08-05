@@ -54,6 +54,7 @@ function renderList(places: PlaceResponse[], overrides: Partial<Parameters<typeo
       currency="VND"
       currencyExponent={0}
       selectedPlaceId={null}
+      showsOnMap={false}
       deletingPlaceId={null}
       busyPlaceId={null}
       tripUnderway={false}

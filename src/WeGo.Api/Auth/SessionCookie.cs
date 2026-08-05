@@ -21,4 +21,20 @@ public static class SessionCookie
 
     public static string? Read(HttpContext context, AuthOptions options) =>
         context.Request.Cookies.TryGetValue(options.CookieName, out var value) ? value : null;
+
+    /// <summary>
+    /// Removes the cookie. The attributes must match the ones it was written
+    /// with or the browser keeps the original and the deletion silently fails.
+    /// </summary>
+    public static void Clear(HttpContext context, AuthOptions options)
+    {
+        context.Response.Cookies.Delete(options.CookieName, new CookieOptions
+        {
+            HttpOnly = true,
+            SameSite = SameSiteMode.Lax,
+            Secure = context.Request.IsHttps,
+            Path = "/",
+            IsEssential = true,
+        });
+    }
 }

@@ -52,6 +52,25 @@ public static class ApiClient
         return (await response.Content.ReadFromJsonAsync<TripSessionResponse>(Json))!;
     }
 
+    public static async Task<TripSessionResponse> JoinTripAsync(
+        this HttpClient client,
+        string inviteCode,
+        string displayName)
+    {
+        var response = await client.PostAsJsonAsync("/trips/join", new { inviteCode, displayName }, Json);
+
+        await response.ShouldBeAsync(HttpStatusCode.OK);
+        return (await response.Content.ReadFromJsonAsync<TripSessionResponse>(Json))!;
+    }
+
+    public static async Task<IReadOnlyList<TripSummaryResponse>> GetMyTripsAsync(this HttpClient client)
+    {
+        var response = await client.GetAsync("/trips/mine");
+
+        await response.ShouldBeAsync(HttpStatusCode.OK);
+        return (await response.Content.ReadFromJsonAsync<List<TripSummaryResponse>>(Json))!;
+    }
+
     public static async Task<PlaceResponse> CreatePlaceAsync(
         this HttpClient client,
         Guid tripId,

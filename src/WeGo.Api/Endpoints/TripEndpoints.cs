@@ -83,9 +83,66 @@ public static class TripEndpoints
                 return Problems.From(Failure.Unauthenticated("No session cookie present."));
             }
 
-            return Results.Ok(new { tripId = token.TripId, memberId = token.MemberId });
+            // The first membership is the most recently created or joined trip,
+            // which is the one to open when the client has no other preference.
+            var current = token.Memberships[0];
+            return Results.Ok(new
+            {
+                tripId = current.TripId,
+                memberId = current.MemberId,
+                memberships = token.Memberships
+                    .Select(m => new { tripId = m.TripId, memberId = m.MemberId })
+                    .ToArray(),
+            });
         })
         .WithName("GetSession");
+
+        // Every trip this browser holds, for the switcher. Trips the caller has
+        // since been removed from are dropped rather than reported: the cookie
+        // is a claim, and the member rows are the authority.
+        app.MapGet("/trips/mine", async (
+            HttpContext http,
+            AuthOptions authOptions,
+            SessionTokenService tokens,
+            TripService trips,
+            CancellationToken cancellationToken) =>
+        {
+            if (!tokens.TryValidate(SessionCookie.Read(http, authOptions), out var token))
+            {
+                return Problems.From(Failure.Unauthenticated("No session cookie present."));
+            }
+
+            var summaries = await trips.ListAsync(token.Memberships, cancellationToken);
+            return Results.Ok(summaries);
+        })
+        .WithName("ListMyTrips");
+
+        // Forget a trip on this device. The trip itself is untouched — this is
+        // not "leave the trip", and rejoining with the invite code restores it.
+        app.MapDelete("/session/trips/{tripId:guid}", (
+            Guid tripId,
+            HttpContext http,
+            AuthOptions authOptions,
+            SessionTokenService tokens) =>
+        {
+            if (!tokens.TryValidate(SessionCookie.Read(http, authOptions), out var token))
+            {
+                return Problems.From(Failure.Unauthenticated("No session cookie present."));
+            }
+
+            var next = token.Without(tripId);
+            if (next.Memberships.Count == 0)
+            {
+                SessionCookie.Clear(http, authOptions);
+            }
+            else
+            {
+                SessionCookie.Write(http, authOptions, tokens.Issue(next));
+            }
+
+            return Results.NoContent();
+        })
+        .WithName("ForgetTrip");
     }
 
     private static void MapTripScopedRoutes(IEndpointRouteBuilder app)
@@ -154,14 +211,21 @@ public static class TripEndpoints
         .WithName("DeleteTrip");
     }
 
+    /// <summary>
+    /// Adds the new trip to whatever this browser already holds, rather than
+    /// replacing it. Creating a second trip used to sign the browser out of the
+    /// first, which quietly cost people last month's plan.
+    /// </summary>
     private static void IssueSession(
         HttpContext http,
         AuthOptions authOptions,
         SessionTokenService tokens,
         TripWithSession created)
     {
-        var token = tokens.Issue(new SessionToken(created.Trip.Id, created.Member.Id));
-        SessionCookie.Write(http, authOptions, token);
+        tokens.TryValidate(SessionCookie.Read(http, authOptions), out var existing);
+
+        var next = existing.With(new TripMembership(created.Trip.Id, created.Member.Id));
+        SessionCookie.Write(http, authOptions, tokens.Issue(next));
     }
 
     private static TripSessionResponse ToSessionResponse(TripWithSession created) =>
