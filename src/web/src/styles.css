@@ -1665,16 +1665,21 @@ button .spinner {
   height: var(--map-h, calc(100dvh - 15rem));
   overflow: hidden;
   background: var(--c-surface-sunken);
-  /* Tinted with the accent rather than neutral: the map is the largest object
-     on the page and a grey hairline made it read as an embed. Two pixels, not
-     one — against busy tiles a hairline disappears wherever a road happens to
-     run under it. The glow is the brand at 18%: enough to belong, not enough
-     to look selected. */
-  border: 2px solid var(--c-brand-border);
+  /*
+   * The accent itself, at full strength. A pale tint kept losing the edge
+   * against busy tiles — a road or a green field running under it was enough
+   * to break the line — and the map is the largest object on the page, so its
+   * frame is what tells you where it ends.
+   *
+   * The inner white ring separates the violet from the tiles so the border
+   * stays a border rather than merging into whatever colour is behind it.
+   */
+  border: 3px solid var(--c-brand);
   border-radius: var(--r-lg);
   box-shadow:
-    0 1px 2px rgb(109 58 237 / 8%),
-    0 8px 28px rgb(109 58 237 / 18%);
+    inset 0 0 0 2px rgb(255 255 255 / 90%),
+    0 2px 6px rgb(109 58 237 / 16%),
+    0 10px 30px rgb(109 58 237 / 22%);
 }
 
 .leaflet-container {
