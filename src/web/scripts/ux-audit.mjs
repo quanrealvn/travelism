@@ -248,12 +248,21 @@ for (const vp of VIEWPORTS) {
     }
   }
 
-  // The trips screen: the switcher, with both its sections populated. It is an
-  // explicit button — the trip name used to be the switcher, and the name is
-  // now the rename control instead.
+  // The switcher is a menu: the trips it lists, the way to start another, and
+  // the way through to the full screen. Both layers get audited.
   const switcher = page.getByRole('button', { name: /đổi chuyến đi/i })
   if (await switcher.count()) {
     await switcher.first().click()
+    await page.waitForTimeout(700)
+
+    const listed = await page.locator('.trip-menu-item').count()
+    if (listed < 3) {
+      problems.push(`[${vp.name}] the switcher menu lists ${listed} trips, expected 3`)
+    }
+    await shoot(page, vp, 'trip-menu')
+    await audit(page, `${vp.name}/trip-menu`)
+
+    await page.getByRole('menuitem', { name: /xem tất cả chuyến đi/i }).click()
     await page.waitForTimeout(900)
     await shoot(page, vp, 'trips')
     await audit(page, `${vp.name}/trips`)
@@ -412,9 +421,17 @@ async function audit(page, where) {
       return root.scrollHeight - root.clientHeight > 8 ? root : null
     }
 
-    const sheet = document.querySelector('.sheet-panel')
-    const reachable = sheet
-      ? controls.filter((el) => sheet.contains(el))
+    /*
+     * An open menu covers what is behind it on purpose, exactly as a sheet
+     * does, so while one is up only the menu and its own trigger are in play.
+     */
+    const menu = document.querySelector('[role="menu"]')
+    const overlay =
+      document.querySelector('.sheet-panel') ??
+      (menu ? (menu.closest('.trip-switcher') ?? menu) : null)
+
+    const reachable = overlay
+      ? controls.filter((el) => overlay.contains(el))
       : controls.filter((el) => !el.classList.contains('sheet-backdrop'))
 
     for (const el of reachable) {

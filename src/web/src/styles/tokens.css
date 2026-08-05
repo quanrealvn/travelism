@@ -62,9 +62,13 @@
    * the accent somewhere to belong and stops a phone screen full of white
    * cards from reading as a document.
    */
-  --c-bg: #faf9ff;
-  --c-wash-violet: #ede9fe;
-  --c-wash-rose: #fce7f3;
+  --c-bg: #fbfaff;
+  /* Three washes, not two: sky at one corner, violet through the middle,
+     rose at the other. Each is barely a tint on its own — the point is the
+     drift between them across the page, not any one of them being seen. */
+  --c-wash-sky: #dcefff;
+  --c-wash-violet: #ebe6fe;
+  --c-wash-rose: #fde4f1;
   --c-surface: #ffffff;
   --c-surface-sunken: #f4f3fb;
   --c-line: #e7e5f2;

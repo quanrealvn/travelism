@@ -736,3 +736,55 @@ still designs to, and it is where a layout that merely works at 390 comes apart.
 Adding it found no new failures, which is itself the finding: the overview strip
 wraps to two rows and the cards hold. The value is that it cannot silently stop
 being true.
+
+### D64 — An empty trip's map looks at its own destination
+
+`FALLBACK_CENTER` was a hardcoded Mộc Châu, so a Đà Lạt trip opened on a Sơn La
+map and the first thing anybody did with a new trip was pan a thousand
+kilometres. The destination was already a string on the trip; the geocoder the
+add-place form uses can say where it is.
+
+Asked only while the trip has no places — one lookup on a brand new trip and
+none afterwards — and applied through `setView` rather than the `center` prop,
+because `MapContainer` reads that once at mount and the answer arrives later.
+
+### D65 — The whole shell is centred, not just the content
+
+At full bleed on a wide monitor the rail sat against the left edge of the glass
+with the content it labels a long way off. Capping the shell and centring it
+lets the page show around the frame, which is what makes a dashboard read as a
+composed page rather than a maximised window.
+
+### D66 — The trip switcher is a menu
+
+It was a button that replaced the entire screen with a trips page — a lot of
+ceremony for "show me the other one", and it threw away where you were to do
+it. A menu keeps the workspace behind it, and it puts starting a new trip in
+the same place you go looking for an existing one, which is the moment you
+discover you do not have it yet.
+
+The full screen still exists behind "Xem tất cả": it carries dates, countdowns
+and the way to forget a trip, and none of those belong in a menu.
+
+The audit treats an open menu the way it already treated an open sheet — while
+one is up, only it and its trigger are reachable. Without that, the menu
+covering the row beneath it was reported as a control that could not be pressed,
+which is the entire purpose of a menu.
+
+### D67 — The rail is text and tiles, and the trip is a card
+
+Every glyph sits in a bordered tinted tile that inverts to solid violet when
+its row is current. That gives "where am I" a second signal beyond colour — the
+tile is a filled shape or it is not — and it turns a column of line icons into a
+set of objects rather than a list of links.
+
+The trip itself is not one of the navigation items; it is what all of them are
+about. It is drawn as a card lifted off the rail while everything below it is
+flat text on the wash, so it reads as the heading of the column rather than its
+first row.
+
+`overflow-y: auto` on the rail computed `overflow-x` to auto as well, which put
+a horizontal scrollbar under it as soon as the switcher's menu was wider than
+the column. The rail's content is a fixed handful of rows that always fit, so it
+does not scroll at all — and every label in it now truncates rather than pushing
+the column wider than itself.

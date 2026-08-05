@@ -9,6 +9,7 @@ import {
   useCreateExpense,
   useDeleteExpense,
   useDeletePlace,
+  useDestinationCenter,
   useExpenses,
   useFeasibility,
   useItinerary,
@@ -56,6 +57,7 @@ import { Spinner } from './components/Spinner'
 import { useNarrowScreen } from './hooks/useNarrowScreen'
 import { mostRelevantTrip } from './trips/defaultTrip'
 import { TripTitle } from './components/TripTitle'
+import { TripSwitcher } from './components/TripSwitcher'
 import {
   IconCalendar,
   IconClose,
@@ -63,7 +65,6 @@ import {
   IconInfo,
   IconPin,
   IconPlus,
-  IconSwitch,
   IconWallet,
 } from './components/icons'
 
@@ -228,6 +229,8 @@ export function App() {
       memberId={current.memberId}
       tripCount={memberships.length}
       onBrowseTrips={() => setShowTrips(true)}
+      onOpenTrip={selectTrip}
+      onTripCreated={handleReady}
     />
   )
 }
@@ -364,11 +367,15 @@ function TripWorkspace({
   memberId,
   tripCount,
   onBrowseTrips,
+  onOpenTrip,
+  onTripCreated,
 }: {
   tripId: string
   memberId: string
   tripCount: number
   onBrowseTrips: () => void
+  onOpenTrip: (tripId: string) => void
+  onTripCreated: (created: TripSessionResponse) => void
 }) {
   const trip = useTrip(tripId)
   const renameTrip = useUpdateTrip(tripId)
@@ -395,7 +402,9 @@ function TripWorkspace({
   const [pane, setPane] = useState<'list' | 'map'>('list')
   const [filter, setFilter] = useState<PlaceFilterState>(EMPTY_FILTER)
   const narrow = useNarrowScreen()
-  const [sheet, setSheet] = useState<'trip' | 'add-place' | 'add-expense' | null>(null)
+  const [sheet, setSheet] = useState<
+    'trip' | 'add-place' | 'add-expense' | 'new-trip' | null
+  >(null)
   const [pendingForceDelete, setPendingForceDelete] = useState<{
     placeId: string
     name: string
@@ -408,6 +417,13 @@ function TripWorkspace({
   const activeDate = selectedDate ?? days[0] ?? null
   const suggestions = useSuggestions(tripId, view === 'itinerary' ? activeDate : null)
   const feasibility = useFeasibility(tripId, view === 'itinerary' ? activeDate : null)
+  // Only asked while the trip is empty, so this costs one geocode on a brand
+  // new trip and nothing at all afterwards.
+  const destinationCenter = useDestinationCenter(
+    tripId,
+    trip.data?.destination ?? '',
+    (places.data?.length ?? 0) === 0,
+  )
   const expenses = useExpenses(tripId)
   const balance = useBalance(tripId)
   const createExpense = useCreateExpense(tripId)
@@ -643,20 +659,13 @@ function TripWorkspace({
             visually on a phone, so these keep their accessible names as icon
             buttons and grow into full rows in the sidebar.
           */}
-          {tripCount > 1 && (
-            <button
-              type="button"
-              className="nav-action"
-              onClick={onBrowseTrips}
-              title="Đổi chuyến đi"
-            >
-              <IconSwitch />
-              <span className="nav-action-label">
-                Đổi chuyến đi
-                <span className="nav-action-note">{tripCount} chuyến</span>
-              </span>
-            </button>
-          )}
+          <TripSwitcher
+            activeTripId={tripId}
+            tripCount={tripCount}
+            onOpenTrip={onOpenTrip}
+            onNewTrip={() => setSheet('new-trip')}
+            onSeeAll={onBrowseTrips}
+          />
 
           <button
             type="button"
@@ -664,11 +673,17 @@ function TripWorkspace({
             onClick={() => setSheet('trip')}
             title="Thông tin chuyến đi"
           >
-            <IconInfo />
-            <span className="nav-action-label">Thông tin &amp; mã mời</span>
+            {/* The tile is its own element so it can be drawn as one in the
+                rail and be nothing at all inside a phone's icon button. */}
+            <span className="nav-action-icon">
+              <IconInfo />
+            </span>
+            <span className="nav-action-label">
+              <span className="nav-action-text">Thông tin &amp; mã mời</span>
+            </span>
           </button>
         </div>
-      </header>
+        </header>
 
       {/*
         A sibling of the header, never a child of it: the tab bar is fixed to
@@ -753,6 +768,7 @@ function TripWorkspace({
                     draftLocation={draftLocation}
                     onPickLocation={setDraftLocation}
                     routePoints={routePoints}
+                    destinationCenter={destinationCenter.data ?? null}
                   />
                 </Suspense>
               </section>
@@ -956,6 +972,17 @@ function TripWorkspace({
             Xoá địa điểm sẽ bỏ luôn khỏi những ngày đó. Không thể hoàn tác.
           </p>
         </ConfirmDialog>
+      )}
+
+      {sheet === 'new-trip' && (
+        <Sheet title="Chuyến đi mới" onClose={() => setSheet(null)}>
+          <StartScreen
+            onReady={(created) => {
+              setSheet(null)
+              onTripCreated(created)
+            }}
+          />
+        </Sheet>
       )}
 
       {sheet === 'add-expense' && (

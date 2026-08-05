@@ -252,6 +252,32 @@ export function usePlaceSearch(tripId: string, query: string) {
   })
 }
 
+/**
+ * Where to point the map at a trip that has no places yet.
+ *
+ * Without this the map opened on a hardcoded Mộc Châu whatever the trip was —
+ * so a Đà Lạt trip showed a Sơn La map, and the first thing anybody did with a
+ * new trip was pan a thousand kilometres. The destination is already a string
+ * on the trip; this asks the geocoder the app already uses what it means.
+ *
+ * Enabled only while the trip is empty. One place, and the places themselves
+ * are a better answer than their nearest city.
+ */
+export function useDestinationCenter(tripId: string, destination: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.placeSearch(tripId, destination),
+    queryFn: ({ signal }) => api.searchPlaces(tripId, destination, signal),
+    enabled: enabled && destination.trim().length >= 2,
+    // A city does not move. This is the longest-lived thing the app caches.
+    staleTime: 24 * 60 * 60_000,
+    retry: false,
+    select: (results) => {
+      const first = results[0]
+      return first ? ([first.lat, first.lng] as [number, number]) : null
+    },
+  })
+}
+
 export function useSession() {
   return useQuery({
     queryKey: queryKeys.session,

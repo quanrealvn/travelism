@@ -74,6 +74,11 @@ interface TripMapProps {
    * presented as road geometry, which we do not fetch.
    */
   routePoints?: LatLng[]
+  /**
+   * Where to look while the trip has no places — the geocoded destination.
+   * Null until it resolves, and ignored once there is anything to frame.
+   */
+  destinationCenter?: [number, number] | null
 }
 
 const INITIAL_ZOOM = 11
@@ -87,6 +92,7 @@ export function TripMap({
   draftLocation,
   onPickLocation,
   routePoints,
+  destinationCenter,
 }: TripMapProps) {
   const [zoom, setZoom] = useState(INITIAL_ZOOM)
 
@@ -96,7 +102,9 @@ export function TripMap({
 
   const center = useMemo<[number, number]>(() => {
     if (places.length === 0) {
-      return FALLBACK_CENTER
+      // The trip's own destination first; Mộc Châu only while that is still
+      // being looked up, or when the geocoder has never heard of it.
+      return destinationCenter ?? FALLBACK_CENTER
     }
 
     const sum = places.reduce(
@@ -105,7 +113,7 @@ export function TripMap({
     )
 
     return [sum.lat / places.length, sum.lng / places.length]
-  }, [places])
+  }, [places, destinationCenter])
 
   return (
     <MapContainer
@@ -131,7 +139,11 @@ export function TripMap({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      <MapFocus places={places} selectedPlaceId={selectedPlaceId ?? null} />
+      <MapFocus
+        places={places}
+        selectedPlaceId={selectedPlaceId ?? null}
+        destinationCenter={destinationCenter ?? null}
+      />
       <WatchZoom onChange={setZoom} />
       {onPickLocation && <ClickToPick onPick={onPickLocation} />}
 
@@ -250,9 +262,11 @@ function WatchZoom({ onChange }: { onChange: (zoom: number) => void }) {
 function MapFocus({
   places,
   selectedPlaceId,
+  destinationCenter,
 }: {
   places: PlaceResponse[]
   selectedPlaceId: string | null
+  destinationCenter: [number, number] | null
 }) {
   const map = useMap()
 
@@ -285,6 +299,14 @@ function MapFocus({
           places.map((place) => [place.lat, place.lng] as [number, number]),
         )
         map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
+        return
+      }
+
+      // MapContainer reads `center` once, at mount, and the destination is
+      // geocoded after that — so an empty trip would sit on the fallback
+      // forever unless the move is made imperatively.
+      if (destinationCenter) {
+        map.setView(destinationCenter, INITIAL_ZOOM, { animate: false })
       }
     }
 
@@ -298,7 +320,7 @@ function MapFocus({
 
     observer.observe(map.getContainer())
     return () => observer.disconnect()
-  }, [map, places, selectedPlaceId])
+  }, [map, places, selectedPlaceId, destinationCenter])
 
   return null
 }

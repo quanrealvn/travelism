@@ -39,13 +39,20 @@ body {
   line-height: var(--lh-normal);
   color: var(--c-ink);
   /*
-   * Two soft washes over near-white, fixed so they stay put while content
+   * Three soft washes over near-white, fixed so they stay put while content
    * scrolls. A flat grey page makes every white card a rectangle on a
    * rectangle; this gives them something to sit on.
+   *
+   * Sky at the top left, violet through the middle, rose at the top right —
+   * ordered so the drift across the page is always adjacent on the wheel and
+   * never passes through mud. Every one of them is a tint of a few percent;
+   * read individually they are white.
    */
   background:
-    radial-gradient(80rem 40rem at 8% -8%, var(--c-wash-violet), transparent 60%),
-    radial-gradient(60rem 32rem at 96% 0%, var(--c-wash-rose), transparent 55%),
+    radial-gradient(70rem 38rem at 2% -6%, var(--c-wash-sky), transparent 58%),
+    radial-gradient(64rem 34rem at 45% -12%, var(--c-wash-violet), transparent 62%),
+    radial-gradient(60rem 34rem at 98% 2%, var(--c-wash-rose), transparent 58%),
+    linear-gradient(170deg, transparent 55%, var(--c-wash-violet)),
     var(--c-bg);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
@@ -496,6 +503,143 @@ button[type='submit']:hover:not(:disabled),
 }
 
 /* ==========================================================================
+   Trip switcher — a menu, not a destination
+   ========================================================================== */
+
+.trip-switcher {
+  position: relative;
+}
+
+/* Only in the rail, where the row is wide enough for it to mean "opens
+   downward". On a phone the trigger is a square icon button. */
+.trip-switcher-caret {
+  display: none;
+}
+
+.trip-menu {
+  position: absolute;
+  top: calc(100% + var(--s-2));
+  right: 0;
+  z-index: var(--z-chrome);
+  min-width: 16rem;
+  max-width: min(20rem, calc(100vw - var(--s-8)));
+  padding: var(--s-2);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-3);
+}
+
+.trip-menu-list {
+  display: grid;
+  gap: 2px;
+  max-height: 17rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trip-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s-2);
+  color: var(--c-ink);
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--r-md);
+}
+
+.trip-menu-item:hover:not(:disabled) {
+  background: var(--c-surface-sunken);
+}
+
+.trip-menu-item.is-current {
+  color: var(--c-brand);
+  background: var(--c-brand-soft);
+  font-weight: var(--fw-semibold);
+}
+
+.trip-menu-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+}
+
+.trip-menu-name {
+  font-size: var(--t-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trip-menu-meta {
+  font-size: var(--t-2xs);
+  font-weight: var(--fw-regular);
+  /* Not --c-ink-3: it clears AA on white but only reaches 4.45:1 on the tint
+     behind the current trip's row, and this line is 12px. */
+  color: var(--c-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trip-menu-tick {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+}
+
+.trip-menu-busy {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  font-size: var(--t-sm);
+  color: var(--c-ink-2);
+}
+
+.trip-menu-foot {
+  display: grid;
+  gap: 2px;
+  margin-top: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--c-line);
+}
+
+.trip-menu-action {
+  justify-content: flex-start;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-2);
+  font-size: var(--t-sm);
+  color: var(--c-ink-2);
+  background: none;
+  border: none;
+  border-radius: var(--r-md);
+}
+
+.trip-menu-action:hover:not(:disabled) {
+  color: var(--c-brand);
+  background: var(--c-brand-soft);
+}
+
+.trip-menu-action.is-primary {
+  color: var(--c-brand);
+  font-weight: var(--fw-semibold);
+}
+
+.trip-menu-action svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* ==========================================================================
    Trip title — renamed in place
    ========================================================================== */
 
@@ -636,6 +780,14 @@ button[type='submit']:hover:not(:disabled),
   color: var(--c-brand);
   background: var(--c-tile);
   border-color: var(--c-brand-border);
+}
+
+/* On a phone the button itself is the box, so the tile is nothing here. It
+   only becomes a drawn tile in the rail, where the row has no border of its
+   own. */
+.nav-action-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
 }
 
 .nav-action svg {
@@ -3287,9 +3439,11 @@ button .spinner {
 
 @media (min-width: 64rem) {
   :root {
-    --sidebar-w: 17rem;
-    /* The content column starts at the top of the viewport: there is no bar
-       above it any more, only the rail beside it. */
+    --sidebar-w: 15rem;
+    /* The whole app, not just the content column. A dashboard reads as a
+       composed page when the frame ends and the page shows around it — at full
+       bleed on a 27" monitor the rail is a mile from the content it labels. */
+    --shell-max: 84rem;
     --sticky-top: 0rem;
     --map-h: calc(100dvh - 7rem);
   }
@@ -3308,35 +3462,54 @@ button .spinner {
     display: grid;
     grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
     align-items: start;
+    max-width: var(--shell-max);
+    margin-inline: auto;
   }
 
-  /* Sticky rather than fixed: it holds its own column in the grid, so the
-     content beside it never has to be padded around it. */
+  .content {
+    /* The shell caps the width now; capping again here would centre the
+       content inside its own column and reopen a gap beside the rail. */
+    max-width: none;
+    padding: var(--s-6) var(--s-6) var(--s-10);
+  }
+
+  /*
+   * No fill and no divider: the rail sits directly on the page wash, which is
+   * what makes it read as part of the page rather than a panel bolted to its
+   * edge. Grouping is done with whitespace instead of rules.
+   */
   .chrome {
     position: sticky;
     top: 0;
     display: flex;
     flex-direction: column;
+    gap: var(--s-5);
     height: 100dvh;
-    background: var(--c-chrome-solid);
-    border-right: 1px solid var(--c-line);
+    padding: var(--s-6) var(--s-3) var(--s-6) var(--s-4);
+    /*
+     * Visible, deliberately. `overflow-y: auto` computes overflow-x to auto
+     * as well, which put a horizontal scrollbar on the rail the moment
+     * anything inside it — the switcher's own menu — was wider than 15rem.
+     * The rail's content is a fixed handful of rows and always fits.
+     */
+    overflow: visible;
   }
 
+  /*
+   * The header stops being a box so its three parts become children of the
+   * rail itself — which is what lets the trip actions sit below the sections
+   * rather than above them, without moving anything in the markup where a
+   * phone still needs them beside the title.
+   */
   .topbar {
-    position: static;
-    display: block;
-    padding: var(--s-5) var(--s-4) var(--s-4);
-    background: none;
-    /* The rail is opaque; frosting it would only blur the page's own margin. */
-    backdrop-filter: none;
-    border-bottom: 1px solid var(--c-line);
+    display: contents;
   }
 
   .brand {
     display: flex;
+    order: 1;
     align-items: center;
     gap: var(--s-2);
-    margin-bottom: var(--s-5);
     font-size: var(--t-md);
     font-weight: var(--fw-bold);
     letter-spacing: -0.01em;
@@ -3349,7 +3522,7 @@ button .spinner {
     width: 1.75rem;
     height: 1.75rem;
     color: var(--c-brand-ink);
-    background: var(--c-brand);
+    background: linear-gradient(135deg, var(--c-brand), #b83fd9);
     border-radius: var(--r-sm);
   }
 
@@ -3358,39 +3531,115 @@ button .spinner {
     height: 1.125rem;
   }
 
+  /*
+   * The trip is not one of the navigation items — it is what all of them are
+   * about — so it is drawn as its own object: a white card with a tinted edge,
+   * lifted off the rail. Everything below it is flat text on the wash, which
+   * is what makes this read as the heading of the column rather than its first
+   * row.
+   */
   .topbar-main {
-    margin-bottom: var(--s-3);
+    /* `flex: 1` is right in the phone's horizontal bar and wrong in a vertical
+       rail, where it grew to fill the column and pushed everything below it to
+       the bottom of the screen. */
+    flex: 0 0 auto;
+    order: 2;
+    min-width: 0;
+    padding: var(--s-3);
+    background: linear-gradient(160deg, var(--c-surface), var(--c-brand-soft));
+    border: 1px solid var(--c-brand-border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--e-2);
   }
 
-  /* Smaller than the phone's, not larger: in a 17rem rail the trip name is an
-     identity line, and the page's own section heading carries the scale. */
   .trip-title {
-    font-size: var(--t-lg);
+    font-size: var(--t-md);
     letter-spacing: -0.01em;
   }
 
+  /* Inside the card the button needs no inset of its own. */
+  .trip-title-button {
+    margin-left: 0;
+    padding-inline: 0;
+  }
+
+  .trip-title-button:hover:not(:disabled) {
+    background: none;
+  }
+
+  .trip-title-button:hover .trip-title-text {
+    text-decoration: underline;
+    text-decoration-color: var(--c-brand-border);
+    text-underline-offset: 2px;
+  }
 
   .topbar-sub {
-    font-size: var(--t-xs);
+    font-size: var(--t-2xs);
   }
 
+  .tabbar {
+    order: 3;
+  }
+
+  /*
+   * The trip's own controls, below the sections and separated by a rule. They
+   * are about which trip you are in; the sections above are about where you
+   * are inside it, and running the two groups together read as five equal
+   * choices.
+   */
   .topbar-actions {
     display: grid;
-    gap: var(--s-1);
+    order: 4;
+    gap: 2px;
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--c-line);
   }
 
+  .trip-switcher-caret {
+    display: block;
+    flex: 0 0 auto;
+    width: 0.875rem;
+    height: 0.875rem;
+    color: var(--c-ink-3);
+  }
+
+  .trip-switcher-trigger[aria-expanded='true'] {
+    color: var(--c-brand);
+    background: var(--c-brand-soft);
+  }
+
+  .trip-menu {
+    left: 0;
+    right: auto;
+  }
+
+  /*
+   * Text-forward rows, the way the reference dashboard draws them: no borders,
+   * no fills, the icon and the label carrying it. These are secondary to the
+   * sections above, so they sit a step quieter.
+   */
   .nav-action {
     justify-content: flex-start;
-    padding: 0 var(--s-2);
-    font-size: var(--t-xs);
+    min-height: var(--tap);
+    padding: 0 var(--s-3);
+    font-size: var(--t-sm);
     font-weight: var(--fw-medium);
+    color: var(--c-ink-2);
     background: none;
     border-color: transparent;
+    border-radius: var(--r-md);
   }
 
   .nav-action:hover:not(:disabled) {
-    background: var(--c-tile);
+    color: var(--c-brand);
+    background: var(--c-brand-soft);
     border-color: transparent;
+  }
+
+  .nav-action:hover:not(:disabled) .nav-action-icon {
+    color: var(--c-brand-ink);
+    background: var(--c-brand);
+    border-color: var(--c-brand);
   }
 
   .nav-action svg {
@@ -3405,33 +3654,44 @@ button .spinner {
     align-items: baseline;
     gap: var(--s-2);
     width: auto;
+    min-width: 0;
     height: auto;
     margin: 0;
     overflow: visible;
     clip-path: none;
   }
 
+  /* Nothing in the rail is allowed to be wider than the rail. */
+  .nav-action-text,
+  .tabbar-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .nav-action-note {
+    flex: 0 0 auto;
     margin-left: auto;
     font-size: var(--t-2xs);
     font-weight: var(--fw-regular);
-    color: var(--c-ink-3);
+    /* Same reason as the menu meta: --c-ink-3 falls to 4.45:1 once the trigger
+       is tinted, and this is 12px. */
+    color: var(--c-ink-2);
   }
 
   /*
    * The sections: full-width rows down the rail, each with its count against
-   * the right edge. The active one keeps the violet fill it has on a phone, so
-   * "where am I" reads identically at both widths.
+   * the right edge.
    */
   .tabbar {
     position: static;
     display: flex;
-    flex: 1;
     flex-direction: column;
     align-items: stretch;
-    gap: var(--s-1);
-    padding: var(--s-3);
-    overflow-y: auto;
+    gap: 2px;
+    padding: 0;
+    overflow: visible;
     background: none;
     backdrop-filter: none;
     border: none;
@@ -3440,27 +3700,104 @@ button .spinner {
   }
 
   .tabbar-item {
+    position: relative;
     flex-direction: row;
     justify-content: flex-start;
     gap: var(--s-3);
     min-height: var(--tap);
     padding: 0 var(--s-3);
+    background: none;
     border-radius: var(--r-md);
-    font-size: var(--t-md);
+    font-size: var(--t-sm);
+    font-weight: var(--fw-medium);
   }
 
-  .tabbar-item:hover:not(:disabled) {
-    background: var(--c-surface-sunken);
-  }
-
-  .tabbar-item[aria-selected='true'] {
-    font-size: var(--t-md);
-  }
-
+  /*
+   * A bordered tinted tile behind every glyph — the reference dashboard's
+   * central device. It turns a column of line icons into a set of objects, and
+   * it gives the active state somewhere to live that is not the row's
+   * background: the tile inverts to solid violet, which is legible as a shape
+   * change before it is read as a colour.
+   */
   .tabbar-icon,
-  .tabbar-icon svg {
-    width: 1.125rem;
+  .nav-action-icon {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    color: var(--c-tile-ink);
+    background: var(--c-brand-soft);
+    border: 1px solid var(--c-brand-border);
+    border-radius: var(--r-sm);
+    transition:
+      color var(--dur) var(--ease),
+      background var(--dur) var(--ease),
+      border-color var(--dur) var(--ease);
+  }
+
+  .tabbar-icon svg,
+  .nav-action-icon svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  /* The whole row lifts onto a card, and the tile fills. Colour and elevation
+     only — a transform here would nudge the label and make the column jitter
+     as the pointer runs down it. */
+  .tabbar-item:hover:not(:disabled) {
+    color: var(--c-ink);
+    background: var(--c-surface);
+    box-shadow: var(--e-2);
+  }
+
+  .tabbar-item:hover:not(:disabled) .tabbar-icon {
+    color: var(--c-brand-ink);
+    background: var(--c-brand);
+    border-color: var(--c-brand);
+  }
+
+  /*
+   * The current section is violet text at a heavier weight over a soft tint,
+   * not a saturated pill. Weight is the part that matters: colour alone would
+   * be the only thing separating "where I am" from "where I could go, which
+   * is the one indicator a red-green or low-contrast viewer cannot use.
+   */
+  .tabbar-item[aria-selected='true'] {
+    color: var(--c-brand);
+    background: var(--c-brand-soft);
+    font-size: var(--t-sm);
+    font-weight: var(--fw-bold);
+    box-shadow: none;
+  }
+
+  .tabbar-item[aria-selected='true']:hover:not(:disabled) {
+    color: var(--c-brand);
+    background: var(--c-brand-soft);
+  }
+
+  /* A marker in the gutter, so the active row is not distinguished by colour
+     alone. */
+  .tabbar-item[aria-selected='true']::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 3px;
     height: 1.125rem;
+    background: var(--c-brand);
+    border-radius: var(--r-full);
+    transform: translateY(-50%);
+  }
+
+  .tabbar-item[aria-selected='true'] .tabbar-icon {
+    color: var(--c-brand-ink);
+    background: var(--c-brand);
+    border-color: var(--c-brand);
+  }
+
+  .tabbar-item[aria-selected='true'] .tabbar-icon svg {
+    stroke-width: 2;
   }
 
   .tabbar-label {
@@ -3470,7 +3807,16 @@ button .spinner {
 
   .tabbar-count {
     position: static;
+    min-width: 1.25rem;
+    color: var(--c-ink-3);
+    background: none;
     border: none;
+    font-weight: var(--fw-semibold);
+  }
+
+  .tabbar-item[aria-selected='true'] .tabbar-count {
+    color: var(--c-brand);
+    background: none;
   }
 
   .fab {
