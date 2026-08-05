@@ -652,3 +652,44 @@ Two of the fixes were themselves caught by the audit on the next run — a text
 link at 32px tall, and amber-on-amber at 4.36:1 — which is the arrangement
 working as intended: the harness holds the measurable floor, and human review
 finds what a floor cannot express.
+
+### D57 — The wishlist shows one place at a time
+
+Every card carried its description, its source link, its four action buttons and
+its vote row whether or not anyone was looking at it. Six places filled 3946px:
+you scrolled past four screens of buttons to see what was on the list.
+
+Cards are now one row — icon, name, and a single meta line of duration, cost and
+time slot — and the selected one expands in place to show everything it used to
+show all the time. Same page, 2088px. The trade is that acting on a place costs
+one tap first, which is the right trade: reading the list is the common act and
+acting on a single place is the rare one.
+
+### D58 — The overview strip is also the filter
+
+The tally across the top ("2 đã chốt, 1 cân nhắc, 3 ý tưởng") answers how far
+along the planning is without scrolling. Making those tiles the status filter as
+well means the number and the way to act on it are one control instead of a
+stat row above a chip row, both saying the same words.
+
+"Chờ bạn" appears only when the count is above zero. A permanent "0 chờ bạn"
+teaches you to stop reading the row.
+
+### D59 — The tab bar floats on a phone and joins the app bar on a desktop
+
+On a phone it is a frosted pill inset from the edges, sitting above the content
+rather than walling off the bottom of the screen; the active tab fills violet and
+puts its label beside its icon, so the current section is legible at a glance and
+the other two stay compact.
+
+Full-width, that same bar left a strip of empty chrome under the title. It is now
+placed in the app's grid beside the title — title, trip switcher, and info on the
+left, tabs right-aligned in the same row. One bar, no empty band.
+
+### D60 — Switching trips is a button, not the first row of a list
+
+The trip switcher opened by tapping the title, which is not a control anyone
+expects to be a control, and choosing a trip meant reaching for the topmost row
+of a sheet. There is now an explicit switch button beside the title, shown only
+when the device is holding more than one trip, labelled with how many it is
+holding.

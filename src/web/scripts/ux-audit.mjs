@@ -201,20 +201,38 @@ for (const vp of VIEWPORTS) {
       await inSheet(page, vp, 'add-place', /thêm địa điểm/i)
       await inSheet(page, vp, 'trip-sheet', /thông tin chuyến đi/i)
 
-      // Picking a place from the list must take the map to it, not merely
-      // recolour a pin on a pane nobody is looking at.
-      const firstPlace = page.locator('.place-main').first()
+      // A card opens in place, and the map is one more tap from inside it.
+      const firstPlace = page.locator('.place-head').first()
       if (await firstPlace.count()) {
         await firstPlace.click()
-        await page.waitForTimeout(1500)
+        await page.waitForTimeout(600)
         await shoot(page, vp, 'selected')
         await audit(page, `${vp.name}/selected`)
-        if (vp.name === 'mobile' && (await page.locator('.leaflet-container').count()) === 0) {
-          problems.push(`[${vp.name}] picking a place from the list did not show the map`)
+
+        if ((await page.locator('.place.is-open .place-body').count()) === 0) {
+          problems.push(`[${vp.name}] tapping a place did not open it`)
         }
-        const back = page.getByRole('button', { name: 'Danh sách', exact: true })
-        if (await back.count()) await back.first().click()
-        await page.waitForTimeout(400)
+
+        // On a phone the map is a separate pane, so the open card has to offer
+        // a way to it — selecting alone points a map nobody is looking at.
+        if (vp.name === 'mobile') {
+          const toMap = page.getByRole('button', { name: /bản đồ/i })
+          if ((await toMap.count()) === 0) {
+            problems.push(`[${vp.name}] an open card offers no way to the map`)
+          } else {
+            await toMap.first().click()
+            await page.waitForTimeout(1500)
+            if ((await page.locator('.leaflet-container').count()) === 0) {
+              problems.push(`[${vp.name}] the map did not appear from the open card`)
+            }
+            const back = page.getByRole('button', { name: 'Danh sách', exact: true })
+            if (await back.count()) await back.first().click()
+            await page.waitForTimeout(400)
+          }
+        }
+
+        await firstPlace.click()
+        await page.waitForTimeout(300)
       }
     }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyPlaceFilter, EMPTY_FILTER, isFilterActive } from './placeFilter'
+import { applyPlaceFilter, countByStatus, EMPTY_FILTER, isFilterActive } from './placeFilter'
 import type { PlaceResponse } from '../api/api-types'
 
 const ME = 'member-1'
@@ -93,6 +93,57 @@ describe('applyPlaceFilter', () => {
   })
 })
 
+describe('applyPlaceFilter — by status', () => {
+  const MIXED = [
+    place({ id: 'agreed', status: 'Confirmed' }),
+    place({ id: 'maybe', status: 'Shortlist' }),
+    place({ id: 'raw', status: 'Idea' }),
+  ]
+
+  it('narrows to one status', () => {
+    const found = applyPlaceFilter(MIXED, { ...EMPTY_FILTER, statuses: ['Shortlist'] }, ME)
+
+    expect(ids(found)).toEqual(['maybe'])
+  })
+
+  it('treats an empty list as every status rather than none', () => {
+    expect(applyPlaceFilter(MIXED, EMPTY_FILTER, ME)).toHaveLength(3)
+  })
+
+  it('combines with a text search', () => {
+    const found = applyPlaceFilter(
+      [...MIXED, place({ id: 'other', name: 'Quán phở', status: 'Idea' })],
+      { ...EMPTY_FILTER, statuses: ['Idea'], text: 'phở' },
+      ME,
+    )
+
+    expect(ids(found)).toEqual(['other'])
+  })
+})
+
+describe('countByStatus', () => {
+  it('counts each status, including the ones with nothing in them', () => {
+    const counts = countByStatus([
+      place({ id: 'a', status: 'Confirmed' }),
+      place({ id: 'b', status: 'Confirmed' }),
+      place({ id: 'c', status: 'Idea' }),
+    ])
+
+    expect(counts).toEqual({ Confirmed: 2, Idea: 1, Shortlist: 0, Visited: 0, Skipped: 0 })
+  })
+
+  it('reports zeroes rather than an empty object for an empty trip', () => {
+    // The overview renders every tile, so a missing key would print undefined.
+    expect(countByStatus([])).toEqual({
+      Idea: 0,
+      Shortlist: 0,
+      Confirmed: 0,
+      Visited: 0,
+      Skipped: 0,
+    })
+  })
+})
+
 describe('isFilterActive', () => {
   it('is false for the empty filter', () => {
     expect(isFilterActive(EMPTY_FILTER)).toBe(false)
@@ -102,6 +153,7 @@ describe('isFilterActive', () => {
   it.each([
     { ...EMPTY_FILTER, text: 'phở' },
     { ...EMPTY_FILTER, categories: ['Food' as const] },
+    { ...EMPTY_FILTER, statuses: ['Idea' as const] },
     { ...EMPTY_FILTER, unvotedOnly: true },
   ])('is true once something is set', (filter) => {
     expect(isFilterActive(filter)).toBe(true)

@@ -164,7 +164,10 @@
    * 8px of padding either side), because sticky offsets below it are measured
    * against it and a guess would leave a seam.
    */
+  /* The floating tab bar: its own height plus the gap under it. Anything that
+     has to clear it measures against this, not the bar alone. */
   --nav-h: 3.75rem;
+  --nav-clear: 5rem;
   --header-h: 3.75rem;
   --page-max: 78rem;
 

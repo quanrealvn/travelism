@@ -46,6 +46,7 @@ import { PlaceList } from './components/PlaceList'
 import { Sheet } from './components/Sheet'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { PlaceFilter } from './components/PlaceFilter'
+import { PlaceOverview } from './components/PlaceOverview'
 import { applyPlaceFilter, EMPTY_FILTER } from './places/placeFilter'
 import type { PlaceFilterState } from './places/placeFilter'
 import { TripSheet } from './components/TripSheet'
@@ -60,6 +61,7 @@ import {
   IconInfo,
   IconPin,
   IconPlus,
+  IconSwitch,
   IconWallet,
 } from './components/icons'
 
@@ -472,17 +474,15 @@ function TripWorkspace({
   }
 
   /**
-   * Picking a place from the list takes the map to it.
+   * Picking a place opens it, and points the map at it.
    *
-   * On a narrow screen the map and the list are separate panes, so selecting
-   * has to bring the map into view first — otherwise the only feedback is a
-   * pin recolouring on a pane nobody is looking at, and the tap reads as dead.
+   * It used to swap the whole screen for the map on a phone, which threw away
+   * your place in the list to show you a pin. The card expanding is the
+   * feedback now, and the map is one more tap from inside it — the map itself
+   * still moves either way, so it is already framed when you get there.
    */
   function handleSelectPlace(placeId: string) {
-    setSelectedPlaceId(placeId)
-    if (narrow) {
-      setPane('map')
-    }
+    setSelectedPlaceId((current) => (current === placeId ? null : placeId))
   }
 
   function handleCreate(body: CreatePlaceRequest) {
@@ -597,8 +597,11 @@ function TripWorkspace({
           aria-label={`Chuyến đi ${currentTrip.name}. Xem tất cả chuyến đi`}
         >
           <span className="topbar-main">
+            {/* The name is its own span: text-overflow does not apply to a
+                flex container, so putting the chevron beside it was enough to
+                make the title hard-cut mid-word with no ellipsis. */}
             <span className="topbar-title">
-              {currentTrip.name}
+              <span className="topbar-title-text">{currentTrip.name}</span>
               {tripCount > 1 && <IconChevron className="topbar-switch" />}
             </span>
             {/*
@@ -626,16 +629,33 @@ function TripWorkspace({
         </button>
 
         <div className="topbar-actions">
+          {/*
+            An explicit control, not only a tappable heading. "Tap the title"
+            is not an affordance anybody goes looking for, so switching trips
+            was effectively hidden behind a guess.
+          */}
+          {tripCount > 1 && (
+            <button
+              type="button"
+              className="icon-button"
+              onClick={onBrowseTrips}
+              aria-label={`Đổi chuyến đi — đang giữ ${tripCount} chuyến`}
+              title="Đổi chuyến đi"
+            >
+              <IconSwitch />
+            </button>
+          )}
+
           <button
             type="button"
             className="icon-button"
             onClick={() => setSheet('trip')}
             aria-label="Thông tin chuyến đi và mã mời"
+            title="Thông tin chuyến đi"
           >
             <IconInfo />
           </button>
         </div>
-
       </header>
 
       {/*
@@ -742,6 +762,15 @@ function TripWorkspace({
                   </button>
                 </div>
 
+                {currentPlaces.length > 0 && (
+                  <PlaceOverview
+                    places={currentPlaces}
+                    myMemberId={memberId}
+                    filter={filter}
+                    onChange={setFilter}
+                  />
+                )}
+
                 {/* Only worth the space once the list is long enough to lose
                     something in. */}
                 {currentPlaces.length >= 8 && (
@@ -773,6 +802,7 @@ function TripWorkspace({
                   }
                   tripUnderway={currentTrip.status !== 'Planning'}
                   onSelect={handleSelectPlace}
+                  onShowOnMap={() => setPane("map")}
                   onDelete={handleDelete}
                   onToggleLike={(placeId, liked) => toggleLike.mutate({ placeId, liked })}
                   onChangeStatus={handleChangeStatus}

@@ -55,6 +55,7 @@ function renderList(places: PlaceResponse[], overrides: Partial<Parameters<typeo
       currencyExponent={0}
       selectedPlaceId={null}
       showsOnMap={false}
+      onShowOnMap={vi.fn()}
       deletingPlaceId={null}
       busyPlaceId={null}
       tripUnderway={false}
@@ -141,7 +142,7 @@ describe('PlaceList', () => {
   })
 
   it('offers only the transitions the state machine allows from Shortlist', () => {
-    renderList([place({ status: 'Shortlist', likedByMemberIds: [ME] })])
+    renderList([place({ status: 'Shortlist', likedByMemberIds: [ME] })], { selectedPlaceId: 'p1' })
 
     expect(screen.getByRole('button', { name: 'Chốt' })).toBeInTheDocument()
     // Visiting is not reachable from Shortlist, nor before the trip starts.
@@ -149,7 +150,9 @@ describe('PlaceList', () => {
   })
 
   it('does not offer visited or skipped until the trip is under way', () => {
-    renderList([place({ status: 'Confirmed', likedByMemberIds: [ME, OTHER] })])
+    renderList([place({ status: 'Confirmed', likedByMemberIds: [ME, OTHER] })], {
+      selectedPlaceId: 'p1',
+    })
 
     expect(screen.getByRole('button', { name: 'Bỏ chốt' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Đã đi' })).not.toBeInTheDocument()
@@ -158,6 +161,7 @@ describe('PlaceList', () => {
   it('offers visited and skipped once the trip is under way', async () => {
     const handlers = renderList([place({ status: 'Confirmed', likedByMemberIds: [ME, OTHER] })], {
       tripUnderway: true,
+      selectedPlaceId: 'p1',
     })
 
     await userEvent.click(screen.getByRole('button', { name: 'Đã đi' }))
@@ -165,19 +169,21 @@ describe('PlaceList', () => {
   })
 
   it('offers the correction path between visited and skipped', () => {
-    renderList([place({ status: 'Visited' })], { tripUnderway: true })
+    renderList([place({ status: 'Visited' })], { tripUnderway: true, selectedPlaceId: 'p1' })
 
     expect(screen.getByRole('button', { name: /sửa: bỏ qua/i })).toBeInTheDocument()
   })
 
   it('shows why a place was skipped', () => {
-    renderList([place({ status: 'Skipped', skipReason: 'Trời mưa to' })])
+    renderList([place({ status: 'Skipped', skipReason: 'Trời mưa to' })], {
+      selectedPlaceId: 'p1',
+    })
 
     expect(screen.getByText(/trời mưa to/i)).toBeInTheDocument()
   })
 
   it('links out to Google Maps for photos and reviews', () => {
-    renderList([place()])
+    renderList([place()], { selectedPlaceId: 'p1' })
 
     const link = screen.getByRole('link')
     expect(link).toHaveAttribute('href', expect.stringContaining('20.8333,104.6667'))
@@ -194,23 +200,79 @@ describe('PlaceList', () => {
   })
 
   it('asks to delete the place whose button was pressed', async () => {
-    const handlers = renderList([place({ id: 'a', name: 'A' }), place({ id: 'b', name: 'B' })])
+    const handlers = renderList([place({ id: 'a', name: 'A' }), place({ id: 'b', name: 'B' })], {
+      selectedPlaceId: 'b',
+    })
 
     await userEvent.click(screen.getByLabelText('Xoá B'))
     expect(handlers.onDelete).toHaveBeenCalledWith('b')
     expect(handlers.onDelete).toHaveBeenCalledTimes(1)
   })
 
-  it('marks the selected place and reports selection changes', async () => {
+  it('marks the open place and reports selection changes', async () => {
     const handlers = renderList([place({ id: 'a', name: 'A' }), place({ id: 'b', name: 'B' })], {
       selectedPlaceId: 'a',
     })
 
-    expect(screen.getByTestId('place-a')).toHaveClass('selected')
-    expect(screen.getByTestId('place-b')).not.toHaveClass('selected')
+    expect(screen.getByTestId('place-a')).toHaveClass('is-open')
+    expect(screen.getByTestId('place-b')).not.toHaveClass('is-open')
 
     await userEvent.click(screen.getByText('B'))
     expect(handlers.onSelect).toHaveBeenCalledWith('b')
+  })
+})
+
+/*
+ * A wishlist is mostly read. Showing every affordance on every card cost about
+ * 250px each for three lines of content, so six places ran to ten screens.
+ */
+describe('PlaceList — a card opens', () => {
+  it('shows only the name, the numbers and the vote when closed', () => {
+    renderList([place({ description: 'Đi buổi sáng thì mát' })])
+
+    expect(screen.getByText('Thác Dải Yếm')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^thích/i })).toBeInTheDocument()
+    expect(screen.queryByText('Đi buổi sáng thì mát')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/xoá/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the detail and the actions when open', () => {
+    renderList([place({ description: 'Đi buổi sáng thì mát' })], { selectedPlaceId: 'p1' })
+
+    expect(screen.getByText('Đi buổi sáng thì mát')).toBeInTheDocument()
+    expect(screen.getByLabelText(/xoá/i)).toBeInTheDocument()
+  })
+
+  it('says whether it is open, for anyone who cannot see the card', () => {
+    renderList([place()], { selectedPlaceId: 'p1' })
+
+    expect(screen.getByRole('button', { expanded: true })).toBeInTheDocument()
+  })
+
+  it('keeps the vote reachable without opening anything', async () => {
+    // The one thing you do to a place without reading it.
+    const handlers = renderList([place()])
+
+    await userEvent.click(screen.getByRole('button', { name: /^thích/i }))
+
+    expect(handlers.onToggleLike).toHaveBeenCalledWith('p1', false)
+  })
+
+  it('offers the map from inside the open card when the map is a separate pane', async () => {
+    // Selecting used to swap the whole screen for the map, throwing away your
+    // place in the list to show you a pin.
+    const onShowOnMap = vi.fn()
+    renderList([place()], { selectedPlaceId: 'p1', showsOnMap: true, onShowOnMap })
+
+    await userEvent.click(screen.getByRole('button', { name: /bản đồ/i }))
+
+    expect(onShowOnMap).toHaveBeenCalled()
+  })
+
+  it('does not offer the map when it is already beside the list', () => {
+    renderList([place()], { selectedPlaceId: 'p1', showsOnMap: false })
+
+    expect(screen.queryByRole('button', { name: /bản đồ/i })).not.toBeInTheDocument()
   })
 })
 

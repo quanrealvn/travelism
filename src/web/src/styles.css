@@ -460,7 +460,7 @@ button[type='submit']:hover:not(:disabled),
  * were hard-cutting mid-word with no ellipsis. It applies to a block child,
  * which is what these are.
  */
-.topbar-title,
+.topbar-title-text,
 .topbar-sub-text {
   min-width: 0;
   overflow: hidden;
@@ -481,7 +481,7 @@ button[type='submit']:hover:not(:disabled),
   margin: 0 auto;
   padding: var(--s-4);
   /* Room for the tab bar and the home indicator underneath it. */
-  padding-bottom: calc(var(--nav-h) + var(--s-8) + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--nav-clear) + var(--s-8) + env(safe-area-inset-bottom));
 }
 
 /* The whole trip block is the switcher, so it behaves as one control. */
@@ -669,46 +669,75 @@ button[type='submit']:hover:not(:disabled),
    Tab bar — the primary navigation, in the thumb zone
    ========================================================================== */
 
+/*
+ * A floating pill, inset from the edges, rather than a bar welded to the
+ * bottom of the screen. The wash shows around and under it, so the chrome
+ * reads as an object sitting on the page instead of a grey strip terminating
+ * it — and the safe-area inset becomes breathing room rather than dead space.
+ */
 .tabbar {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: calc(var(--s-3) + env(safe-area-inset-bottom));
+  left: var(--s-4);
+  right: var(--s-4);
   z-index: var(--z-chrome);
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  padding-bottom: env(safe-area-inset-bottom);
-  background: var(--c-chrome);
+  gap: var(--s-1);
+  padding: var(--s-1);
+  background: rgb(255 255 255 / 82%);
   backdrop-filter: blur(22px) saturate(170%);
-  border-top: 1px solid var(--c-line);
-  box-shadow: var(--e-lift);
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: var(--r-full);
+  box-shadow:
+    0 1px 2px rgb(23 23 31 / 5%),
+    0 8px 24px rgb(23 23 31 / 12%);
 }
 
+/*
+ * The active tab fills as a violet pill and lays its label beside the icon;
+ * the others are a glyph and a word stacked, quietly. One tab is where you
+ * are and two are where you could go, and the old bar drew all three the same
+ * with a 2px line over the winner.
+ */
 .tabbar-item {
   position: relative;
   flex-direction: column;
   gap: 2px;
-  min-height: var(--nav-h);
-  padding: var(--s-2) var(--s-1);
+  min-height: 3.25rem;
+  padding: var(--s-1);
   /* Not the faintest ink available: an unselected tab is still a destination
      somebody has to be able to read. */
   color: var(--c-ink-2);
   background: none;
   border: none;
-  border-radius: 0;
+  border-radius: var(--r-full);
   font-size: var(--t-2xs);
   font-weight: var(--fw-medium);
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
 }
 
 .tabbar-item:hover:not(:disabled) {
-  background: none;
+  background: var(--c-surface-sunken);
   color: var(--c-ink);
 }
 
 .tabbar-item[aria-selected='true'] {
-  color: var(--c-brand);
+  flex-direction: row;
+  gap: var(--s-2);
+  color: var(--c-brand-ink);
+  background: var(--c-brand);
   font-weight: var(--fw-semibold);
+  font-size: var(--t-sm);
+  box-shadow: var(--e-accent);
+}
+
+.tabbar-item[aria-selected='true']:hover:not(:disabled) {
+  color: var(--c-brand-ink);
+  background: var(--c-brand-hover);
 }
 
 /*
@@ -717,34 +746,22 @@ button[type='submit']:hover:not(:disabled),
  * of objects, and gives "selected" somewhere to live that is not just colour.
  */
 .tabbar-icon {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 2rem;
-  height: 1.625rem;
-  border-radius: var(--r-sm);
-  transition: background var(--dur-fast) var(--ease);
+  width: 1.375rem;
+  height: 1.375rem;
 }
 
 .tabbar-icon svg {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.375rem;
+  height: 1.375rem;
 }
 
-.tabbar-item[aria-selected='true'] .tabbar-icon {
-  background: var(--c-tile);
-}
-
-/* A lit bar over the active tab, so position is not carried by colour alone. */
-.tabbar-item[aria-selected='true']::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 2rem;
-  height: 2px;
-  transform: translateX(-50%);
-  background: var(--c-brand);
-  border-radius: 0 0 var(--r-full) var(--r-full);
+/* Thicker stroke when active: the fill alone would make the glyph disappear
+   into it, and weight is a second signal beyond colour. */
+.tabbar-item[aria-selected='true'] .tabbar-icon svg {
+  stroke-width: 2.1;
 }
 
 .tabbar-icon {
@@ -761,35 +778,40 @@ button[type='submit']:hover:not(:disabled),
 
 .tabbar-label {
   line-height: 1.1;
+  white-space: nowrap;
 }
 
-/* A count belongs on the icon, not in the label — it must never widen the tab
-   enough to wrap the word underneath. */
+/*
+ * A pill beside the label on the active tab; a small mark over the icon on the
+ * others. Neutral either way: these are inventory counts that are never zero,
+ * and a filled accent circle is the universal "unread, needs you" badge — so
+ * every tab looked permanently alerted and the signal stopped meaning
+ * anything. It stays free for genuine new-activity notice.
+ */
 .tabbar-count {
   position: absolute;
-  top: 0.25rem;
-  left: 55%;
+  top: -0.375rem;
+  left: 60%;
   min-width: 1.125rem;
   text-align: center;
   padding: 0 0.25rem;
   font-size: var(--t-2xs);
   font-weight: var(--fw-semibold);
   line-height: 1.125rem;
-  /*
-   * Neutral, not a filled accent circle. These are inventory counts that are
-   * never zero, and a violet badge is the universal "unread, needs you" mark —
-   * so every tab looked permanently alerted and the signal meant nothing. It
-   * also stays available for genuine new-activity notice later.
-   */
   color: var(--c-ink-2);
   background: var(--c-surface-sunken);
-  border: 2px solid var(--c-chrome-solid);
+  border: 1.5px solid var(--c-chrome-solid);
   border-radius: var(--r-full);
 }
 
 .tabbar-item[aria-selected='true'] .tabbar-count {
-  color: var(--c-brand);
-  background: var(--c-tile);
+  position: static;
+  min-width: 1.25rem;
+  font-size: var(--t-2xs);
+  line-height: 1.25rem;
+  color: var(--c-brand-ink);
+  background: rgb(255 255 255 / 25%);
+  border: none;
 }
 
 /* ==========================================================================
@@ -799,7 +821,7 @@ button[type='submit']:hover:not(:disabled),
 .fab {
   position: fixed;
   right: var(--s-4);
-  bottom: calc(var(--nav-h) + var(--s-4) + env(safe-area-inset-bottom));
+  bottom: calc(var(--nav-clear) + var(--s-3) + env(safe-area-inset-bottom));
   z-index: var(--z-fab);
   min-height: 3.5rem;
   padding: 0 var(--s-5);
@@ -1526,6 +1548,103 @@ button .spinner {
 }
 
 /* ==========================================================================
+   Wishlist overview
+   ========================================================================== */
+
+/*
+ * Where the trip stands, as three (or four) tiles. Modelled on the dashboard's
+ * status row — a big number over an icon and a word — and each tile is the
+ * filter for its own group, so the overview and the way to act on it are one
+ * control rather than two rows of chrome.
+ */
+/* auto-fit, not four equal columns: a 1fr track never shrinks below its own
+   content, so the fourth tile pushed the row past a 390px screen. */
+.overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.75rem, 1fr));
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+
+.overview-tile {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--s-2);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  box-shadow: var(--e-1);
+}
+
+.overview-tile:hover:not(:disabled) {
+  background: var(--c-surface);
+  border-color: var(--tile-colour, var(--c-line-strong));
+}
+
+/* Pressed is a filter that is on, so it fills rather than merely darkening. */
+.overview-tile[aria-pressed='true'] {
+  color: var(--tile-colour, var(--c-brand));
+  background: var(--tile-soft, var(--c-brand-soft));
+  border-color: var(--tile-colour, var(--c-brand));
+}
+
+.overview-count {
+  font-size: var(--t-xl);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  color: var(--c-ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.overview-tile[aria-pressed='true'] .overview-count {
+  color: var(--tile-colour, var(--c-brand));
+}
+
+.overview-label {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  max-width: 100%;
+  font-size: var(--t-2xs);
+  font-weight: var(--fw-medium);
+  color: var(--c-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-tile[aria-pressed='true'] .overview-label {
+  color: inherit;
+}
+
+.overview-label svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: 0 0 auto;
+}
+
+.overview-tile.status-confirmed {
+  --tile-colour: var(--c-emerald);
+  --tile-soft: var(--c-emerald-soft);
+}
+.overview-tile.status-shortlist {
+  --tile-colour: var(--c-amber-ink);
+  --tile-soft: var(--c-amber-soft);
+}
+.overview-tile.status-idea {
+  --tile-colour: var(--c-slate);
+  --tile-soft: var(--c-slate-soft);
+}
+.overview-tile.status-mine {
+  --tile-colour: var(--c-brand);
+  --tile-soft: var(--c-brand-soft);
+}
+
+/* ==========================================================================
    Wishlist filter
    ========================================================================== */
 
@@ -1593,7 +1712,15 @@ button .spinner {
   gap: var(--s-3);
 }
 
+/*
+ * Sticky, so a long list always says which group you are scrolling through.
+ * The offset clears the top bar; on the itinerary the day rail sits at the
+ * same place, and only one of the two is ever on screen.
+ */
 .group-title {
+  position: sticky;
+  top: calc(var(--sticky-top) + var(--s-2));
+  z-index: var(--z-rail);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1615,6 +1742,10 @@ button .spinner {
   font-size: var(--t-sm);
   color: var(--group-colour, var(--c-ink-2));
   background: var(--group-soft, var(--c-surface-sunken));
+  /* Opaque, because it now sticks over scrolling cards. */
+  background-image: linear-gradient(var(--c-surface), var(--c-surface));
+  background-blend-mode: normal;
+  box-shadow: inset 0 0 0 999px var(--group-soft, var(--c-surface-sunken));
   border: 1px solid color-mix(in srgb, var(--group-colour, var(--c-ink-3)) 25%, transparent);
   border-radius: var(--r-full);
 }
@@ -1693,23 +1824,17 @@ button .spinner {
  * cannot compete with the name.
  */
 /*
- * Explicit placement:
+ * One row until it is opened:
  *
- *   [like] [name, category, duration, cost, slots ····] [open][delete]
- *   [····································· description, links, edit]
- *   [status actions ·············································]
- *
- * The tools sit against the title, which is where a card's controls are
- * expected. Beside the description instead they ended up floating against its
- * second line, reading as something that had come loose.
+ *   [category] [name / duration · cost · slots ·············] [♥ 2/2]
+ *   [ description, links, edit, actions — only while open ·········]
  */
 .place {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-rows: auto auto 1fr;
-  align-items: start;
-  gap: var(--s-2) var(--s-3);
-  padding: var(--s-3);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2);
   background: var(--c-surface);
   border: 1px solid var(--c-line);
   border-radius: var(--r-lg);
@@ -1719,15 +1844,45 @@ button .spinner {
     box-shadow var(--dur-fast) var(--ease);
 }
 
-.place.selected {
-  border-color: var(--c-brand);
+.place.is-open {
+  border-color: var(--c-brand-border);
   box-shadow: 0 0 0 3px var(--c-brand-soft);
+}
+
+.place-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+  min-height: 0;
+  padding: var(--s-1);
+  text-align: left;
+  background: none;
+  border: none;
+}
+
+.place-head:hover:not(:disabled) {
+  background: none;
+}
+
+.place-head-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.place-body {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--s-3);
+  margin-top: var(--s-1);
+  padding: var(--s-3) var(--s-1) var(--s-1);
+  border-top: 1px solid var(--c-line);
 }
 
 /* The category's colour and glyph, as the card's scannable left index. */
 .place-category {
-  grid-column: 1;
-  grid-row: 1;
   display: grid;
   place-items: center;
   width: var(--tap);
@@ -1772,36 +1927,24 @@ button .spinner {
   color: var(--c-ink-2);
 }
 
-.place-main {
-  grid-column: 2;
-  grid-row: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--s-1);
-  min-width: 0;
-  min-height: 0;
-  padding: 0;
-  text-align: left;
-  background: none;
-  border: none;
-  border-radius: 0;
-}
-
-.place-main:hover:not(:disabled) {
-  background: none;
-}
-
 .place-name {
-  font-size: var(--t-lg);
+  font-size: var(--t-md);
   font-weight: var(--fw-semibold);
   line-height: var(--lh-snug);
   color: var(--c-ink);
+  /* One line on the collapsed row. A six-line Vietnamese place name would
+     otherwise make one card as tall as four. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.place.is-open .place-name {
+  white-space: normal;
   text-wrap: pretty;
 }
 
 .place-meta,
-.place-slots,
 .place-hours {
   font-size: var(--t-xs);
   font-weight: var(--fw-regular);
@@ -1810,8 +1953,10 @@ button .spinner {
   text-align: left;
 }
 
-.place-slots {
-  color: var(--c-ink-3);
+.place-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .place-skip-reason {
@@ -1821,17 +1966,7 @@ button .spinner {
   text-align: left;
 }
 
-.place-tools {
-  grid-column: 3;
-  grid-row: 1;
-  align-self: start;
-  display: flex;
-  gap: var(--s-1);
-}
-
 .place-actions {
-  grid-column: 1 / -1;
-  grid-row: 3;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1927,8 +2062,6 @@ button .spinner {
 /* --- Place detail --- */
 
 .place-detail {
-  grid-column: 1 / -1;
-  grid-row: 2;
   display: grid;
   align-content: start;
   gap: var(--s-2);
@@ -2871,7 +3004,7 @@ button .spinner {
 
   /* The FAB would otherwise sit on the last card in the list. */
   .content {
-    padding-bottom: calc(var(--nav-h) + 5.5rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--nav-clear) + 5.5rem + env(safe-area-inset-bottom));
   }
 
   /* And it sits over the panel's own last row too, not only the page's. */
@@ -2896,7 +3029,7 @@ button .spinner {
 @media (min-width: 48rem) {
   .content {
     padding: var(--s-6);
-    padding-bottom: calc(var(--nav-h) + var(--s-8) + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--nav-clear) + var(--s-8) + env(safe-area-inset-bottom));
   }
 
   .wishlist-view[data-pane='map'] .map-panel {
@@ -3004,9 +3137,41 @@ button .spinner {
 
 @media (min-width: 64rem) {
   :root {
-    /* Top bar plus the nav bar that sits under it on this breakpoint. */
-    --sticky-top: calc(var(--header-h) + 3.75rem);
-    --map-h: calc(100dvh - 13rem);
+    /* One bar now: the title and the tabs share a row. */
+    --sticky-top: var(--header-h);
+    --map-h: calc(100dvh - 10rem);
+  }
+
+  /*
+   * Title and navigation on one line.
+   *
+   * As two stacked bars, the second held three tabs against 1200px of empty
+   * white — a strip whose only content was left-aligned in its first sixth.
+   * Side by side they fill the width and read as one app bar.
+   */
+  .app {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .app > .topbar {
+    grid-area: 1 / 1 / 2 / 2;
+  }
+
+  .app > .tabbar {
+    grid-area: 1 / 2 / 2 / 3;
+  }
+
+  .app > .content {
+    grid-area: 2 / 1 / 3 / 3;
+  }
+
+  /* The title takes only what it needs, so the tabs start beside it rather
+     than being pushed to the far edge of the window. */
+  .topbar-trip {
+    flex: 0 1 auto;
+    max-width: 22rem;
   }
 
   .content {
@@ -3037,46 +3202,46 @@ button .spinner {
     font-size: var(--t-sm);
   }
 
-  /* The thumb no longer rules: navigation becomes a bar under the title,
-     still on the dark frame so the chrome reads as one piece. */
+  /*
+   * The thumb no longer rules: the floating pill becomes a segmented group
+   * sitting in a bar under the title, left-aligned with the content.
+   */
   .tabbar {
     position: sticky;
-    top: var(--header-h);
+    top: 0;
     bottom: auto;
+    left: auto;
+    right: auto;
     display: flex;
+    align-items: center;
+    justify-content: flex-end;
     gap: var(--s-1);
-    padding: var(--s-2) var(--s-8);
-    border-top: 1px solid var(--c-line);
-    border-bottom: none;
+    padding: var(--s-2) var(--s-8) var(--s-2) 0;
+    background: var(--c-chrome);
+    backdrop-filter: blur(22px) saturate(170%);
+    border: none;
+    border-bottom: 1px solid var(--c-line);
+    border-radius: 0;
     box-shadow: none;
-  }
-
-  .tabbar-item[aria-selected='true']::before {
-    display: none;
   }
 
   .tabbar-item {
     flex-direction: row;
     gap: var(--s-2);
     min-height: var(--tap);
-    padding: 0 var(--s-3);
+    padding: 0 var(--s-4);
     font-size: var(--t-sm);
-    border-radius: var(--r-md);
   }
 
   .tabbar-item:hover:not(:disabled) {
-    background: var(--c-chrome-raised);
+    background: var(--c-surface);
   }
 
   .tabbar-item[aria-selected='true'] {
-    background: var(--c-tile);
+    font-size: var(--t-sm);
   }
 
-  .tabbar-icon {
-    width: 1.5rem;
-    height: 1.5rem;
-  }
-
+  .tabbar-icon,
   .tabbar-icon svg {
     width: 1.0625rem;
     height: 1.0625rem;

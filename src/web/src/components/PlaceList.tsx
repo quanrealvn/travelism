@@ -6,7 +6,7 @@ import type {
   PlaceStatus,
 } from '../api/api-types'
 import { formatDuration, formatMoney } from '../api/money'
-import { placeCategoryLabel, timeSlotsLabel } from '../api/labels'
+import { timeSlotsLabel } from '../api/labels'
 import { categoryStyle } from '../map/placeMarkers'
 import { PlaceDetail } from './PlaceDetail'
 import {
@@ -15,6 +15,7 @@ import {
   IconClose,
   IconExternal,
   IconFlag,
+  IconPin,
   IconSkip,
   IconSparkle,
 } from './icons'
@@ -33,6 +34,8 @@ interface PlaceListProps {
    * surprise.
    */
   showsOnMap: boolean
+  /** Switches the wishlist to the map pane. Only meaningful when showsOnMap. */
+  onShowOnMap: () => void
   deletingPlaceId: string | null
   busyPlaceId: string | null
   tripUnderway: boolean
@@ -133,6 +136,7 @@ function PlaceRow({
   currencyExponent,
   selectedPlaceId,
   showsOnMap,
+  onShowOnMap,
   deletingPlaceId,
   busyPlaceId,
   tripUnderway,
@@ -158,131 +162,145 @@ function PlaceRow({
 
   const style = categoryStyle(place.category)
 
+  const open = place.id === selectedPlaceId
+
+  /*
+   * Collapsed to a single row until it is the one being looked at.
+   *
+   * Every card used to show every affordance at once — description, links, an
+   * edit button, a vote, status actions, an external link and a delete — which
+   * cost about 250px each for three lines of content, so six places ran to ten
+   * screens of scrolling. A wishlist is mostly read, and the thing you read is
+   * the name, the category and what it costs.
+   */
   return (
     <li
-      className={place.id === selectedPlaceId ? 'place has-detail selected' : 'place has-detail'}
+      className={open ? 'place is-open' : 'place'}
       data-testid={`place-${place.id}`}
     >
-      {/*
-        The card's left rail is the category, in the category's own colour and
-        glyph. It used to be the like button, filled rose — which is the colour
-        this app uses for "food", so a waterfall and a tea hill both carried a
-        food-coloured tile. The rail is the scannable index down a long list,
-        and it was spending the category palette on something else.
-      */}
-      <span className="place-category" style={{ '--tile-colour': style.color } as CSSProperties}>
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.75}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path d={style.path} />
-        </svg>
-        <span className="visually-hidden">{style.label}</span>
-      </span>
-
       <button
         type="button"
-        className="place-main"
+        className="place-head"
         onClick={() => onSelect(place.id)}
-        aria-label={showsOnMap ? `Xem ${place.name} trên bản đồ` : undefined}
+        aria-expanded={open}
       >
-        <span className="place-name">{place.name}</span>
-        <span className="place-meta">
-          {placeCategoryLabel(place.category)} · {formatDuration(place.estimatedDurationMinutes)} ·{' '}
-          {formatMoney(place.estimatedCost, currency, currencyExponent)}
+        {/*
+          The card's left rail is the category, in the category's own colour
+          and icon. It used to be the like button, filled rose — which is the
+          colour this app uses for "food", so a waterfall and a tea hill both
+          carried a food-coloured tile. The rail is the scannable index down a
+          long list, and it was spending the category palette on something else.
+        */}
+        <span className="place-category" style={{ '--tile-colour': style.color } as CSSProperties}>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.75}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d={style.path} />
+          </svg>
+          <span className="visually-hidden">{style.label}</span>
         </span>
-        <span className="place-slots">{timeSlotsLabel(place.timeSlots)}</span>
-        {place.openHoursText && <span className="place-hours">{place.openHoursText}</span>}
-        {place.skipReason && <span className="place-skip-reason">Lý do: {place.skipReason}</span>}
+
+        <span className="place-head-text">
+          <span className="place-name">{place.name}</span>
+          {/* One line. The category is the tile beside it, so repeating it
+              here was what pushed the price onto a row of its own. */}
+          <span className="place-meta">
+            {formatDuration(place.estimatedDurationMinutes)} ·{' '}
+            {formatMoney(place.estimatedCost, currency, currencyExponent)} ·{' '}
+            {timeSlotsLabel(place.timeSlots)}
+          </span>
+        </span>
       </button>
 
       {/*
-        Open-elsewhere and delete live at the card's top-right, not in the
-        action row: most places offer no status action at all, and a row
-        containing nothing but two right-aligned icons reads as a layout bug.
+        Agreeing is the mechanism this whole app runs on, so the vote stays on
+        the collapsed row — it is the one thing you do without opening a card.
       */}
-      <div className="place-tools">
-        <a
-          className="place-external"
-          href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
-          target="_blank"
-          rel="noreferrer noopener"
-          aria-label={`Mở ${place.name} trong Google Maps`}
-          title="Mở trong Google Maps để xem ảnh và đánh giá"
-        >
-          <IconExternal />
-        </a>
+      <button
+        type="button"
+        className={likedByMe ? 'place-like liked' : 'place-like'}
+        onClick={() => onToggleLike(place.id, likedByMe)}
+        disabled={busy}
+        aria-pressed={likedByMe}
+        aria-label={likedByMe ? `Bỏ thích ${place.name}` : `Thích ${place.name}`}
+        title={likedNames.length > 0 ? `Thích bởi: ${likedNames.join(', ')}` : 'Chưa ai thích'}
+      >
+        <span aria-hidden="true">{likedByMe ? '♥' : '♡'}</span>
+        {likeCount}/{memberCount}
+      </button>
 
-        {/*
-          Destructive, and it sat 8px from a benign action at identical weight
-          on every one of forty cards. It is quiet until you go near it, and it
-          turns rose then — which is what this palette reserves for danger.
-        */}
-        <button
-          type="button"
-          className="place-delete"
-          onClick={() => onDelete(place.id)}
-          disabled={deletingPlaceId === place.id}
-          aria-label={`Xoá ${place.name}`}
-        >
-          {deletingPlaceId === place.id ? <Spinner /> : <IconClose />}
-        </button>
-      </div>
+      {open && (
+        <div className="place-body">
+          {place.openHoursText && <p className="place-hours">{place.openHoursText}</p>}
+          {place.skipReason && <p className="place-skip-reason">Lý do: {place.skipReason}</p>}
+          {waitingOn.length > 0 && likeCount > 0 && (
+            <p className="place-waiting">Đang đợi {waitingOn.join(', ')}</p>
+          )}
 
-      {/*
-        Detail before actions. With the order reversed the row of buttons sat
-        between the place's own meta line and its description, splitting one
-        piece of content in half with controls.
-      */}
-      <PlaceDetail
-        place={place}
-        saving={busy}
-        onSave={(description, references) => onSaveDetail(place.id, description, references)}
-      />
+          <PlaceDetail
+            place={place}
+            saving={busy}
+            onSave={(description, references) => onSaveDetail(place.id, description, references)}
+          />
 
-      <div className="place-actions">
-        {/*
-          Agreeing is the mechanism this whole app runs on, so the vote is a
-          labelled action rather than a glyph in the gutter — and it names who
-          you are still waiting on instead of showing a fraction.
-        */}
-        <button
-          type="button"
-          className={likedByMe ? 'place-like liked' : 'place-like'}
-          onClick={() => onToggleLike(place.id, likedByMe)}
-          disabled={busy}
-          aria-pressed={likedByMe}
-          aria-label={likedByMe ? `Bỏ thích ${place.name}` : `Thích ${place.name}`}
-          title={likedNames.length > 0 ? `Thích bởi: ${likedNames.join(', ')}` : 'Chưa ai thích'}
-        >
-          <span aria-hidden="true">{likedByMe ? '♥' : '♡'}</span>
-          {likeCount}/{memberCount}
-        </button>
+          <div className="place-actions">
+            {statusActions.map((action) => (
+              <button
+                key={action.status}
+                type="button"
+                className={`place-status-action tone-${action.tone}`}
+                onClick={() => onChangeStatus(place.id, action.status)}
+                disabled={busy}
+                title={action.title}
+              >
+                <action.Icon />
+                {action.label}
+              </button>
+            ))}
 
-        {waitingOn.length > 0 && likeCount > 0 && (
-          <span className="place-waiting">đợi {waitingOn.join(', ')}</span>
-        )}
+            {showsOnMap && (
+              <button type="button" className="place-status-action tone-quiet" onClick={onShowOnMap}>
+                <IconPin />
+                Bản đồ
+              </button>
+            )}
 
-        {statusActions.map((action) => (
-          <button
-            key={action.status}
-            type="button"
-            className={`place-status-action tone-${action.tone}`}
-            onClick={() => onChangeStatus(place.id, action.status)}
-            disabled={busy}
-            title={action.title}
-          >
-            <action.Icon />
-            {action.label}
-          </button>
-        ))}
-      </div>
+            <a
+              className="place-external"
+              href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
+              target="_blank"
+              rel="noreferrer noopener"
+              aria-label={`Mở ${place.name} trong Google Maps`}
+              title="Mở trong Google Maps để xem ảnh và đánh giá"
+            >
+              <IconExternal />
+            </a>
+
+            {/*
+              Destructive, and it used to sit at identical weight 8px from a
+              benign action on every one of forty cards. Behind one tap now,
+              and rose when approached — which is what this palette reserves
+              for danger.
+            */}
+            <button
+              type="button"
+              className="place-delete"
+              onClick={() => onDelete(place.id)}
+              disabled={deletingPlaceId === place.id}
+              aria-label={`Xoá ${place.name}`}
+            >
+              {deletingPlaceId === place.id ? <Spinner /> : <IconClose />}
+            </button>
+          </div>
+        </div>
+      )}
     </li>
   )
 }
