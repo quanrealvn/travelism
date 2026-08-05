@@ -313,6 +313,13 @@ export interface CreateTripRequest {
   currency?: string
   budgetAmount?: number | null
   ownerDisplayName: string
+  /** Required only where the deployment restricts who may start a trip. */
+  accessCode?: string
+}
+
+/** What a first-time visitor needs to know before the start screen renders. */
+export interface AppConfigResponse {
+  requiresAccessCode: boolean
 }
 
 export interface JoinTripRequest {

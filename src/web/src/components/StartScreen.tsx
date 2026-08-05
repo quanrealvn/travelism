@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ApiError } from '../api/client'
 import { api } from '../api/client'
@@ -20,9 +20,38 @@ export function StartScreen({ onReady }: StartScreenProps) {
     startDate: '',
     endDate: '',
     ownerDisplayName: '',
+    accessCode: '',
   })
 
   const [joinForm, setJoinForm] = useState({ inviteCode: '', displayName: '' })
+
+  /*
+   * Whether this deployment lets just anyone start a trip.
+   *
+   * Asked rather than assumed: showing an access-code field on an open instance
+   * invents a barrier that is not there, and hiding it on a closed one leaves
+   * the form permanently refused with no way to satisfy it. Joining is never
+   * gated — an invite link is the whole point.
+   */
+  const [needsCode, setNeedsCode] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .config()
+      .then((config) => {
+        if (!cancelled) {
+          setNeedsCode(config.requiresAccessCode)
+        }
+      })
+      // Open is the safe assumption: if it is wrong the server refuses, and
+      // that refusal says exactly what is missing.
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   async function run(action: () => Promise<TripSessionResponse>) {
     setBusy(true)
@@ -124,6 +153,22 @@ export function StartScreen({ onReady }: StartScreenProps) {
               maxLength={40}
             />
           </label>
+          {needsCode && (
+            <label>
+              Mã truy cập
+              <input
+                value={createForm.accessCode}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, accessCode: e.target.value })
+                }
+                required
+                autoComplete="off"
+              />
+              <span className="field-hint">
+                Chỉ cần khi tạo chuyến đi mới. Tham gia bằng mã mời thì không cần.
+              </span>
+            </label>
+          )}
           <button type="submit" disabled={busy}>
             {busy ? 'Đang tạo…' : 'Tạo chuyến đi'}
           </button>
@@ -175,6 +220,8 @@ function describe(error: ApiError): string {
       return 'Chuyến đi đã đủ 10 thành viên.'
     case 'RATE_LIMITED':
       return 'Bạn thử quá nhiều lần. Đợi một phút rồi thử lại.'
+    case 'INVALID_ACCESS_CODE':
+      return 'Mã truy cập không đúng. Hỏi người đã mời bạn nhé.'
     case 'VALIDATION_FAILED':
       return Object.values(error.fieldErrors())[0] ?? 'Thông tin chưa hợp lệ.'
     default:

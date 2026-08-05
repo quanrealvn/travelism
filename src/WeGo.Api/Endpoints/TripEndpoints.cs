@@ -27,10 +27,22 @@ public static class TripEndpoints
             CreateTripRequest request,
             TripService trips,
             AuthOptions authOptions,
+            AccessOptions accessOptions,
             SessionTokenService tokens,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
+            // First, and before any work: on a restricted deployment this is the
+            // door, and everything past it costs disk. Open instances configure
+            // no code and never reach the refusal.
+            if (!accessOptions.Accepts(request.AccessCode))
+            {
+                return Problems.From(new Failure(
+                    StatusCodes.Status403Forbidden,
+                    ErrorCodes.InvalidAccessCode,
+                    "Mã truy cập không đúng."));
+            }
+
             // Checked before the trip is created, so a refusal does not leave an
             // orphaned trip nobody holds a membership for.
             if (DeviceIsFull(http, authOptions, tokens, out var problem))
@@ -45,7 +57,9 @@ public static class TripEndpoints
                 return Results.Created($"/trips/{created.Trip.Id}", ToSessionResponse(created));
             });
         })
-        .WithName("CreateTrip");
+        .WithName("CreateTrip")
+        // The only endpoint that grows the database with no session required.
+        .RequireRateLimiting(RateLimitPolicies.CreateTrip);
 
         app.MapPost("/trips/join", async (
             JoinTripRequest request,

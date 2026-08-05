@@ -825,3 +825,63 @@ had no way back, so losing your place meant reloading. Leaflet listens for
 clicks natively on the container and React's `stopPropagation` does not reach
 it, so the button needs `L.DomEvent.disableClickPropagation` or pressing it also
 drops a draft pin underneath itself.
+
+### D71 — Deployed as one machine, because the database is a file
+
+SQLite on a Fly volume. A volume attaches to exactly one machine, so this app
+runs as exactly one — never two. The deploy strategy is `immediate` rather than
+the default, which wants a second machine alive beside the first and cannot give
+it the volume. That costs a few seconds of downtime per deploy, which is the
+correct trade for a single-writer database.
+
+If it ever outgrows one machine the answer is Postgres, not more machines.
+
+### D72 — Creating a trip needs a shared code; joining never does
+
+Creating a trip is the only write an unauthenticated stranger can perform, and
+the only one that consumes disk — everything else needs a session cookie or an
+invite code. On a public host that is the single open door, so a shared code
+closes it.
+
+Deliberately only that door. Joining still needs nothing but the invite link,
+which is the whole way a trip gets shared; gating that too would mean handing a
+friend two secrets to look at one plan. An empty code means open, which is the
+right default for anyone running this themselves.
+
+`/config` reports whether a code is required and never what it is: the client
+has to know whether to ask, and an access-code field on an open instance would
+invent a barrier that is not there.
+
+### D73 — Rate limits are per-IP, in three tiers
+
+A global 600/minute backstop across every request including static files —
+generous, because a café or a mobile carrier behind CGNAT presents dozens of
+real people as one address, and this has to be a flood detector rather than a
+quota. Then 5 trips/hour, because trip creation is the only anonymous path to
+disk. Then 30 geocodes/minute, which is stricter than the load justifies:
+Nominatim enforces its policy by banning the caller, so abuse there costs
+everyone the feature rather than costing money.
+
+The health check is exempt from all of it. A throttled health check reads as an
+unhealthy app, and the platform answers that by restarting the machine — which
+would turn a flood into an outage.
+
+### D74 — Two production bugs the whole test suite could not see
+
+Both found by driving the deployed site, and neither reachable from the 798
+tests that pass on Windows.
+
+**Alpine ships no IANA time zone database.** `TimeZoneInfo.FindSystemTimeZoneById`
+threw for `Asia/Ho_Chi_Minh` — the default zone of every trip in this app — so
+every single trip creation failed with a validation error blaming the client.
+Windows and the Debian-based images carry their own copy, so nothing local could
+reproduce it. Fixed with `apk add tzdata`.
+
+**Forwarded headers were being ignored.** `KnownNetworks` and `KnownProxies`
+default to loopback only, and a hosted reverse proxy never is. The middleware
+was silently dropping them, and two things broke quietly: `Request.IsHttps`
+stayed false behind TLS termination so the session cookie shipped without
+`Secure`, and `RemoteIpAddress` was the proxy's, so every visitor on earth
+shared one rate-limit partition and the per-IP limits protected nothing. The
+limits were the more serious of the two — they looked correct in code, in tests,
+and in the config, and were inert in production.

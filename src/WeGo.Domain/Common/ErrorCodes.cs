@@ -28,6 +28,12 @@ public static class ErrorCodes
     /// </summary>
     public const string DeviceTripLimit = "DEVICE_TRIP_LIMIT";
 
+    /// <summary>
+    /// This deployment only lets people with the shared code start a trip.
+    /// Joining an existing one is unaffected — an invite link is enough.
+    /// </summary>
+    public const string InvalidAccessCode = "INVALID_ACCESS_CODE";
+
     // Auth (401/403)
     public const string Unauthenticated = "UNAUTHENTICATED";
     public const string Forbidden = "FORBIDDEN";

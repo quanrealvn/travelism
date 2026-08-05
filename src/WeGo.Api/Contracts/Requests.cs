@@ -15,7 +15,10 @@ public sealed record CreateTripRequest(
     string? TimeZoneId,
     string? Currency,
     long? BudgetAmount,
-    string? OwnerDisplayName);
+    string? OwnerDisplayName,
+    /// The deployment-wide shared code, when one is configured. Ignored
+    /// entirely on an open instance.
+    string? AccessCode = null);
 
 public sealed record JoinTripRequest(
     string? InviteCode,

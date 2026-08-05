@@ -11,11 +11,37 @@ public sealed class RateLimitOptions
 
     /// <summary>Spec §5.7: 10 join attempts per IP per minute.</summary>
     public int JoinPerMinute { get; set; } = 10;
+
+    /// <summary>
+    /// Every request from one address, static assets included.
+    ///
+    /// Generous on purpose. A cold page load is roughly twenty requests, and a
+    /// café, a school or a mobile carrier behind CGNAT presents dozens of real
+    /// people as one address — this has to be a flood detector, not a quota.
+    /// </summary>
+    public int GlobalPerMinute { get; set; } = 600;
+
+    /// <summary>
+    /// The one endpoint that grows the database without anybody being logged
+    /// in, so it is the only way an anonymous caller can consume disk. A person
+    /// plans a handful of trips a year; five an hour is already absurd.
+    /// </summary>
+    public int CreateTripPerHour { get; set; } = 5;
+
+    /// <summary>
+    /// Place search and link resolution both call Nominatim, whose usage policy
+    /// is enforced by banning the caller. Abuse here does not cost money, it
+    /// costs everyone the feature — so this is stricter than the load alone
+    /// would justify.
+    /// </summary>
+    public int GeocodePerMinute { get; set; } = 30;
 }
 
 public static class RateLimitPolicies
 {
     public const string Join = "join";
+    public const string CreateTrip = "create-trip";
+    public const string Geocode = "geocode";
 
     public static IServiceCollection AddWeGoRateLimiting(
         this IServiceCollection services,
@@ -23,6 +49,45 @@ public static class RateLimitPolicies
     {
         services.AddRateLimiter(limiter =>
         {
+            /*
+             * The backstop, across every endpoint and every static file.
+             *
+             * The per-endpoint policies below stop targeted abuse of the
+             * expensive routes; this one stops the cheap, untargeted flood that
+             * would otherwise keep a scale-to-zero machine awake indefinitely
+             * and bill for it.
+             */
+            limiter.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
+                context => RateLimitPartition.GetFixedWindowLimiter(
+                    PartitionKey(context),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = options.GlobalPerMinute,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                        AutoReplenishment = true,
+                    }));
+
+            limiter.AddPolicy(CreateTrip, context => RateLimitPartition.GetFixedWindowLimiter(
+                PartitionKey(context),
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = options.CreateTripPerHour,
+                    Window = TimeSpan.FromHours(1),
+                    QueueLimit = 0,
+                    AutoReplenishment = true,
+                }));
+
+            limiter.AddPolicy(Geocode, context => RateLimitPartition.GetFixedWindowLimiter(
+                PartitionKey(context),
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = options.GeocodePerMinute,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                    AutoReplenishment = true,
+                }));
+
             limiter.AddPolicy(Join, context => RateLimitPartition.GetFixedWindowLimiter(
                 PartitionKey(context),
                 _ => new FixedWindowRateLimiterOptions
@@ -48,8 +113,11 @@ public static class RateLimitPolicies
 
                 // Rejections still have to satisfy the §6 error contract, so the
                 // body is ProblemDetails rather than the framework's empty 429.
+                // The wording stays generic now that several policies share
+                // this handler — it used to say "join attempts" whatever was
+                // actually refused.
                 await Results.Problem(
-                        detail: "Too many join attempts. Wait a minute and try again.",
+                        detail: "Quá nhiều yêu cầu. Vui lòng đợi một lát rồi thử lại.",
                         statusCode: StatusCodes.Status429TooManyRequests,
                         title: Problems.TitleFor(StatusCodes.Status429TooManyRequests),
                         type: $"https://httpstatuses.io/{StatusCodes.Status429TooManyRequests}",

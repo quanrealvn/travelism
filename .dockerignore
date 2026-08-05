@@ -1,0 +1,39 @@
+# Everything the build produces or the image has no use for. Keeping this tight
+# matters twice: the build context is uploaded to the builder on every deploy,
+# and a stale local bin/ or wwwroot/ copied in would silently override what the
+# image just compiled.
+
+**/bin/
+**/obj/
+**/node_modules/
+**/.vs/
+**/.vscode/
+**/.idea/
+
+# Vite writes here; the image builds its own copy in the web stage.
+src/WeGo.Api/wwwroot/
+
+# Local databases and the dev signing key — a key committed into an image is a
+# key shared by every deployment of it.
+*.db
+*.db-shm
+*.db-wal
+.wego-signing-key
+.travelism-signing-key
+
+artifacts/
+TestResults/
+**/*.trx
+**/coverage*.xml
+
+.git/
+.github/
+**/.gitignore
+
+# Docs and specs: they change constantly and would bust the build cache for
+# nothing.
+*.md
+!README.md
+
+.env
+.env.*

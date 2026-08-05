@@ -16,6 +16,10 @@ var authOptions = new AuthOptions();
 builder.Configuration.GetSection(AuthOptions.SectionName).Bind(authOptions);
 builder.Services.AddSingleton(authOptions);
 
+var accessOptions = new AccessOptions();
+builder.Configuration.GetSection(AccessOptions.SectionName).Bind(accessOptions);
+builder.Services.AddSingleton(accessOptions);
+
 var rateLimitOptions = new RateLimitOptions();
 builder.Configuration.GetSection(RateLimitOptions.SectionName).Bind(rateLimitOptions);
 builder.Services.AddSingleton(rateLimitOptions);
@@ -49,12 +53,31 @@ builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadReq
 
 var app = builder.Build();
 
-// Populates RemoteIpAddress from X-Forwarded-For so the join rate limit
-// partitions by the real client rather than by the reverse proxy.
-app.UseForwardedHeaders(new ForwardedHeadersOptions
+/*
+ * Populates RemoteIpAddress and Scheme from the platform's proxy headers.
+ *
+ * KnownNetworks and KnownProxies must be cleared. They default to loopback
+ * only, and a hosted reverse proxy never is — so out of the box the headers are
+ * silently ignored, and both things that depend on them break quietly:
+ *
+ *   - Request.IsHttps stays false behind TLS termination, so the session cookie
+ *     is issued without Secure.
+ *   - RemoteIpAddress is the proxy's, so every visitor on earth shares one
+ *     rate-limit partition and the per-IP limits protect nothing.
+ *
+ * Clearing them means trusting whatever sends these headers, which is correct
+ * here because the container port is only reachable through the platform's
+ * proxy. Spoofing is still handled: the default ForwardLimit of 1 takes the
+ * rightmost X-Forwarded-For entry, which is the one the proxy itself appended,
+ * so a client that invents its own is overridden rather than believed.
+ */
+var forwardedHeaders = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
-});
+};
+forwardedHeaders.KnownNetworks.Clear();
+forwardedHeaders.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeaders);
 
 app.UseWeGoExceptionHandler();
 
@@ -86,6 +109,30 @@ app.UseRateLimiter();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
+/*
+ * Liveness, for the platform's health check.
+ *
+ * Deliberately does not touch the database: migrations run below before the
+ * first request is served, so if they failed the process never reaches here at
+ * all and the check fails by not answering. Querying on every probe would add
+ * load to say something startup has already proven.
+ */
+// Exempt from rate limiting, including the global limiter. A throttled health
+// check reads as an unhealthy app, and the platform's response to that is to
+// restart the machine — turning a flood into an outage.
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
+    .DisableRateLimiting();
+
+/*
+ * What this deployment expects of a first-time visitor.
+ *
+ * Only whether a shared code is needed, never the code itself — the client has
+ * to know whether to ask for one, and showing an access-code field on an open
+ * instance would invent a barrier that is not there.
+ */
+app.MapGet("/config", (AccessOptions access) =>
+    Results.Ok(new { requiresAccessCode = access.IsRestricted }));
 
 app.MapTripEndpoints();
 app.MapPlaceEndpoints();

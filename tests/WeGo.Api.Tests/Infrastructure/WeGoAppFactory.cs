@@ -34,6 +34,24 @@ public class WeGoAppFactory : WebApplicationFactory<Program>
     public virtual int JoinPerMinute => 10_000;
 
     /// <summary>
+    /// The same reasoning as JoinPerMinute, and it matters more here: TestServer
+    /// reports no remote address, so every test in the suite shares one
+    /// partition. At the production limit of five trips an hour the sixth test
+    /// that creates a trip would 429, and dozens of them do.
+    /// </summary>
+    public virtual int CreateTripPerHour => 100_000;
+
+    public virtual int GeocodePerMinute => 100_000;
+
+    public virtual int GlobalPerMinute => 1_000_000;
+
+    /// <summary>
+    /// Empty by default, so the suite exercises an open instance. Overridden by
+    /// <see cref="AccessCodeTests"/> to prove the restricted one.
+    /// </summary>
+    public virtual string CreateTripCode => string.Empty;
+
+    /// <summary>
     /// The stub standing in for OpenStreetMap. Tests mutate it to choose what
     /// the geocoder returns, or to make it fail.
     /// </summary>
@@ -64,6 +82,16 @@ public class WeGoAppFactory : WebApplicationFactory<Program>
         builder.UseSetting(
             "RateLimits:JoinPerMinute",
             JoinPerMinute.ToString(CultureInfo.InvariantCulture));
+        builder.UseSetting(
+            "RateLimits:CreateTripPerHour",
+            CreateTripPerHour.ToString(CultureInfo.InvariantCulture));
+        builder.UseSetting(
+            "RateLimits:GeocodePerMinute",
+            GeocodePerMinute.ToString(CultureInfo.InvariantCulture));
+        builder.UseSetting(
+            "RateLimits:GlobalPerMinute",
+            GlobalPerMinute.ToString(CultureInfo.InvariantCulture));
+        builder.UseSetting("Access:CreateTripCode", CreateTripCode);
 
         builder.ConfigureTestServices(services =>
         {

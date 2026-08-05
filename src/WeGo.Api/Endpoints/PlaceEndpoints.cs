@@ -58,7 +58,9 @@ public static class PlaceEndpoints
             var result = await geocoding.SearchAsync(tripId, q, limit, cancellationToken);
             return result.ToOk();
         })
-        .WithName("SearchPlaces");
+        .WithName("SearchPlaces")
+        // Calls Nominatim, which enforces its policy by banning the caller.
+        .RequireRateLimiting(RateLimitPolicies.Geocode);
 
         group.MapPost("/resolve-link", async (
             Guid tripId,
@@ -69,7 +71,8 @@ public static class PlaceEndpoints
             var result = await geocoding.ResolveLinkAsync(tripId, request.Url, cancellationToken);
             return result.ToOk();
         })
-        .WithName("ResolvePlaceLink");
+        .WithName("ResolvePlaceLink")
+        .RequireRateLimiting(RateLimitPolicies.Geocode);
 
         group.MapGet("/{placeId:guid}", async (
             Guid tripId,

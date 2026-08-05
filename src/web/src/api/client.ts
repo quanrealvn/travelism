@@ -1,5 +1,6 @@
 import type {
   ActivityResponse,
+  AppConfigResponse,
   BalanceResponse,
   CreateExpenseRequest,
   CreateItineraryItemRequest,
@@ -94,6 +95,9 @@ async function readProblem(response: Response): Promise<ProblemDetails> {
 }
 
 export const api = {
+  /** Deployment facts the start screen needs. Never carries the code itself. */
+  config: () => request<AppConfigResponse>('/config'),
+
   createTrip: (body: CreateTripRequest) =>
     request<TripSessionResponse>('/trips', { method: 'POST', body: JSON.stringify(body) }),
 

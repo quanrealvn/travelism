@@ -1,0 +1,63 @@
+# Travelism on Fly.io.
+#
+# The shape of this file is dictated by one fact: the database is SQLite, in a
+# file, on a volume. A volume attaches to exactly one machine, so this app runs
+# as exactly one machine — never two. Anything that would start a second one
+# (a canary deploy, scaling out, a second region) either fails to get the volume
+# or, worse, silently gets a fresh empty one.
+#
+# If this ever needs to survive more traffic than one machine can carry, the
+# answer is Postgres, not more machines.
+
+app = 'travelism'
+primary_region = 'sin'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  # On the volume, not in the image: a database inside the container filesystem
+  # is discarded on every single deploy.
+  Database__ConnectionString = 'Data Source=/data/travelism.db'
+  ASPNETCORE_ENVIRONMENT = 'Production'
+
+[[mounts]]
+  source = 'travelism_data'
+  destination = '/data'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Scale to zero when idle. Safe for the realtime features: a SignalR websocket
+  # is an active connection, so a machine is never stopped out from under people
+  # who are editing a trip together — only after everyone has gone.
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+  [http_service.concurrency]
+    type = 'requests'
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '20s'
+    method = 'GET'
+    path = '/health'
+
+[deploy]
+  # Replace the machine in place rather than standing a new one up beside it.
+  # The default strategy wants two machines alive at once, and the second cannot
+  # have the volume. Costs a few seconds of downtime per deploy, which is the
+  # correct trade for a single-writer database.
+  strategy = 'immediate'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  # 512MB: ASP.NET Core will start in 256 but has no headroom left for SQLite's
+  # page cache or a GC spike under concurrent requests.
+  memory = '512mb'
+  cpus = 1
