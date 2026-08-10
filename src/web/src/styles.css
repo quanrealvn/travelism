@@ -320,6 +320,40 @@ legend {
   height: 1.25rem;
 }
 
+/* A small mark on a picker option — "trả" beside whoever paid. */
+.picker-tag {
+  padding: 0 var(--s-1);
+  font-size: var(--t-2xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1.125rem;
+  color: var(--c-brand);
+  background: var(--c-brand-soft);
+  border-radius: var(--r-full);
+}
+
+/*
+ * The arithmetic, before you commit to it. "45.000 ₫ mỗi người · 2 người" is
+ * the sentence the checkboxes above are trying to write, and showing it is what
+ * turns them from a setting into an answer.
+ */
+.split-preview {
+  margin: var(--s-3) 0 0;
+  font-size: var(--t-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--c-ink);
+}
+
+.split-note {
+  font-weight: var(--fw-regular);
+  color: var(--c-ink-2);
+}
+
+/* Who an expense was split between, when that is not everyone. */
+.expense-split {
+  font-size: var(--t-2xs);
+  color: var(--c-brand);
+}
+
 /* A quiet note under a field, for a unit or an example. */
 .field-hint {
   display: block;

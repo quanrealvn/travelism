@@ -249,3 +249,69 @@ describe('AddExpenseForm', () => {
     )
   })
 })
+
+describe("AddExpenseForm — who shares it", () => {
+  it("splits between everyone by default", async () => {
+    const handlers = renderForm()
+
+    await userEvent.type(screen.getByLabelText(/nội dung/i), "Xăng")
+    await userEvent.type(screen.getByLabelText(/số tiền/i), "100000")
+    await userEvent.click(screen.getByRole("button", { name: /thêm khoản chi/i }))
+
+    expect(handlers.onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ participants: [QUAN, LINH] }),
+    )
+  })
+
+  it("splits between only the people left checked", async () => {
+    // A pays for themselves, not for B — the case the whole feature exists for.
+    const handlers = renderForm()
+
+    await userEvent.type(screen.getByLabelText(/nội dung/i), "Vé riêng")
+    await userEvent.type(screen.getByLabelText(/số tiền/i), "60000")
+    await userEvent.click(screen.getByRole("checkbox", { name: /linh/i }))
+    await userEvent.click(screen.getByRole("button", { name: /thêm khoản chi/i }))
+
+    expect(handlers.onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ participants: [QUAN] }),
+    )
+  })
+
+  it("shows what each person owes before you commit to it", async () => {
+    renderForm()
+
+    await userEvent.type(screen.getByLabelText(/số tiền/i), "90000")
+
+    // 90.000 between two is 45.000 each, and seeing it is the point.
+    expect(screen.getByText(/45.000/)).toBeInTheDocument()
+    expect(screen.getByText(/2 người/)).toBeInTheDocument()
+  })
+
+  it("says when the amount does not divide evenly", async () => {
+    renderForm({
+      members: [
+        ...MEMBERS,
+        { id: "member-ba", displayName: "Ba", role: "Editor", createdAt: "2026-03-01T00:00:00+00:00" },
+      ],
+    })
+
+    await userEvent.type(screen.getByLabelText(/số tiền/i), "100000")
+
+    // 100.000 / 3 leaves a remainder; hiding that makes the shares look wrong
+    // when they are checked against the total.
+    expect(screen.getByText(/lẻ/i)).toBeInTheDocument()
+  })
+
+  it("refuses to submit with nobody sharing it", async () => {
+    const handlers = renderForm()
+
+    await userEvent.type(screen.getByLabelText(/nội dung/i), "Không ai")
+    await userEvent.type(screen.getByLabelText(/số tiền/i), "50000")
+    await userEvent.click(screen.getByRole("checkbox", { name: /quan/i }))
+    await userEvent.click(screen.getByRole("checkbox", { name: /linh/i }))
+    await userEvent.click(screen.getByRole("button", { name: /thêm khoản chi/i }))
+
+    expect(handlers.onAdd).not.toHaveBeenCalled()
+    expect(screen.getByRole("alert")).toHaveTextContent(/ít nhất một người/i)
+  })
+})

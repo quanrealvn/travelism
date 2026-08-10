@@ -979,3 +979,22 @@ button it stands in for, with a heavier shadow so its edge stays legible where a
 field scrolls under it. Primary buttons everywhere took the pill radius with it;
 they were the last filled controls still wearing the 12px radius of a text
 input.
+
+### D84 — An expense is split between the people who were there
+
+`ExpenseSplit.Equal` already took a member list and already noted that the payer
+need not be in it. The service just never passed a subset: every Equal split was
+divided by the whole trip. So a car of four going somewhere two people skipped
+charged all six, and the settlement — the one number this tab exists to produce
+— was wrong in a way nobody notices until it is time to pay.
+
+`participants` is now part of creating an expense. Absent means everyone, which
+is what the field's absence has always meant, so nothing already written breaks.
+The payer is deliberately independent of it: paying and owing are different
+facts, and conflating them is exactly what makes a group tab wrong.
+
+The form previews the arithmetic — "45.000 ₫ mỗi người · 2 người" — because that
+sentence is what the checkboxes are trying to write, and it is what turns them
+from a setting into an answer. The remainder is called out rather than hidden,
+since shares that do not visibly total the amount look like a bug. The server
+stays the authority on who gets the odd đồng.

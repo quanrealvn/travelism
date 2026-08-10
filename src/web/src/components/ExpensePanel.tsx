@@ -134,6 +134,18 @@ export function ExpensePanel({
                     {nameOf(expense.paidByMemberId)} trả
                     {expense.splitType === 'Custom' && ' · chia tuỳ chỉnh'}
                   </span>
+                  {/*
+                    Who it was actually split between, but only when that is
+                    not everyone — printing "chia cho A, B" under every line of
+                    a two-person trip is noise, and the exception is the thing
+                    worth seeing.
+                  */}
+                  {expense.shares.length < members.length && (
+                    <span className="expense-split">
+                      Chia cho{' '}
+                      {expense.shares.map((share) => nameOf(share.memberId)).join(', ')}
+                    </span>
+                  )}
                 </div>
                 <span className="expense-amount">
                   {formatMoney(expense.amount, currency, currencyExponent)}
@@ -201,6 +213,24 @@ function ExpenseForm({
   const [category, setCategory] = useState<ExpenseCategory>('Food')
   const [localError, setLocalError] = useState<string | null>(null)
 
+  /*
+   * Who this one is split between. Everyone by default, because most bills are
+   * — but on a real trip somebody drives four people to one place and two of
+   * them skip the next, and charging the whole group for both makes the
+   * settlement wrong in a way nobody notices until it is time to pay up.
+   */
+  const [participants, setParticipants] = useState<string[]>(() =>
+    members.map((member) => member.id),
+  )
+
+  function toggleParticipant(memberId: string) {
+    setParticipants((current) =>
+      current.includes(memberId)
+        ? current.filter((id) => id !== memberId)
+        : [...current, memberId],
+    )
+  }
+
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setLocalError(null)
@@ -224,15 +254,22 @@ function ExpenseForm({
       return
     }
 
+    if (participants.length === 0) {
+      setLocalError('Chọn ít nhất một người chia khoản này.')
+      return
+    }
+
     onAdd({
       title,
       amount: minorUnits,
       paidByMemberId: paidBy,
       date,
       category,
-      // Equal only for now: custom splits need a per-member editor, and the
-      // server validates the sum either way.
+      // Still an equal split — of the amount, between the chosen people. The
+      // server divides and hands the remainder out so the total reconciles
+      // exactly, which is the part that must not be done here.
       splitType: 'Equal',
+      participants,
     })
 
     // Not cleared here — see the note in PlaceForm. A rejected submit used to
@@ -241,6 +278,23 @@ function ExpenseForm({
   }
 
   const parsedAmount = parseMoney(amount, currencyExponent)
+
+  /*
+   * What each person ends up owing, previewed.
+   *
+   * Mirrors the server's rule rather than inventing one: it divides down and
+   * hands the remainder out a unit at a time, so the shares always total the
+   * amount exactly. Only the headline figure is shown here — the server stays
+   * the authority on who gets the odd đồng.
+   */
+  const perPerson =
+    parsedAmount === null || Number.isNaN(parsedAmount) || parsedAmount <= 0 || participants.length === 0
+      ? null
+      : {
+          each: Math.floor(parsedAmount / participants.length),
+          remainder: parsedAmount % participants.length,
+          hasRemainder: parsedAmount % participants.length !== 0,
+        }
   const amountEcho =
     parsedAmount === null
       ? ''
@@ -313,6 +367,54 @@ function ExpenseForm({
           </select>
         </label>
       </div>
+
+      {/*
+        Who shares it. Separate from "ai trả" on purpose: paying and owing are
+        different facts, and conflating them is what makes a group tab wrong —
+        one person fronting the tickets does not mean the others owe nothing.
+      */}
+      <fieldset className="picker">
+        <legend>Chia cho ai</legend>
+        <div className="picker-grid">
+          {members.map((member) => {
+            const chosen = participants.includes(member.id)
+            return (
+              <label
+                key={member.id}
+                className={chosen ? 'picker-option is-selected' : 'picker-option'}
+              >
+                <input
+                  type="checkbox"
+                  checked={chosen}
+                  onChange={() => toggleParticipant(member.id)}
+                />
+                {member.displayName}
+                {member.id === paidBy && <span className="picker-tag">trả</span>}
+              </label>
+            )
+          })}
+        </div>
+
+        {/*
+          The arithmetic, before committing to it. "90.000 ₫ ÷ 2 người =
+          45.000 ₫" is the sentence people are actually trying to write, and
+          showing it is what turns the checkboxes above from a setting into an
+          answer.
+        */}
+        <p className="split-preview" aria-live="polite">
+          {participants.length === 0
+            ? 'Chưa chọn ai — khoản này chưa chia được.'
+            : perPerson === null
+              ? `Chia đều cho ${participants.length} người.`
+              : `${formatMoney(perPerson.each, currency, currencyExponent)} mỗi người · ${participants.length} người`}
+          {perPerson?.hasRemainder && (
+            <span className="split-note">
+              {' '}
+              (lẻ {formatMoney(perPerson.remainder, currency, currencyExponent)} chia cho người trả)
+            </span>
+          )}
+        </p>
+      </fieldset>
 
       {(localError ?? submitError) && (
         <p className="form-error" role="alert">

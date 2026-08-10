@@ -71,6 +71,40 @@ public sealed class ExpenseService(WeGoDbContext db, IClock clock, ActivityLogWr
         var category = EnumInput.Required<ExpenseCategory>(validation, "category", request.Category);
         var splitType = EnumInput.Required<SplitType>(validation, "splitType", request.SplitType);
 
+        /*
+         * Who the expense is actually split between.
+         *
+         * Not everyone on the trip: on a real trip somebody drives four people
+         * to one place and two of them skip the next, and dividing every bill by
+         * the whole group quietly charges people for things they were not at.
+         *
+         * Null means everyone, which is what the field's absence has always
+         * meant, so nothing that already works changes.
+         */
+        var participants = request.Participants is null
+            ? memberIds
+            : request.Participants.Distinct().ToList();
+
+        if (request.Participants is not null)
+        {
+            if (participants.Count == 0)
+            {
+                validation.Add(
+                    "participants",
+                    FieldErrorCodes.Invalid,
+                    "An expense has to be split between at least one person.");
+            }
+
+            var strangers = participants.Where(id => !memberIds.Contains(id)).ToList();
+            if (strangers.Count > 0)
+            {
+                validation.Add(
+                    "participants",
+                    FieldErrorCodes.Invalid,
+                    "Everyone sharing an expense has to belong to this trip.");
+            }
+        }
+
         // Spec §5.3: the payer must belong to the trip. Checked before anything
         // else touches it, so a foreign id can never reach the shares.
         if (request.PaidByMemberId is null)
@@ -104,7 +138,7 @@ public sealed class ExpenseService(WeGoDbContext db, IClock clock, ActivityLogWr
         var date = request.Date!.Value;
 
         var shares = splitType.Value == SplitType.Equal
-            ? ExpenseSplit.Equal(amount, payerId, memberIds)
+            ? ExpenseSplit.Equal(amount, payerId, participants)
             : ReadCustomShares(request.Shares);
 
         if (splitType.Value == SplitType.Custom)

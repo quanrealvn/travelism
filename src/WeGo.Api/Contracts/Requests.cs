@@ -56,7 +56,16 @@ public sealed record CreateExpenseRequest(
     DateOnly? Date,
     string? Category,
     string? SplitType,
-    IReadOnlyList<ExpenseShareRequest>? Shares);
+    IReadOnlyList<ExpenseShareRequest>? Shares,
+    /// <summary>
+    /// Who this expense is split between, for an Equal split. Null means
+    /// everyone on the trip, which is what every caller meant before this
+    /// existed — so old clients keep working unchanged.
+    ///
+    /// The payer need not be in the list: paying for other people without
+    /// taking a share is the ordinary case this exists for.
+    /// </summary>
+    IReadOnlyList<Guid>? Participants = null);
 
 /// <summary>
 /// Partial update of a scheduled item. <see cref="StartTime"/> uses

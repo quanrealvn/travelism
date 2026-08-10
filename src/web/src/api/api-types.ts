@@ -215,6 +215,12 @@ export interface CreateExpenseRequest {
   category: ExpenseCategory
   splitType: SplitType
   shares?: { memberId: string; shareAmount: number }[]
+  /**
+   * Who an Equal split is divided between. Omitted means everyone on the trip.
+   * The payer need not be included — fronting the money is not the same as
+   * owing a share of it.
+   */
+  participants?: string[]
 }
 
 export const ALL_EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [

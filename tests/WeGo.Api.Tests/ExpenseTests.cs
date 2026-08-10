@@ -41,7 +41,8 @@ public sealed class ExpenseTests(WeGoAppFactory factory) : IClassFixture<WeGoApp
         string splitType = "Equal",
         object[]? shares = null,
         string title = "Xăng xe",
-        string? currency = null) =>
+        string? currency = null,
+        Guid[]? participants = null) =>
         client.PostAsJsonAsync($"/trips/{tripId}/expenses", new
         {
             title,
@@ -52,6 +53,7 @@ public sealed class ExpenseTests(WeGoAppFactory factory) : IClassFixture<WeGoApp
             category = "Transport",
             splitType,
             shares,
+            participants,
         }, ApiClient.Json);
 
     [Fact]
@@ -333,5 +335,137 @@ public sealed class ExpenseTests(WeGoAppFactory factory) : IClassFixture<WeGoApp
         var expense = await response.Content.ReadFromJsonAsync<ExpenseResponse>(ApiClient.Json);
         expense!.Amount.Should().Be(Awkward);
         expense.Shares.Sum(s => s.ShareAmount).Should().Be(Awkward);
+    }
+
+    /// <summary>Adds a third person to an existing trip and returns their member id.</summary>
+    private async Task<Guid> JoinAsync(TripResponse trip, string displayName)
+    {
+        var client = factory.CreateApiClient();
+        var joined = await client.PostAsJsonAsync("/trips/join", new
+        {
+            inviteCode = trip.InviteCode,
+            displayName,
+        }, ApiClient.Json);
+        await joined.ShouldBeAsync(HttpStatusCode.OK);
+
+        var session = await joined.Content.ReadFromJsonAsync<TripSessionResponse>(ApiClient.Json);
+        return session!.Session.MemberId;
+    }
+
+    /* ---- Who an expense is actually split between --------------------------
+     *
+     * On a real trip somebody drives four people to one place and two of them
+     * skip the next. Dividing every bill by the whole group charges people for
+     * things they were not at, and the settlement that falls out of it is
+     * simply wrong — which is the one thing this tab exists to get right.
+     */
+
+    [Fact]
+    public async Task An_expense_can_be_split_between_only_some_of_the_group()
+    {
+        var (owner, _, trip, ownerId, joinerId) = await TwoPersonTripAsync("Subset");
+        var third = await JoinAsync(trip, "Ba Subset");
+
+        var response = await AddExpenseAsync(
+            owner, trip.Id, 90_000, ownerId, participants: [ownerId, joinerId]);
+
+        await response.ShouldBeAsync(HttpStatusCode.Created);
+        var expense = await response.Content.ReadFromJsonAsync<ExpenseResponse>(ApiClient.Json);
+
+        expense!.Shares.Should().HaveCount(2);
+        expense.Shares.Should().OnlyContain(s => s.ShareAmount == 45_000);
+        expense.Shares.Should().NotContain(s => s.MemberId == third);
+    }
+
+    [Fact]
+    public async Task The_payer_need_not_be_one_of_the_people_sharing_it()
+    {
+        // Paying for other people without taking a share: the one person who
+        // had cash on them at the ticket window.
+        var (owner, _, trip, ownerId, joinerId) = await TwoPersonTripAsync("PayerOut");
+
+        var response = await AddExpenseAsync(
+            owner, trip.Id, 60_000, ownerId, participants: [joinerId]);
+
+        await response.ShouldBeAsync(HttpStatusCode.Created);
+        var expense = await response.Content.ReadFromJsonAsync<ExpenseResponse>(ApiClient.Json);
+
+        expense!.Shares.Should().ContainSingle();
+        expense.Shares[0].MemberId.Should().Be(joinerId);
+        expense.Shares[0].ShareAmount.Should().Be(60_000);
+    }
+
+    [Fact]
+    public async Task Three_ways_reconciles_exactly_despite_the_remainder()
+    {
+        // 100.000 / 3 does not divide. The shares still have to total exactly
+        // 100.000 — a rounding leak here is money invented or destroyed.
+        var (owner, _, trip, ownerId, joinerId) = await TwoPersonTripAsync("Thirds");
+        var third = await JoinAsync(trip, "Ba Thirds");
+
+        var response = await AddExpenseAsync(
+            owner, trip.Id, 100_000, ownerId, participants: [ownerId, joinerId, third]);
+
+        var expense = await response.Content.ReadFromJsonAsync<ExpenseResponse>(ApiClient.Json);
+
+        expense!.Shares.Should().HaveCount(3);
+        expense.Shares.Sum(s => s.ShareAmount).Should().Be(100_000);
+        expense.Shares.Select(s => s.ShareAmount).Should().OnlyContain(a => a == 33_333 || a == 33_334);
+    }
+
+    [Fact]
+    public async Task Omitting_the_participants_still_means_everyone()
+    {
+        // The field's absence has always meant "the whole trip", and every
+        // client written before it existed depends on that.
+        var (owner, _, trip, ownerId, _) = await TwoPersonTripAsync("Default");
+
+        var response = await AddExpenseAsync(owner, trip.Id, 80_000, ownerId);
+
+        var expense = await response.Content.ReadFromJsonAsync<ExpenseResponse>(ApiClient.Json);
+        expense!.Shares.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task An_expense_split_between_nobody_is_refused()
+    {
+        var (owner, _, trip, ownerId, _) = await TwoPersonTripAsync("Empty");
+
+        var response = await AddExpenseAsync(owner, trip.Id, 50_000, ownerId, participants: []);
+
+        await response.ShouldBeAsync(HttpStatusCode.UnprocessableEntity);
+        var problem = await response.ReadProblemAsync();
+        problem.Errors.Should().Contain(e => e.Field == "participants");
+    }
+
+    [Fact]
+    public async Task Someone_outside_the_trip_cannot_be_given_a_share()
+    {
+        var (owner, _, trip, ownerId, _) = await TwoPersonTripAsync("Stranger");
+
+        var response = await AddExpenseAsync(
+            owner, trip.Id, 50_000, ownerId, participants: [ownerId, Guid.NewGuid()]);
+
+        await response.ShouldBeAsync(HttpStatusCode.UnprocessableEntity);
+        var problem = await response.ReadProblemAsync();
+        problem.Errors.Should().Contain(e => e.Field == "participants");
+    }
+
+    [Fact]
+    public async Task The_balance_only_charges_the_people_who_were_there()
+    {
+        // The whole point: a settlement that reflects who was actually at what.
+        var (owner, _, trip, ownerId, joinerId) = await TwoPersonTripAsync("Fair");
+        var third = await JoinAsync(trip, "Ba Fair");
+
+        await AddExpenseAsync(owner, trip.Id, 90_000, ownerId, participants: [ownerId, joinerId]);
+
+        var balance = await owner.GetFromJsonAsync<BalanceResponse>(
+            $"/trips/{trip.Id}/balance", ApiClient.Json);
+
+        balance!.Balances.Single(m => m.MemberId == third).Net
+            .Should().Be(0, "they were not on that trip out");
+        balance.Balances.Single(m => m.MemberId == joinerId).Net.Should().Be(-45_000);
+        balance.Balances.Single(m => m.MemberId == ownerId).Net.Should().Be(45_000);
     }
 }
