@@ -1548,40 +1548,6 @@ button[type='submit']:hover:not(:disabled),
 }
 
 /* ==========================================================================
-   Segmented control (list ↔ map)
-   ========================================================================== */
-
-.pane-switch {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  gap: var(--s-1);
-  margin-bottom: var(--s-4);
-  padding: var(--s-1);
-  background: var(--c-surface-sunken);
-  border-radius: var(--r-md);
-}
-
-.pane-switch button {
-  min-height: 2.5rem;
-  font-size: var(--t-sm);
-  color: var(--c-ink-2);
-  background: none;
-  border: none;
-}
-
-.pane-switch button:hover:not(:disabled) {
-  background: none;
-}
-
-.pane-switch button[aria-pressed='true'] {
-  color: var(--c-ink);
-  background: var(--c-surface);
-  font-weight: var(--fw-semibold);
-  box-shadow: var(--e-1);
-}
-
-/* ==========================================================================
    Sections & shared states
    ========================================================================== */
 
@@ -3666,14 +3632,126 @@ button .spinner {
 }
 
 @media (max-width: 63.999rem) {
-  .wishlist-view[data-pane='list'] .map-panel,
-  .wishlist-view[data-pane='map'] .list-panel {
-    display: none;
+  /*
+   * The list rides over the map, instead of replacing it.
+   *
+   * This was two panes and a segmented control. They are not alternatives —
+   * "what is on my list" and "where is it" are halves of one question — and a
+   * toggle meant tapping a place to see it cost your scroll position twice,
+   * every time. One screen: the map fills the pane, and the list is a sheet at
+   * one of three stops over it.
+   */
+  .wishlist-view {
+    position: relative;
+    /* The content's own bottom padding clears the floating nav, so the pane can
+       take everything above it. */
+    height: calc(100dvh - var(--header-h) - var(--nav-clear) - var(--s-6));
+    min-height: 26rem;
+    /* Cancels the shell's padding: a map with a gutter reads as a widget. */
+    margin-inline: calc(-1 * var(--s-4));
   }
 
-  /* Full-bleed map: the shell's padding is cancelled for this pane only. */
-  .wishlist-view[data-pane='map'] .map-panel {
-    margin-inline: calc(-1 * var(--s-4));
+  .wishlist-view .map-panel {
+    position: absolute;
+    inset: 0;
+    display: block;
+  }
+
+  /* Square and edge to edge here; the framed card treatment is for the desktop
+     column, where the map sits among other things. */
+  .wishlist-view .trip-map {
+    height: 100%;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .wishlist-view .list-panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 400;
+    display: flex;
+    flex-direction: column;
+    height: var(--sheet-height, 60%);
+    padding: 0 var(--s-4) var(--s-3);
+    background: var(--c-chrome);
+    backdrop-filter: blur(22px) saturate(170%);
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    box-shadow: 0 -4px 24px rgb(23 23 31 / 14%);
+    /* Height, not transform: the list inside has to lay out at the real size,
+       and a scaled or translated sheet would leave it measuring the wrong one. */
+    transition: height var(--dur) var(--ease);
+    overflow: hidden;
+  }
+
+  .wishlist-view[data-snap='peek'] .list-panel {
+    --sheet-height: 28%;
+  }
+
+  .wishlist-view[data-snap='half'] .list-panel {
+    --sheet-height: 60%;
+  }
+
+  .wishlist-view[data-snap='full'] .list-panel {
+    --sheet-height: 94%;
+  }
+
+  /* Everything below the grip scrolls; the grip itself never moves. */
+  .wishlist-view .list-panel > :not(.sheet-grip) {
+    flex: 0 0 auto;
+  }
+
+  .wishlist-view .place-list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Room for the floating action button to sit over the end of the list
+       without covering the last card. */
+    padding-bottom: 4.5rem;
+  }
+
+  /*
+   * The handle. Full width and 44px tall so it is a thumb target rather than a
+   * decoration, with only the bar drawn.
+   */
+  .sheet-grip {
+    flex: 0 0 auto;
+    align-self: stretch;
+    justify-content: center;
+    min-height: var(--tap);
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
+    cursor: grab;
+    /* Stops the browser claiming the vertical drag for a scroll before the
+       pointer handlers ever see it. */
+    touch-action: none;
+  }
+
+  .sheet-grip:active {
+    cursor: grabbing;
+  }
+
+  .sheet-grip-bar {
+    width: 2.5rem;
+    height: 0.25rem;
+    background: var(--c-line-strong);
+    border-radius: var(--r-full);
+    transition: background var(--dur) var(--ease);
+  }
+
+  .sheet-grip:hover .sheet-grip-bar,
+  .sheet-grip:focus-visible .sheet-grip-bar {
+    background: var(--c-brand);
+  }
+
+  /* The overview strip is the one thing worth seeing at the smallest stop, so
+     it stays; the filter row would not fit and is not missed. */
+  .wishlist-view[data-snap='peek'] .place-filter {
+    display: none;
   }
 
   /* The day's plan is what somebody opened this tab to see; the pool of
@@ -3720,7 +3798,7 @@ button .spinner {
     padding-bottom: calc(var(--nav-clear) + var(--s-8) + env(safe-area-inset-bottom));
   }
 
-  .wishlist-view[data-pane='map'] .map-panel {
+  .wishlist-view {
     margin-inline: calc(-1 * var(--s-6));
   }
 
@@ -4230,9 +4308,6 @@ button .spinner {
     display: none;
   }
 
-  .pane-switch {
-    display: none;
-  }
 
   /* Wishlist: map and list side by side, both panes always present. */
   .wishlist-view {
@@ -4334,7 +4409,6 @@ button .spinner {
   .topbar,
   .tabbar,
   .fab,
-  .pane-switch,
   .place-actions,
   .map-panel {
     display: none !important;

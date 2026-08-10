@@ -151,6 +151,68 @@ async function seed() {
 const cookie = await seed()
 const [cookieName, cookieValue] = cookie.split('=')
 
+/*
+ * Wait for the map tiles themselves, not for a guess at how long they take.
+ *
+ * Leaflet re-measures only when its box changes, and only then asks for the
+ * tiles covering the real size — so a fixed delay raced the OSM tile server and
+ * reported a half-drawn map as a broken one. Three successive runs said 1, 2
+ * and 7 tiles for the same layout, which is the signature of a race.
+ *
+ * Bounded: if the tiles genuinely never arrive this returns anyway and the
+ * coverage check reports it, which is the case worth catching.
+ */
+async function settleTiles(page) {
+  /*
+   * Wait for the map to exist before waiting for its tiles.
+   *
+   * TripMap is behind React.lazy, so for the first moments of a page there is
+   * no `.leaflet-container` at all — and a tile check that treats "no map yet"
+   * as "nothing to wait for" returns instantly and screenshots a blank pane.
+   * That is exactly what reported a working 390x680 map as having one tile.
+   */
+  await page.waitForSelector('.leaflet-container', { timeout: 10000 }).catch(() => undefined)
+
+  await page
+    .waitForFunction(
+      () => {
+        const map = document.querySelector(".leaflet-container")
+        if (!map) return true
+        const r = map.getBoundingClientRect()
+        if (r.width === 0 || r.height === 0) return true
+        const needed = Math.ceil(r.width / 256) * Math.ceil(r.height / 256)
+        return map.querySelectorAll(".leaflet-tile-loaded").length >= needed * 0.6
+      },
+      { timeout: 15000 },
+    )
+    .catch(() => undefined)
+
+  /*
+   * Once more, after a beat.
+   *
+   * Framing the trip is a second, later move: the map settles its first tiles,
+   * then fitBounds pans and zooms to cover every place and throws them away.
+   * A single wait passes just before that happens and screenshots the gap —
+   * which is why this reported one tile for a map that had nine a moment
+   * earlier and nine a moment later.
+   */
+  await page.waitForTimeout(900)
+  await page
+    .waitForFunction(
+      () => {
+        const map = document.querySelector(".leaflet-container")
+        if (!map) return true
+        const r = map.getBoundingClientRect()
+        if (r.width === 0 || r.height === 0) return true
+        const needed = Math.ceil(r.width / 256) * Math.ceil(r.height / 256)
+        return map.querySelectorAll(".leaflet-tile-loaded").length >= needed * 0.6
+      },
+      { timeout: 15000 },
+    )
+    .catch(() => undefined)
+  await page.waitForTimeout(400)
+}
+
 const browser = await chromium.launch()
 
 for (const vp of VIEWPORTS) {
@@ -188,44 +250,41 @@ for (const vp of VIEWPORTS) {
       await tab.first().click()
       await page.waitForTimeout(900)
     }
-    await shoot(page, vp, key)
+    if (key === 'wishlist') {
+      await settleTiles(page)
+    }
     await audit(page, `${vp.name}/${key}`)
+    await shoot(page, vp, key)
 
     // The map pane and the sheets are reachable only by interaction, so a tab
     // screenshot alone would never show them — and the forms live in sheets,
     // so auditing only the tabs would leave every form unchecked.
     if (key === 'wishlist') {
-      const mapTab = page.getByRole('button', { name: 'Bản đồ', exact: true })
-      if (await mapTab.count()) {
-        await mapTab.first().click()
-        /*
-         * Wait for the tiles themselves, not for a guess at how long they take.
-         *
-         * Leaflet only re-measures once the pane is visible, and only then asks
-         * for the tiles that cover the real size — so a fixed delay raced the
-         * OSM tile server and reported a half-drawn map as a broken one. Three
-         * successive runs said 1, 2 and 7 tiles for the same layout, which is
-         * the signature of a race rather than a defect.
-         *
-         * Still bounded: if the tiles genuinely never arrive this falls through
-         * and the check below reports it, which is the case worth catching.
-         */
-        await page
-          .waitForFunction(
-            () => {
-              const map = document.querySelector('.leaflet-container')
-              if (!map) return false
-              const r = map.getBoundingClientRect()
-              const needed = Math.ceil(r.width / 256) * Math.ceil(r.height / 256)
-              return map.querySelectorAll('.leaflet-tile-loaded').length >= needed * 0.6
-            },
-            { timeout: 15000 },
-          )
-          .catch(() => undefined)
-        await page.waitForTimeout(600)
-        await shoot(page, vp, 'map')
+      /*
+       * Below 1024px the map is always on screen with the list on a sheet over
+       * it, so there is no pane to switch to — the grip moves the sheet instead.
+       * Dropping it to the smallest stop is what "look at the map" now means.
+       */
+      const grip = page.locator('.sheet-grip')
+      if (await grip.count()) {
+        // Tap cycles half -> full -> peek; two taps from the default reaches
+        // the stop where the map is dominant.
+        await grip.first().click()
+        await page.waitForTimeout(300)
+        await grip.first().click()
+        await page.waitForTimeout(300)
+
+        const snap = await page.locator('.wishlist-view').getAttribute('data-snap')
+        if (snap !== 'peek') {
+          problems.push(`[${vp.name}] the sheet grip did not reach the map stop (at "${snap}")`)
+        }
+
+        await settleTiles(page)
         await audit(page, `${vp.name}/map`)
-        await page.getByRole('button', { name: 'Danh sách', exact: true }).first().click()
+        await shoot(page, vp, 'map')
+
+        // Back to the middle stop for the rest of the pass.
+        await grip.first().click()
         await page.waitForTimeout(400)
       }
 
@@ -237,28 +296,32 @@ for (const vp of VIEWPORTS) {
       if (await firstPlace.count()) {
         await firstPlace.click()
         await page.waitForTimeout(600)
-        await shoot(page, vp, 'selected')
         await audit(page, `${vp.name}/selected`)
+        await shoot(page, vp, 'selected')
 
         if ((await page.locator('.place.is-open .place-body').count()) === 0) {
           problems.push(`[${vp.name}] tapping a place did not open it`)
         }
 
-        // On a phone the map is a separate pane, so the open card has to offer
-        // a way to it — selecting alone points a map nobody is looking at.
+        // The map is always on screen now, but it can be behind a sheet at the
+        // tallest stop — so the open card still has to offer a way to reveal it.
         if (vp.name === 'mobile') {
-          const toMap = page.getByRole('button', { name: /bản đồ/i })
+          const toMap = page.locator('.place.is-open').getByRole('button', { name: /bản đồ/i })
           if ((await toMap.count()) === 0) {
             problems.push(`[${vp.name}] an open card offers no way to the map`)
           } else {
             await toMap.first().click()
-            await page.waitForTimeout(1500)
-            if ((await page.locator('.leaflet-container').count()) === 0) {
-              problems.push(`[${vp.name}] the map did not appear from the open card`)
+            await page.waitForTimeout(800)
+
+            const snap = await page.locator('.wishlist-view').getAttribute('data-snap')
+            if (snap !== 'peek') {
+              problems.push(
+                `[${vp.name}] "Bản đồ" on an open card did not drop the sheet (at "${snap}")`,
+              )
             }
-            const back = page.getByRole('button', { name: 'Danh sách', exact: true })
-            if (await back.count()) await back.first().click()
-            await page.waitForTimeout(400)
+            if ((await page.locator('.leaflet-container').count()) === 0) {
+              problems.push(`[${vp.name}] the map is not on screen`)
+            }
           }
         }
 
@@ -283,13 +346,13 @@ for (const vp of VIEWPORTS) {
     if (listed < 3) {
       problems.push(`[${vp.name}] the switcher menu lists ${listed} trips, expected 3`)
     }
-    await shoot(page, vp, 'trip-menu')
     await audit(page, `${vp.name}/trip-menu`)
+    await shoot(page, vp, 'trip-menu')
 
     await page.getByRole('menuitem', { name: /xem tất cả chuyến đi/i }).click()
     await page.waitForTimeout(900)
-    await shoot(page, vp, 'trips')
     await audit(page, `${vp.name}/trips`)
+    await shoot(page, vp, 'trips')
     const upcoming = await page.locator('.trip-card').count()
     if (upcoming < 3) {
       problems.push(`[${vp.name}] trips screen shows ${upcoming} trips, expected 3`)

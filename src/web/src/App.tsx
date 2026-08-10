@@ -52,6 +52,8 @@ import type { PlaceFilterState } from './places/placeFilter'
 import { TripSheet } from './components/TripSheet'
 import { TripList } from './components/TripList'
 import { Spinner } from './components/Spinner'
+import { SheetGrip } from './components/SheetGrip'
+import type { SnapPoint } from './places/snapPoint'
 import { useNarrowScreen } from './hooks/useNarrowScreen'
 import { mostRelevantTrip } from './trips/defaultTrip'
 import { TripTitle } from './components/TripTitle'
@@ -395,9 +397,14 @@ function TripWorkspace({
   const [draftLocation, setDraftLocation] = useState<LatLng | null>(null)
   const [view, setView] = useState<View>('wishlist')
   const [selectedDate, setSelectedDate] = useState<IsoDate | null>(null)
-  // Below 1024px the map and the list share the screen one at a time; above it
-  // they sit side by side and this is ignored.
-  const [pane, setPane] = useState<'list' | 'map'>('list')
+  /*
+   * How much of the pane the list sheet covers, below 1024px.
+   *
+   * Starts at "half": the map alone says nothing about what is on the list,
+   * and the list alone is what the old default was — the middle stop is the
+   * only one that shows the screen is two things at once.
+   */
+  const [snap, setSnap] = useState<SnapPoint>('half')
   const [filter, setFilter] = useState<PlaceFilterState>(EMPTY_FILTER)
   const narrow = useNarrowScreen()
   const [sheet, setSheet] = useState<
@@ -744,16 +751,19 @@ function TripWorkspace({
 
         {view === 'wishlist' && (
           <>
-            <div className="pane-switch" role="group" aria-label="Cách xem wishlist">
-              <button type="button" aria-pressed={pane === 'list'} onClick={() => setPane('list')}>
-                Danh sách
-              </button>
-              <button type="button" aria-pressed={pane === 'map'} onClick={() => setPane('map')}>
-                Bản đồ
-              </button>
-            </div>
+            {/*
+              One screen, not two.
 
-            <div className="wishlist-view" data-pane={pane}>
+              This was a segmented control switching between the list and the
+              map. They are not alternatives: "what is on my list" and "where is
+              it" are halves of one question, and a toggle meant that tapping a
+              place to see it cost you your scroll position, twice, every time.
+
+              Below 1024px the map now fills the pane and the list rides over it
+              on a sheet you drag between three stops. Above it, both already
+              sat side by side and nothing here applies.
+            */}
+            <div className="wishlist-view" data-snap={snap}>
               <section className="map-panel">
                 <Suspense fallback={<Spinner block label="Đang tải bản đồ…" />}>
                   <TripMap
@@ -771,6 +781,10 @@ function TripWorkspace({
               </section>
 
               <section className="list-panel">
+                {/* Only drawn below 1024px, where the list is a sheet over the
+                    map rather than a column beside it. */}
+                <SheetGrip snap={snap} onSnap={setSnap} />
+
                 {/*
                   The floating button is hidden from 1024px up, where a thumb
                   is not what is reaching for it — so the wide layout needs its
@@ -828,7 +842,7 @@ function TripWorkspace({
                   }
                   tripUnderway={currentTrip.status !== 'Planning'}
                   onSelect={handleSelectPlace}
-                  onShowOnMap={() => setPane("map")}
+                  onShowOnMap={() => setSnap('peek')}
                   onDelete={handleDelete}
                   onToggleLike={(placeId, liked) => toggleLike.mutate({ placeId, liked })}
                   onChangeStatus={handleChangeStatus}

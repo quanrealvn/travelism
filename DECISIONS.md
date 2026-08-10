@@ -998,3 +998,38 @@ sentence is what the checkboxes are trying to write, and it is what turns them
 from a setting into an answer. The remainder is called out rather than hidden,
 since shares that do not visibly total the amount look like a bug. The server
 stays the authority on who gets the odd đồng.
+
+### D85 — The wishlist is one screen, not two
+
+Below 1024px this was a map pane and a list pane with a segmented control
+between them. They are not alternatives: "what is on my list" and "where is it"
+are halves of one question, and a toggle meant that tapping a place to see it
+cost your scroll position on the way out and again on the way back — every time.
+Floating buttons instead of a segmented control would have made that prettier
+without making it work.
+
+The map now fills the pane and the list rides over it on a sheet with three
+stops. Choosing a place drops the sheet to the smallest one, so the pin it flew
+to is visible without a mode change. It is what Google Maps, Airbnb, Citymapper
+and Wanderlog all converged on, for this reason.
+
+Only the grip drags, never the sheet body. Dragging the body has to guess, from
+scroll position and gesture direction, whether a downward swipe means "scroll
+up" or "close" — and it guesses wrong often enough to feel broken. The grip is
+also a button: dragging has no keyboard equivalent, so tapping cycles the same
+three stops and the control is complete without a pointer.
+
+### D86 — The audit measures before it screenshots
+
+`shoot` captures full-page on mobile, and a full-page capture resizes the
+viewport to the document height. That resizes the map, Leaflet drops and
+refetches every tile, and the check that ran immediately afterwards measured the
+recovery rather than the page — reporting one tile for a map that had twelve a
+moment before and twelve a moment after. It was mobile-only for exactly the
+reason it looked mysterious: mobile is the only viewport shot full-page.
+
+Two smaller traps in the same check, both found the same way. It returned "fine"
+when no `.leaflet-container` existed, which is true of every page for the first
+moments because the map is behind `React.lazy`. And a single settle races the
+framing move: the map loads tiles, then `fitBounds` pans to cover the trip and
+throws them away, so it waits twice.
